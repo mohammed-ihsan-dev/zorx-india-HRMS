@@ -67,23 +67,56 @@ async function run() {
 
   console.log('[seed] creating users...');
   const { employee: superAdminEmp } = await createUserWithEmployee({
-    email: 'superadmin@zorxindia.dev',
+    email: 'ihsan@spadmin.com',
     role: ROLES.SUPER_ADMIN,
-    firstName: 'Zorx',
+    firstName: 'Ihsan',
     lastName: 'SuperAdmin',
     designation: 'Super Administrator',
     departmentId: operations._id,
     employeeCode: 'ZX0001',
   });
 
+  // Also create legacy alias
+  await createUserWithEmployee({
+    email: 'superadmin@zorxindia.dev',
+    role: ROLES.SUPER_ADMIN,
+    firstName: 'Zorx',
+    lastName: 'SuperAdmin',
+    designation: 'Super Administrator',
+    departmentId: operations._id,
+    employeeCode: 'ZX0000',
+  });
+
   const { employee: adminEmp } = await createUserWithEmployee({
+    email: 'ihsan@admin.com',
+    role: ROLES.ADMIN,
+    firstName: 'Ihsan',
+    lastName: 'Admin',
+    designation: 'Admin & HR Manager',
+    departmentId: hrDept._id,
+    employeeCode: 'ZX0002',
+  });
+
+  // Also create legacy alias
+  await createUserWithEmployee({
     email: 'admin@zorxindia.dev',
     role: ROLES.ADMIN,
     firstName: 'Arjun',
     lastName: 'Nair',
     designation: 'Admin & HR Manager',
     departmentId: hrDept._id,
-    employeeCode: 'ZX0002',
+    employeeCode: 'ZX0000B',
+  });
+
+  const { employee: userEmp } = await createUserWithEmployee({
+    email: 'ihsan@user.com',
+    role: ROLES.EMPLOYEE,
+    firstName: 'Ihsan',
+    lastName: 'User',
+    designation: 'Software Engineer',
+    departmentId: dev._id,
+    managerId: adminEmp._id,
+    employeeCode: 'ZX0003',
   });
 
   const employeeNames = [
@@ -94,7 +127,7 @@ async function run() {
     { firstName: 'Priya', lastName: 'Thomas', designation: 'Accountant', departmentId: finance._id },
   ];
 
-  const employees = [];
+  const employees = [userEmp];
   for (let i = 0; i < employeeNames.length; i += 1) {
     const info = employeeNames[i];
     const { employee } = await createUserWithEmployee({
@@ -105,7 +138,7 @@ async function run() {
       designation: info.designation,
       departmentId: info.departmentId,
       managerId: null,
-      employeeCode: `ZX${String(3 + i).padStart(4, '0')}`,
+      employeeCode: `ZX${String(4 + i).padStart(4, '0')}`,
     });
     employees.push(employee);
   }
@@ -219,9 +252,9 @@ async function run() {
 
   console.log('\n[seed] Done! Development login credentials (password is the same for all):');
   console.log(`    Password: ${DEV_PASSWORD}\n`);
-  console.log('    superadmin@zorxindia.dev  (SUPER_ADMIN) -> SuperAdmin Module');
-  console.log('    admin@zorxindia.dev       (ADMIN)       -> Admin / HR Module');
-  employees.forEach((_, i) => console.log(`    employee${i + 1}@zorxindia.dev     (EMPLOYEE)    -> User / Employee Module`));
+  console.log('    ihsan@spadmin.com (SUPER_ADMIN) -> SuperAdmin Module');
+  console.log('    ihsan@admin.com   (ADMIN)       -> Admin / HR Module');
+  console.log('    ihsan@user.com    (EMPLOYEE)    -> User / Employee Module\n');
 
   await disconnectDB();
   process.exit(0);
