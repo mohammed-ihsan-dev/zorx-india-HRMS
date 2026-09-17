@@ -123,12 +123,12 @@ export function Login() {
           {/* Quick Demo Credentials */}
           <div className="mt-6 pt-6 border-t border-slate-100">
             <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2 text-center">
-              Quick Demo Logins (Password: <span className="font-mono text-slate-600 font-bold">Zorx@Dev123</span>)
+              Quick Demo Logins (Password: <span className="font-mono text-slate-600 font-bold">Password</span>)
             </p>
             <div className="grid grid-cols-3 gap-2">
               <button
                 type="button"
-                onClick={() => setForm({ email: 'ihsan@user.com', password: 'Zorx@Dev123' })}
+                onClick={() => setForm({ email: 'ihsan@user.com', password: 'Password' })}
                 className="px-2 py-2 rounded-xl bg-slate-100 hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-200 border border-slate-200 text-xs font-semibold text-slate-700 transition-all text-center"
               >
                 User
@@ -136,7 +136,7 @@ export function Login() {
               </button>
               <button
                 type="button"
-                onClick={() => setForm({ email: 'ihsan@admin.com', password: 'Zorx@Dev123' })}
+                onClick={() => setForm({ email: 'ihsan@admin.com', password: 'Password' })}
                 className="px-2 py-2 rounded-xl bg-slate-100 hover:bg-blue-50 hover:text-blue-700 hover:border-blue-200 border border-slate-200 text-xs font-semibold text-slate-700 transition-all text-center"
               >
                 Admin
@@ -144,7 +144,7 @@ export function Login() {
               </button>
               <button
                 type="button"
-                onClick={() => setForm({ email: 'ihsan@spadmin.com', password: 'Zorx@Dev123' })}
+                onClick={() => setForm({ email: 'ihsan@spadmin.com', password: 'Password' })}
                 className="px-2 py-2 rounded-xl bg-slate-100 hover:bg-purple-50 hover:text-purple-700 hover:border-purple-200 border border-slate-200 text-xs font-semibold text-slate-700 transition-all text-center"
               >
                 Super Admin
