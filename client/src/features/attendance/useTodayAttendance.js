@@ -3,7 +3,7 @@ import { useGeolocation, LOCATION_STATUS } from '../../hooks/useGeolocation.js';
 import { useToast } from '../../hooks/useToast.js';
 import * as attendanceService from '../../services/attendanceService.js';
 import { getErrorMessage } from '../../services/apiClient.js';
-import { parseTimeToMinutes } from '../../utils/formatters.js';
+import { parseTimeToMinutes, formatCountdownSeconds } from '../../utils/formatters.js';
 
 export const ATTENDANCE_UI_STATE = {
   NOT_CHECKED_IN: 'NOT_CHECKED_IN',
@@ -65,12 +65,13 @@ export function useTodayAttendance() {
     ? ATTENDANCE_UI_STATE.ON_BREAK
     : ATTENDANCE_UI_STATE.WORKING;
 
-  // Live tick while working — recalculates worked minutes every 30s without a refetch.
+  // Live tick while working — ticks every 1s when on break for real-time countdown, or 10s while working
   useEffect(() => {
     if (!isWorking) return undefined;
-    const id = setInterval(() => setTick(Date.now()), 30000);
+    const intervalMs = activeBreak ? 1000 : 10000;
+    const id = setInterval(() => setTick(Date.now()), intervalMs);
     return () => clearInterval(id);
-  }, [isWorking]);
+  }, [isWorking, activeBreak]);
 
   const workedMinutes = useMemo(() => {
     if (hasCheckedOut) return record.totalWorkingMinutes;
@@ -92,16 +93,20 @@ export function useTodayAttendance() {
   const progressPercent = requiredMinutes ? Math.min(100, (workedMinutes / requiredMinutes) * 100) : 0;
 
   const maxBreakMinutes = officeSettings?.breakDurationMinutes || 60;
+  const maxBreakSeconds = maxBreakMinutes * 60;
 
-  const breakMinutesUsed = useMemo(() => {
-    let base = record?.breakMinutes || 0;
-    if (activeBreak?.startTime) {
-      const activeMs = tick - new Date(activeBreak.startTime).getTime();
-      base += Math.max(0, activeMs / 60000);
-    }
-    return Math.round(base);
-  }, [record, activeBreak, tick]);
+  const activeBreakSeconds = useMemo(() => {
+    if (!activeBreak?.startTime) return 0;
+    const elapsedMs = tick - new Date(activeBreak.startTime).getTime();
+    return Math.max(0, elapsedMs / 1000);
+  }, [activeBreak, tick]);
 
+  const pastBreakSeconds = (record?.breakMinutes || 0) * 60;
+  const totalBreakSecondsUsed = pastBreakSeconds + activeBreakSeconds;
+  const breakRemainingSeconds = Math.max(0, maxBreakSeconds - totalBreakSecondsUsed);
+  const breakCountdownStr = formatCountdownSeconds(breakRemainingSeconds);
+
+  const breakMinutesUsed = Math.round(totalBreakSecondsUsed / 60);
   const breakRemainingMinutes = Math.max(0, maxBreakMinutes - breakMinutesUsed);
 
   // Persistent, real location status derived from the last stored punch — not a fake/ephemeral value.
@@ -188,6 +193,8 @@ export function useTodayAttendance() {
     maxBreakMinutes,
     breakMinutesUsed,
     breakRemainingMinutes,
+    breakRemainingSeconds,
+    breakCountdownStr,
     locationStatus,
     lastVerification,
     geolocation,

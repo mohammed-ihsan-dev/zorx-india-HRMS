@@ -44,3 +44,21 @@ export function titleCase(value = '') {
     .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
     .join(' ');
 }
+
+export function formatCountdownSeconds(totalSeconds) {
+  if (totalSeconds === undefined || totalSeconds === null || isNaN(totalSeconds)) return '00:00';
+  const absSec = Math.max(0, Math.floor(totalSeconds));
+  const hrs = Math.floor(absSec / 3600);
+  const mins = Math.floor((absSec % 3600) / 60);
+  const secs = absSec % 60;
+
+  const mm = String(mins).padStart(2, '0');
+  const ss = String(secs).padStart(2, '0');
+
+  if (hrs > 0) {
+    const hh = String(hrs).padStart(2, '0');
+    return `${hh}:${mm}:${ss}`;
+  }
+  return `${mm}:${ss}`;
+}
+

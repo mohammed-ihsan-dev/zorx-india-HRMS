@@ -17,6 +17,7 @@ export function AttendanceWidget({ data }) {
     breakSubmitting,
     startBreak,
     endBreak,
+    breakCountdownStr,
   } = data;
 
   if (loading) {
@@ -172,15 +173,18 @@ export function AttendanceWidget({ data }) {
             type="button"
             disabled={breakSubmitting}
             onClick={endBreak}
-            className="w-32 h-32 sm:w-36 sm:h-36 rounded-full bg-gradient-to-br from-emerald-600 to-emerald-700 text-white font-extrabold shadow-xl shadow-emerald-600/30 hover:scale-105 active:scale-95 transition-all duration-200 flex flex-col items-center justify-center gap-1.5 cursor-pointer ring-4 ring-emerald-100 hover:ring-emerald-200 disabled:opacity-50 disabled:pointer-events-none"
+            className="w-32 h-32 sm:w-36 sm:h-36 rounded-full bg-gradient-to-br from-emerald-600 to-emerald-700 text-white font-extrabold shadow-xl shadow-emerald-600/30 hover:scale-105 active:scale-95 transition-all duration-200 flex flex-col items-center justify-center gap-1 cursor-pointer ring-4 ring-emerald-100 hover:ring-emerald-200 disabled:opacity-50 disabled:pointer-events-none"
           >
             {breakSubmitting ? (
               <LoaderCircle size={32} className="animate-spin" />
             ) : (
               <>
-                <Play size={28} fill="currentColor" />
-                <span className="text-sm sm:text-base font-black tracking-wider uppercase text-center leading-tight">
-                  End<br />Break
+                <Play size={22} fill="currentColor" />
+                <span className="text-xs font-black tracking-wider uppercase text-center leading-tight">
+                  End Break
+                </span>
+                <span className="text-lg sm:text-xl font-black tabular-nums tracking-tight text-emerald-100 mt-0.5">
+                  {breakCountdownStr || '60:00'}
                 </span>
               </>
             )}
