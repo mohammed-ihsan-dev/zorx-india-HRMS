@@ -1,0 +1,103 @@
+import { useEffect, useState } from 'react';
+import { Card } from '../../components/Card.jsx';
+import { ConfirmDialog } from '../../components/ConfirmDialog.jsx';
+import { Loader } from '../../components/Loader.jsx';
+import { LeaveCalendar } from '../../features/leave/LeaveCalendar.jsx';
+import { LeaveRequestModal } from '../../features/leave/LeaveRequestModal.jsx';
+import { LeaveDetailModal } from '../../features/leave/LeaveDetailModal.jsx';
+import * as leaveService from '../../services/leaveService.js';
+import { titleCase } from '../../utils/formatters.js';
+import { useToast } from '../../hooks/useToast.js';
+import { getErrorMessage } from '../../services/apiClient.js';
+
+export function Leave() {
+  const toast = useToast();
+  const [leaves, setLeaves] = useState([]);
+  const [balance, setBalance] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [requestDate, setRequestDate] = useState(null);
+  const [detailLeave, setDetailLeave] = useState(null);
+  const [cancelTarget, setCancelTarget] = useState(null);
+  const [cancelling, setCancelling] = useState(false);
+
+  const load = () => {
+    setLoading(true);
+    leaveService
+      .getMyLeaves()
+      .then((data) => {
+        setLeaves(data.leaves);
+        setBalance(data.balance);
+      })
+      .catch((err) => toast.error(getErrorMessage(err)))
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(load, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleDayClick = (dateValue, existingLeave) => {
+    if (existingLeave) setDetailLeave(existingLeave);
+    else setRequestDate(dateValue);
+  };
+
+  const handleCancel = async () => {
+    setCancelling(true);
+    try {
+      await leaveService.cancelLeave(cancelTarget._id);
+      toast.success('Leave request cancelled.');
+      setCancelTarget(null);
+      setDetailLeave(null);
+      load();
+    } catch (err) {
+      toast.error(getErrorMessage(err));
+    } finally {
+      setCancelling(false);
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">Leave Requests</h2>
+        <p className="text-base text-slate-500 mt-1">Manage your leave requests and upcoming time off.</p>
+      </div>
+
+      {balance && (
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+          {Object.keys(balance.balances).map((type) => (
+            <div key={type} className="bg-white rounded-xl border border-slate-200 p-4">
+              <p className="text-sm text-slate-500 font-medium">{titleCase(type)} Leave</p>
+              <p className="text-lg font-bold text-slate-900 mt-1">
+                {balance.balances[type] - balance.used[type]}{' '}
+                <span className="text-sm font-normal text-slate-400">/ {balance.balances[type]} days left</span>
+              </p>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <Card>
+        {loading ? <Loader label="Loading leave calendar…" /> : <LeaveCalendar leaves={leaves} onDayClick={handleDayClick} />}
+      </Card>
+
+      <LeaveRequestModal open={Boolean(requestDate)} onClose={() => setRequestDate(null)} initialDate={requestDate} onSubmitted={load} />
+
+      <LeaveDetailModal
+        open={Boolean(detailLeave)}
+        onClose={() => setDetailLeave(null)}
+        leave={detailLeave}
+        onRequestCancel={(leave) => setCancelTarget(leave)}
+      />
+
+      <ConfirmDialog
+        open={Boolean(cancelTarget)}
+        onClose={() => setCancelTarget(null)}
+        onConfirm={handleCancel}
+        loading={cancelling}
+        title="Cancel leave request?"
+        description="This will cancel your leave request. If it was already approved, the leave balance will be restored."
+        confirmLabel="Cancel Leave"
+        variant="danger"
+      />
+    </div>
+  );
+}
