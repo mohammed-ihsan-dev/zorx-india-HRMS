@@ -28,7 +28,7 @@ export const env = {
   port: Number(process.env.PORT) || 5000,
 
   mongoUri: required('MONGODB_URI'),
-  mongoDb: process.env.MONGODB_DB || 'zorx-ms',
+  mongoDb: process.env.MONGODB_DB || 'zorx_ms',
 
   jwtSecret: required('JWT_SECRET'),
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || '8h',
