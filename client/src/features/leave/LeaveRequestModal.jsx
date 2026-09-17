@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { UploadCloud, X, FileText } from 'lucide-react';
+import { UploadCloud, X, FileText, AlertTriangle, Info } from 'lucide-react';
 import { Modal } from '../../components/Modal.jsx';
 import { Button } from '../../components/Button.jsx';
 import { Input, Select, Textarea } from '../../components/Input.jsx';
@@ -112,15 +112,17 @@ export function LeaveRequestModal({ open, onClose, initialDate, onSubmitted }) {
         </Select>
 
         {form.leaveType === 'CASUAL' && (
-          <p className="text-xs font-semibold text-amber-900 bg-amber-50 border border-amber-200 rounded-lg p-2.5">
-            ⚠️ Company policy allows 0 casual leaves. You may submit casual leave at your own risk.
-          </p>
+          <div className="flex items-center gap-2 text-xs font-semibold text-amber-900 bg-amber-50 border border-amber-200 rounded-lg p-2.5">
+            <AlertTriangle size={16} className="text-amber-600 shrink-0" />
+            <span>Company policy allows 0 casual leaves. You may submit casual leave at your own risk.</span>
+          </div>
         )}
 
         {form.leaveType === 'EARNED' && (
-          <p className="text-xs font-semibold text-brand-900 bg-brand-50 border border-brand-200 rounded-lg p-2.5">
-            ℹ️ Maximum 1 Earned (Paid) Leave is allowed per calendar month.
-          </p>
+          <div className="flex items-center gap-2 text-xs font-semibold text-brand-900 bg-brand-50 border border-brand-200 rounded-lg p-2.5">
+            <Info size={16} className="text-brand-600 shrink-0" />
+            <span>Maximum 1 Earned (Paid) Leave is allowed per calendar month.</span>
+          </div>
         )}
 
         <div className="grid grid-cols-2 gap-3">
