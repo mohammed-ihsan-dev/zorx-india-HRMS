@@ -47,8 +47,21 @@ export function Dashboard() {
 
   return (
     <div className="space-y-8 pb-8">
-      {/* Top Greeting Header & Live Clock Banner (Desktop & Tablet view only) */}
-      <div className="hidden sm:flex sm:flex-row sm:items-center sm:justify-between gap-6 bg-white p-6 sm:p-8 rounded-3xl border border-slate-200/90 shadow-sm">
+      {/* 1. Punch Station & Working Hours at the very top */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* Attendance Punch Widget - Top Position */}
+        <div className="lg:col-span-2">
+          <AttendanceWidget data={attendance} />
+        </div>
+
+        {/* Working Hours Tracker */}
+        <div className="lg:col-span-1">
+          <WorkingHoursCard data={attendance} />
+        </div>
+      </div>
+
+      {/* 2. Greeting Header & Live Clock Banner (Placed under Punch Station) */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6 bg-white p-6 sm:p-8 rounded-3xl border border-slate-200/90 shadow-sm">
         <div>
           <span className="text-xs sm:text-sm font-extrabold uppercase tracking-widest text-brand-700 bg-brand-50 px-3 py-1 rounded-md border border-brand-200/60">
             Employee Portal
@@ -71,25 +84,15 @@ export function Dashboard() {
         </div>
       </div>
 
-      {/* Main Grid Hierarchy */}
+      {/* 3. Tasks, Announcements & Progress */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Attendance Punch Widget - Dominant Position */}
-        <div className="order-1 lg:order-1 lg:col-span-2">
-          <AttendanceWidget data={attendance} />
-        </div>
-
-        {/* Working Hours Tracker */}
-        <div className="order-2 lg:order-2 lg:col-span-1">
-          <WorkingHoursCard data={attendance} />
-        </div>
-
         {/* My Tasks Summary */}
-        <div className="order-3 lg:order-3 lg:col-span-1">
+        <div className="lg:col-span-1">
           <TasksSummaryCard tasks={tasks} loading={tasksLoading} />
         </div>
 
         {/* Announcements Card */}
-        <div className="order-4 lg:order-4 lg:col-span-2">
+        <div className="lg:col-span-2">
           <Card className="h-full flex flex-col">
             <CardHeader
               title="Company Announcements"
@@ -121,7 +124,7 @@ export function Dashboard() {
         </div>
 
         {/* Task Progress Chart */}
-        <div className="order-5 lg:order-5 lg:col-span-3">
+        <div className="lg:col-span-3">
           <TaskProgressChart tasks={tasks} loading={tasksLoading} />
         </div>
       </div>
