@@ -46,6 +46,14 @@ export const requireAuth = asyncHandler(async (req, res, next) => {
     throw ApiError.forbidden('Your account is not active. Please contact HR/Admin.');
   }
 
+  if (user.mustChangePassword) {
+    const path = req.originalUrl || req.path || '';
+    const isAllowed = path.includes('/change-password') || path.includes('/me') || path.includes('/logout');
+    if (!isAllowed) {
+      throw ApiError.forbidden('First login password change required. Please update your password to proceed.');
+    }
+  }
+
   req.user = user;
   next();
 });

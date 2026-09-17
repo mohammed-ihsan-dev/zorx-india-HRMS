@@ -32,6 +32,10 @@ const userSchema = new mongoose.Schema(
       ref: 'Employee',
       default: null,
     },
+    mustChangePassword: {
+      type: Boolean,
+      default: false,
+    },
     lastLogin: {
       type: Date,
       default: null,

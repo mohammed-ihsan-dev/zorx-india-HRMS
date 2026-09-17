@@ -9,5 +9,13 @@ export function ProtectedRoute() {
   if (loading) return <Loader fullScreen label="Loading ZORX INDIA…" />;
   if (!user) return <Navigate to="/login" state={{ from: location }} replace />;
 
+  if (user.mustChangePassword && location.pathname !== '/change-password') {
+    return <Navigate to="/change-password" replace />;
+  }
+
+  if (!user.mustChangePassword && location.pathname === '/change-password') {
+    return <Navigate to="/" replace />;
+  }
+
   return <Outlet />;
 }

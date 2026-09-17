@@ -5,6 +5,7 @@ import { EmployeeLayout } from './layouts/EmployeeLayout.jsx';
 import { AdminLayout } from './layouts/AdminLayout.jsx';
 import { Login } from './pages/auth/Login.jsx';
 import { Signup } from './pages/auth/Signup.jsx';
+import { FirstLoginPasswordChange } from './pages/auth/FirstLoginPasswordChange.jsx';
 import { NotAuthorized } from './pages/NotAuthorized.jsx';
 import { NotFound } from './pages/NotFound.jsx';
 
@@ -40,6 +41,7 @@ export default function App() {
       <Route path="/not-authorized" element={<NotAuthorized />} />
 
       <Route element={<ProtectedRoute />}>
+        <Route path="/change-password" element={<FirstLoginPasswordChange />} />
         <Route element={<EmployeeLayout />}>
           <Route path="/" element={<EmployeeDashboard />} />
           <Route path="/profile" element={<Profile />} />
