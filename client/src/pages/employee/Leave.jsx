@@ -35,8 +35,25 @@ export function Leave() {
   useEffect(load, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleDayClick = (dateValue, existingLeave) => {
-    if (existingLeave) setDetailLeave(existingLeave);
-    else setRequestDate(dateValue);
+    if (existingLeave) {
+      setDetailLeave(existingLeave);
+      return;
+    }
+
+    const todayYMD = (() => {
+      const d = new Date();
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    })();
+
+    if (dateValue < todayYMD) {
+      toast.error('Cannot request leave for past dates.');
+      return; // Block opening modal for past dates
+    }
+
+    setRequestDate(dateValue);
   };
 
   const handleCancel = async () => {

@@ -32,13 +32,17 @@ export function LeaveRequestModal({ open, onClose, initialDate, onSubmitted }) {
 
   useEffect(() => {
     if (open) {
+      if (initialDate && initialDate < todayYMD) {
+        onClose();
+        return;
+      }
       const defaultDate = initialDate && initialDate >= todayYMD ? initialDate : todayYMD;
       setForm({ leaveType: 'CASUAL', startDate: defaultDate, endDate: defaultDate, reason: '' });
       setFile(null);
       setFileError('');
       setError('');
     }
-  }, [open, initialDate, todayYMD]);
+  }, [open, initialDate, todayYMD, onClose]);
 
   const days = countDaysInclusive(form.startDate, form.endDate);
 

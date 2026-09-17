@@ -147,6 +147,7 @@ export function LeaveCalendar({ leaves, onDayClick }) {
 
                   const num = dayNumber(cell.year, cell.month, cell.day);
                   const isToday = num === todayNum;
+                  const isPast = num < todayNum;
                   const leave = leaveByDay.get(num);
                   const statusColor = leave ? STATUS_COLORS[leave.status] || 'slate' : null;
 
@@ -159,6 +160,8 @@ export function LeaveCalendar({ leaves, onDayClick }) {
                           ? STATUS_CELL_STYLES[statusColor]
                           : isToday
                           ? 'bg-brand-50 border-brand-300 hover:bg-brand-100'
+                          : isPast
+                          ? 'bg-slate-50/70 border-slate-100 text-slate-400 opacity-60 cursor-not-allowed'
                           : 'bg-white border-slate-100 hover:bg-slate-50 hover:border-slate-200'
                       }`}
                     >
