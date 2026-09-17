@@ -182,13 +182,13 @@ export function Employees() {
                           {emp.firstName} {emp.lastName}
                         </h4>
                       </Link>
-                      <p className="text-xs font-mono font-bold text-slate-400 mt-0.5">{emp.employeeCode}</p>
+                      <p className="text-sm font-semibold text-brand-800 mt-0.5">{emp.designation || '—'}</p>
                     </div>
 
                     <div className="space-y-2 pt-2 border-t border-slate-100 text-sm">
                       <div className="flex items-center justify-between gap-2">
-                        <span className="text-slate-400 font-medium">Designation:</span>
-                        <span className="font-semibold text-slate-800 truncate text-right">{emp.designation || '—'}</span>
+                        <span className="text-slate-400 font-medium">Employee ID:</span>
+                        <span className="font-mono font-bold text-slate-800 truncate text-right">{emp.employeeCode}</span>
                       </div>
                       <div className="flex items-center justify-between gap-2">
                         <span className="text-slate-400 font-medium">Department:</span>
