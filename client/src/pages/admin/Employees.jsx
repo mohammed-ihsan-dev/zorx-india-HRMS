@@ -12,7 +12,7 @@ import { CardSkeleton } from '../../components/Skeleton.jsx';
 import { CreateEmployeeModal } from '../../features/employees/CreateEmployeeModal.jsx';
 import * as employeeService from '../../services/employeeService.js';
 import * as departmentService from '../../services/departmentService.js';
-import { formatDate, initials } from '../../utils/formatters.js';
+import { formatDate, initials, isNotProvided } from '../../utils/formatters.js';
 import { useToast } from '../../hooks/useToast.js';
 import { getErrorMessage } from '../../services/apiClient.js';
 
@@ -182,17 +182,41 @@ export function Employees() {
                           {emp.firstName} {emp.lastName}
                         </h4>
                       </Link>
-                      <p className="text-sm font-semibold text-brand-800 mt-0.5">{emp.designation || '—'}</p>
+                      <p className="text-sm font-semibold text-brand-800 mt-0.5">
+                        {isNotProvided(emp.designation) ? (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-semibold bg-slate-100 text-slate-500 border border-slate-200/80">
+                            Not Provided
+                          </span>
+                        ) : (
+                          emp.designation
+                        )}
+                      </p>
                     </div>
 
                     <div className="space-y-2 pt-2 border-t border-slate-100 text-sm">
                       <div className="flex items-center justify-between gap-2">
                         <span className="text-slate-400 font-medium">Employee ID:</span>
-                        <span className="font-mono font-bold text-slate-800 truncate text-right">{emp.employeeCode}</span>
+                        <span className="font-mono font-bold text-slate-800 truncate text-right">
+                          {isNotProvided(emp.employeeCode) ? (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-semibold bg-slate-100 text-slate-500 border border-slate-200/80">
+                              Not Provided
+                            </span>
+                          ) : (
+                            emp.employeeCode
+                          )}
+                        </span>
                       </div>
                       <div className="flex items-center justify-between gap-2">
                         <span className="text-slate-400 font-medium">Department:</span>
-                        <span className="font-semibold text-slate-800 truncate text-right">{emp.departmentId?.name || '—'}</span>
+                        <span className="font-semibold text-slate-800 truncate text-right">
+                          {isNotProvided(emp.departmentId?.name) ? (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-semibold bg-slate-100 text-slate-500 border border-slate-200/80">
+                              Not Provided
+                            </span>
+                          ) : (
+                            emp.departmentId?.name
+                          )}
+                        </span>
                       </div>
                       <div className="flex items-center justify-between gap-2">
                         <span className="text-slate-400 font-medium">Joined:</span>

@@ -62,3 +62,23 @@ export function formatCountdownSeconds(totalSeconds) {
   return `${mm}:${ss}`;
 }
 
+export function isNotProvided(val) {
+  if (val === undefined || val === null) return true;
+  const str = String(val).trim().toLowerCase();
+  return (
+    str === '' ||
+    str === 'no' ||
+    str === 'nil' ||
+    str === 'nill' ||
+    str === 'none' ||
+    str === 'na' ||
+    str === 'n/a' ||
+    str === '—' ||
+    str === '-' ||
+    str === 'unassigned' ||
+    str === 'null' ||
+    str === 'undefined'
+  );
+}
+
+
