@@ -5,7 +5,7 @@ import { formatMinutes } from '../../utils/formatters.js';
 import { ATTENDANCE_UI_STATE } from './useTodayAttendance.js';
 
 export function WorkingHoursCard({ data }) {
-  const { loading, uiState, workedMinutes, requiredMinutes, remainingMinutes, overtimeMinutes, progressPercent } = data;
+  const { loading, uiState, workedMinutes, requiredMinutes, remainingMinutes, overtimeMinutes, progressPercent, breakRemainingMinutes, maxBreakMinutes } = data;
 
   if (loading) {
     return <Card className="h-full min-h-[320px] animate-pulse" />;
@@ -39,8 +39,9 @@ export function WorkingHoursCard({ data }) {
 
         <div className="grid grid-cols-2 gap-4 w-full mt-6">
           <div className="text-center">
-            <p className="text-xs font-bold uppercase tracking-wide text-slate-400">{completed ? 'Total Worked' : 'Worked'}</p>
-            <p className="text-lg font-extrabold text-slate-900 mt-1">{notStarted ? '—' : formatMinutes(workedMinutes)}</p>
+            <p className="text-xs font-bold uppercase tracking-wide text-slate-400">Break Remaining</p>
+            <p className="text-lg font-extrabold text-slate-900 mt-1">{formatMinutes(breakRemainingMinutes ?? maxBreakMinutes ?? 60)}</p>
+            <p className="text-[10px] font-semibold text-slate-400 mt-0.5">(Max 1 hr)</p>
           </div>
           <div className="text-center">
             <p className="text-xs font-bold uppercase tracking-wide text-slate-400">{overtimeMinutes > 0 ? 'Overtime' : 'Remaining'}</p>

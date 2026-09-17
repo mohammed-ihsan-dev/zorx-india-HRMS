@@ -91,6 +91,19 @@ export function useTodayAttendance() {
   const overtimeMinutes = requiredMinutes === null ? 0 : Math.max(0, workedMinutes - requiredMinutes);
   const progressPercent = requiredMinutes ? Math.min(100, (workedMinutes / requiredMinutes) * 100) : 0;
 
+  const maxBreakMinutes = officeSettings?.breakDurationMinutes || 60;
+
+  const breakMinutesUsed = useMemo(() => {
+    let base = record?.breakMinutes || 0;
+    if (activeBreak?.startTime) {
+      const activeMs = tick - new Date(activeBreak.startTime).getTime();
+      base += Math.max(0, activeMs / 60000);
+    }
+    return Math.round(base);
+  }, [record, activeBreak, tick]);
+
+  const breakRemainingMinutes = Math.max(0, maxBreakMinutes - breakMinutesUsed);
+
   // Persistent, real location status derived from the last stored punch — not a fake/ephemeral value.
   const locationStatus = useMemo(() => {
     const punch = record?.checkOut || record?.checkIn || null;
@@ -172,6 +185,9 @@ export function useTodayAttendance() {
     remainingMinutes,
     overtimeMinutes,
     progressPercent,
+    maxBreakMinutes,
+    breakMinutesUsed,
+    breakRemainingMinutes,
     locationStatus,
     lastVerification,
     geolocation,
