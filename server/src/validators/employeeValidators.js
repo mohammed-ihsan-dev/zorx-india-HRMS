@@ -24,11 +24,14 @@ export const createEmployeeSchema = z.object({
 });
 
 export const updateEmployeeSchema = z.object({
+  employeeCode: z.string().min(1).optional(),
   firstName: z.string().min(1).optional(),
   lastName: z.string().min(1).optional(),
   phone: z.string().optional(),
   departmentId: z.string().nullable().optional(),
   designation: z.string().optional(),
+  joiningDate: z.coerce.date().optional(),
+  dateOfBirth: z.coerce.date().nullable().optional(),
   employmentType: z.enum(Object.values(EMPLOYMENT_TYPE)).optional(),
   managerId: z.string().nullable().optional(),
   address: z.string().optional(),
