@@ -62,7 +62,7 @@ async function seedInitialEmployeeAccounts(departments) {
       departmentName: 'Development',
     },
     {
-      name: 'NEETHU.N',
+      name: 'Neethu N',
       email: 'neethurkailas@gmail.com',
       designation: 'DIGITAL MARKETER',
       joiningDate: new Date('2026-09-01'),
@@ -128,10 +128,9 @@ async function seedInitialEmployeeAccounts(departments) {
       mustChangePassword: true,
     });
 
-    const employeeCode = await generateEmployeeCode();
     const employee = await Employee.create({
       userId: user._id,
-      employeeCode,
+      employeeCode: '',
       firstName,
       lastName,
       designation: item.designation,

@@ -4,7 +4,7 @@ import { EMPLOYMENT_TYPE } from '../utils/constants.js';
 const employeeSchema = new mongoose.Schema(
   {
     userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-    employeeCode: { type: String, required: true, unique: true, trim: true },
+    employeeCode: { type: String, default: '', trim: true },
     firstName: { type: String, required: true, trim: true },
     lastName: { type: String, required: true, trim: true },
     profileImage: { type: String, default: '' },

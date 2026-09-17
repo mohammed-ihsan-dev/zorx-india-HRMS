@@ -16,22 +16,22 @@ export async function generateEmployeeCode() {
 }
 
 export const createEmployee = asyncHandler(async (req, res) => {
-  const { email, password, role, ...employeeFields } = req.body;
+  const { email, password, role, employeeCode, ...employeeFields } = req.body;
 
   const existingUser = await User.findOne({ email: email.toLowerCase() });
   if (existingUser) {
     throw ApiError.conflict('A user with this email already exists.');
   }
 
-  const passwordHash = await User.hashPassword(password);
-  const employeeCode = await generateEmployeeCode();
+  const passwordHash = await User.hashPassword(password || 'Password');
+  const codeToUse = employeeCode && typeof employeeCode === 'string' ? employeeCode.trim() : '';
 
-  const user = await User.create({ email: email.toLowerCase(), passwordHash, role });
+  const user = await User.create({ email: email.toLowerCase(), passwordHash, role: role || 'EMPLOYEE' });
 
   const employee = await Employee.create({
     ...employeeFields,
     userId: user._id,
-    employeeCode,
+    employeeCode: codeToUse,
   });
 
   user.employeeId = employee._id;
@@ -42,7 +42,7 @@ export const createEmployee = asyncHandler(async (req, res) => {
     action: 'EMPLOYEE_CREATED',
     targetType: 'Employee',
     targetId: employee._id,
-    description: `Created employee ${employee.firstName} ${employee.lastName} (${employeeCode})`,
+    description: `Created employee ${employee.firstName} ${employee.lastName}`,
   });
 
   sendSuccess(res, { statusCode: 201, message: 'Employee created successfully.', data: employee });
@@ -86,8 +86,8 @@ export const listEmployees = asyncHandler(async (req, res) => {
     Employee.find(filter)
       .populate('departmentId', 'name')
       .populate('managerId', 'firstName lastName')
-      .populate('userId', 'email status role')
-      .sort({ createdAt: -1 })
+      .populate('userId', 'email status role mustChangePassword')
+      .sort({ firstName: 1, lastName: 1 })
       .skip((pageNum - 1) * limitNum)
       .limit(limitNum),
     Employee.countDocuments(filter),
@@ -125,12 +125,14 @@ export const getEmployeeById = asyncHandler(async (req, res) => {
 export const updateEmployee = asyncHandler(async (req, res) => {
   if (req.body.employeeCode) {
     const code = req.body.employeeCode.trim();
-    const existing = await Employee.findOne({
-      employeeCode: code,
-      _id: { $ne: req.params.id },
-    });
-    if (existing) {
-      throw ApiError.conflict(`Employee ID ${code} is already assigned to another employee.`);
+    if (code) {
+      const existing = await Employee.findOne({
+        employeeCode: code,
+        _id: { $ne: req.params.id },
+      });
+      if (existing) {
+        throw ApiError.conflict(`Employee ID ${code} is already assigned to another employee.`);
+      }
     }
   }
 
