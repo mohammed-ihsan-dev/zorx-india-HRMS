@@ -10,6 +10,19 @@ function required(name, fallback) {
   return value;
 }
 
+const defaultOrigins = [
+  'http://localhost:5173',
+  'http://localhost:5174',
+  'http://127.0.0.1:5173',
+  'http://127.0.0.1:5174',
+];
+
+const parsedOrigins = process.env.CLIENT_ORIGIN
+  ? process.env.CLIENT_ORIGIN.split(',').map((o) => o.trim()).filter(Boolean)
+  : [];
+
+const clientOrigins = Array.from(new Set([...defaultOrigins, ...parsedOrigins]));
+
 export const env = {
   nodeEnv: process.env.NODE_ENV || 'development',
   port: Number(process.env.PORT) || 5000,
@@ -21,6 +34,7 @@ export const env = {
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || '8h',
 
   clientOrigin: process.env.CLIENT_ORIGIN || 'http://localhost:5173',
+  clientOrigins,
 
   office: {
     latitude: Number(process.env.OFFICE_LATITUDE) || 10.991401,

@@ -14,9 +14,20 @@ export function createApp() {
   const app = express();
 
   app.use(helmet());
+  const allowedOrigins = (env.clientOrigins || [env.clientOrigin]).map((o) =>
+    o.replace(/\/+$/, '')
+  );
+
   app.use(
     cors({
-      origin: env.clientOrigin,
+      origin: (origin, callback) => {
+        if (!origin) return callback(null, true);
+        const cleanOrigin = origin.replace(/\/+$/, '');
+        if (allowedOrigins.includes(cleanOrigin) || env.nodeEnv === 'development') {
+          return callback(null, true);
+        }
+        return callback(new Error(`CORS policy error: Origin ${origin} is not allowed.`));
+      },
       credentials: true,
     })
   );
