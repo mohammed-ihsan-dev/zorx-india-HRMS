@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { CalendarX2, CheckCircle2, Clock, UserX, Timer } from 'lucide-react';
+import { CalendarX2, CheckCircle2, Clock, UserX, Clock3 } from 'lucide-react';
 import { Card } from '../../components/Card.jsx';
 import { Table } from '../../components/Table.jsx';
 import { StatusBadge } from '../../components/StatusBadge.jsx';
@@ -29,14 +29,13 @@ export function Attendance() {
 
   const summary = records.reduce(
     (acc, r) => {
-      acc.total += r.totalWorkingMinutes || 0;
       if (r.status === 'PRESENT') acc.present += 1;
       if (r.status === 'LATE') acc.late += 1;
+      if (r.status === 'HALF_DAY') acc.halfDay += 1;
       if (r.status === 'ABSENT') acc.absent += 1;
-      if (r.status === 'LEAVE') acc.leave += 1;
       return acc;
     },
-    { present: 0, late: 0, absent: 0, leave: 0, total: 0 }
+    { present: 0, late: 0, halfDay: 0, absent: 0 }
   );
 
   const columns = [
@@ -61,12 +60,12 @@ export function Attendance() {
         <p className="text-base text-slate-500 mt-1">Track your attendance summary, working hours, and monthly logs.</p>
       </div>
 
-      {/* Enlarged Summary Stats Grid */}
+      {/* Enlarged Summary Stats Grid: PRESENT -> LATE -> HALF DAY -> ABSENT */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-5 sm:gap-6">
         <SummaryStat label="Present" value={summary.present} tone="green" icon={CheckCircle2} />
         <SummaryStat label="Late" value={summary.late} tone="amber" icon={Clock} />
+        <SummaryStat label="Half Day" value={summary.halfDay} tone="blue" icon={Clock3} />
         <SummaryStat label="Absent" value={summary.absent} tone="red" icon={UserX} />
-        <SummaryStat label="Total Hours" value={formatMinutes(summary.total)} tone="default" icon={Timer} />
       </div>
 
       {/* Attendance Log Table Card */}
@@ -116,21 +115,21 @@ function SummaryStat({ label, value, tone, icon: Icon }) {
       text: 'text-amber-950',
       iconBg: 'bg-amber-100/80 text-amber-800',
     },
+    blue: {
+      bg: 'bg-gradient-to-br from-sky-500/10 via-sky-50/40 to-white',
+      border: 'border-sky-200/90',
+      text: 'text-sky-950',
+      iconBg: 'bg-sky-100/80 text-sky-800',
+    },
     red: {
       bg: 'bg-gradient-to-br from-rose-500/10 via-rose-50/40 to-white',
       border: 'border-rose-200/90',
       text: 'text-rose-950',
       iconBg: 'bg-rose-100/80 text-rose-800',
     },
-    default: {
-      bg: 'bg-gradient-to-br from-brand-500/10 via-brand-50/40 to-white',
-      border: 'border-brand-200/90',
-      text: 'text-brand-950',
-      iconBg: 'bg-brand-100/80 text-brand-900',
-    },
   };
 
-  const style = styles[tone] || styles.default;
+  const style = styles[tone] || styles.green;
 
   return (
     <div className={`p-6 sm:p-7 rounded-3xl border shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 ${style.bg} ${style.border}`}>
