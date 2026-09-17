@@ -12,6 +12,7 @@ export function EditEmployeeModal({ open, onClose, employee, departments, onUpda
   const [error, setError] = useState('');
 
   const [form, setForm] = useState({
+    employeeCode: '',
     firstName: '',
     lastName: '',
     designation: '',
@@ -29,6 +30,7 @@ export function EditEmployeeModal({ open, onClose, employee, departments, onUpda
   useEffect(() => {
     if (employee) {
       setForm({
+        employeeCode: employee.employeeCode || '',
         firstName: employee.firstName || '',
         lastName: employee.lastName || '',
         designation: employee.designation || '',
@@ -47,6 +49,14 @@ export function EditEmployeeModal({ open, onClose, employee, departments, onUpda
 
   const handleChange = (field) => (e) => setForm((f) => ({ ...f, [field]: e.target.value }));
 
+  const clearField = (field) => {
+    setForm((f) => ({ ...f, [field]: '' }));
+  };
+
+  const clearEmergency = () => {
+    setForm((f) => ({ ...f, emergencyName: '', emergencyPhone: '', emergencyRelation: '' }));
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
@@ -54,19 +64,20 @@ export function EditEmployeeModal({ open, onClose, employee, departments, onUpda
 
     try {
       const payload = {
-        firstName: form.firstName,
-        lastName: form.lastName,
-        designation: form.designation,
+        employeeCode: form.employeeCode.trim(),
+        firstName: form.firstName.trim(),
+        lastName: form.lastName.trim(),
+        designation: form.designation.trim(),
         departmentId: form.departmentId || null,
         employmentType: form.employmentType,
         joiningDate: form.joiningDate ? new Date(form.joiningDate) : undefined,
         dateOfBirth: form.dateOfBirth ? new Date(form.dateOfBirth) : null,
-        phone: form.phone,
-        address: form.address,
+        phone: form.phone.trim(),
+        address: form.address.trim(),
         emergencyContact: {
-          name: form.emergencyName,
-          phone: form.emergencyPhone,
-          relation: form.emergencyRelation,
+          name: form.emergencyName.trim(),
+          phone: form.emergencyPhone.trim(),
+          relation: form.emergencyRelation.trim(),
         },
       };
 
@@ -89,15 +100,27 @@ export function EditEmployeeModal({ open, onClose, employee, departments, onUpda
         <div className="space-y-3">
           <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Personal & Work Details</p>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <Input label="Employee ID / Code" value={form.employeeCode} onChange={handleChange('employeeCode')} required />
             <Input label="First Name" value={form.firstName} onChange={handleChange('firstName')} required />
             <Input label="Last Name" value={form.lastName} onChange={handleChange('lastName')} required />
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <Input label="Designation" value={form.designation} onChange={handleChange('designation')} />
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-sm font-semibold text-slate-700">Designation</span>
+                {form.designation && (
+                  <button type="button" onClick={() => clearField('designation')} className="text-xs text-brand-700 hover:underline">
+                    Mark Not Provided
+                  </button>
+                )}
+              </div>
+              <Input value={form.designation} onChange={handleChange('designation')} placeholder="e.g. Software Engineer" />
+            </div>
+
             <Select label="Department" value={form.departmentId} onChange={handleChange('departmentId')}>
-              <option value="">Unassigned</option>
+              <option value="">Unassigned (Not Provided)</option>
               {departments.map((d) => (
                 <option key={d._id} value={d._id}>
                   {d.name}
@@ -114,25 +137,56 @@ export function EditEmployeeModal({ open, onClose, employee, departments, onUpda
               <option value="INTERN">Intern</option>
             </Select>
             <Input label="Joining Date" type="date" value={form.joiningDate} onChange={handleChange('joiningDate')} />
-            <Input label="Date of Birth" type="date" value={form.dateOfBirth} onChange={handleChange('dateOfBirth')} />
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-sm font-semibold text-slate-700">Date of Birth</span>
+                {form.dateOfBirth && (
+                  <button type="button" onClick={() => clearField('dateOfBirth')} className="text-xs text-brand-700 hover:underline">
+                    Clear
+                  </button>
+                )}
+              </div>
+              <Input type="date" value={form.dateOfBirth} onChange={handleChange('dateOfBirth')} />
+            </div>
           </div>
         </div>
 
         <div className="space-y-3 pt-3 border-t border-slate-100">
-          <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Contact Information</p>
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Contact Information</p>
+            {(form.phone || form.address) && (
+              <button
+                type="button"
+                onClick={() => {
+                  clearField('phone');
+                  clearField('address');
+                }}
+                className="text-xs text-brand-700 font-semibold hover:underline"
+              >
+                Clear Contact Info
+              </button>
+            )}
+          </div>
 
-          <Input label="Phone" value={form.phone} onChange={handleChange('phone')} />
-          <Textarea label="Address" rows={2} value={form.address} onChange={handleChange('address')} />
+          <Input label="Phone" value={form.phone} onChange={handleChange('phone')} placeholder="Not Provided" />
+          <Textarea label="Address" rows={2} value={form.address} onChange={handleChange('address')} placeholder="Not Provided" />
         </div>
 
         <div className="space-y-3 pt-3 border-t border-slate-100">
-          <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Emergency Contact</p>
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Emergency Contact</p>
+            {(form.emergencyName || form.emergencyPhone || form.emergencyRelation) && (
+              <button type="button" onClick={clearEmergency} className="text-xs text-brand-700 font-semibold hover:underline">
+                Mark Emergency Contact Not Provided
+              </button>
+            )}
+          </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <Input label="Emergency Contact Name" value={form.emergencyName} onChange={handleChange('emergencyName')} />
-            <Input label="Emergency Contact Phone" value={form.emergencyPhone} onChange={handleChange('emergencyPhone')} />
+            <Input label="Emergency Contact Name" value={form.emergencyName} onChange={handleChange('emergencyName')} placeholder="Not Provided" />
+            <Input label="Emergency Contact Phone" value={form.emergencyPhone} onChange={handleChange('emergencyPhone')} placeholder="Not Provided" />
           </div>
-          <Input label="Relationship" value={form.emergencyRelation} onChange={handleChange('emergencyRelation')} />
+          <Input label="Relationship" value={form.emergencyRelation} onChange={handleChange('emergencyRelation')} placeholder="Not Provided" />
         </div>
 
         <div className="flex justify-end gap-2 pt-4 border-t border-slate-100">

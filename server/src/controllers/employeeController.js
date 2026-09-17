@@ -117,7 +117,20 @@ export const getEmployeeById = asyncHandler(async (req, res) => {
 });
 
 export const updateEmployee = asyncHandler(async (req, res) => {
-  const employee = await Employee.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
+  if (req.body.employeeCode) {
+    const code = req.body.employeeCode.trim();
+    const existing = await Employee.findOne({
+      employeeCode: code,
+      _id: { $ne: req.params.id },
+    });
+    if (existing) {
+      throw ApiError.conflict(`Employee ID ${code} is already assigned to another employee.`);
+    }
+  }
+
+  const employee = await Employee.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true })
+    .populate('departmentId', 'name')
+    .populate('managerId', 'firstName lastName');
   if (!employee) throw ApiError.notFound('Employee not found.');
 
   await recordAudit({
@@ -125,7 +138,7 @@ export const updateEmployee = asyncHandler(async (req, res) => {
     action: 'EMPLOYEE_UPDATED',
     targetType: 'Employee',
     targetId: employee._id,
-    description: `Updated employee ${employee.firstName} ${employee.lastName}`,
+    description: `Updated employee ${employee.firstName} ${employee.lastName} (${employee.employeeCode})`,
   });
 
   sendSuccess(res, { message: 'Employee updated successfully.', data: employee });

@@ -155,10 +155,19 @@ export function EmployeeDetail() {
 }
 
 function Row({ label, value }) {
+  const isNotProvided = !value || value === '—' || value === 'Unassigned';
   return (
-    <div className="flex justify-between gap-4">
-      <dt className="text-slate-500">{label}</dt>
-      <dd className="font-medium text-slate-800 text-right">{value}</dd>
+    <div className="flex justify-between gap-4 py-0.5">
+      <dt className="text-slate-500 font-medium">{label}</dt>
+      <dd className="font-semibold text-slate-800 text-right">
+        {isNotProvided ? (
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-semibold bg-slate-100 text-slate-500 border border-slate-200/80">
+            Not Provided
+          </span>
+        ) : (
+          value
+        )}
+      </dd>
     </div>
   );
 }
