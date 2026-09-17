@@ -1,14 +1,14 @@
 import { useEffect, useState } from 'react';
-import { Plus, Search, Users, Power } from 'lucide-react';
+import { Plus, Search, Users, Power, ExternalLink } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Card } from '../../components/Card.jsx';
-import { Table } from '../../components/Table.jsx';
 import { Pagination } from '../../components/Pagination.jsx';
 import { Badge } from '../../components/Badge.jsx';
 import { Button } from '../../components/Button.jsx';
 import { Input, Select } from '../../components/Input.jsx';
 import { EmptyState } from '../../components/EmptyState.jsx';
 import { ConfirmDialog } from '../../components/ConfirmDialog.jsx';
+import { CardSkeleton } from '../../components/Skeleton.jsx';
 import { CreateEmployeeModal } from '../../features/employees/CreateEmployeeModal.jsx';
 import * as employeeService from '../../services/employeeService.js';
 import * as departmentService from '../../services/departmentService.js';
@@ -37,7 +37,13 @@ export function Employees() {
   const load = () => {
     setLoading(true);
     employeeService
-      .listEmployees({ search: search || undefined, departmentId: departmentId || undefined, status: status || undefined, page })
+      .listEmployees({
+        search: search || undefined,
+        departmentId: departmentId || undefined,
+        status: status || undefined,
+        page,
+        limit: 8,
+      })
       .then((res) => {
         setEmployees(res.data);
         setMeta(res.meta);
@@ -63,60 +69,32 @@ export function Employees() {
     }
   };
 
-  const columns = [
-    {
-      key: 'name',
-      header: 'Employee',
-      render: (r) => (
-        <Link to={`/admin/employees/${r._id}`} className="flex items-center gap-3 hover:underline">
-          <div className="w-8 h-8 rounded-full bg-brand-100 text-brand-800 flex items-center justify-center text-xs font-bold shrink-0">
-            {initials(r.firstName, r.lastName)}
-          </div>
-          <div>
-            <p className="font-medium text-slate-800">
-              {r.firstName} {r.lastName}
-            </p>
-            <p className="text-xs text-slate-400">{r.employeeCode}</p>
-          </div>
-        </Link>
-      ),
-    },
-    { key: 'department', header: 'Department', render: (r) => r.departmentId?.name || '—' },
-    { key: 'designation', header: 'Designation', render: (r) => r.designation || '—' },
-    { key: 'joiningDate', header: 'Joining Date', render: (r) => formatDate(r.joiningDate) },
-    { key: 'status', header: 'Status', render: (r) => <Badge color={r.status === 'ACTIVE' ? 'green' : 'slate'}>{r.status}</Badge> },
-    {
-      key: 'actions',
-      header: '',
-      render: (r) => (
-        <button
-          className={`text-xs font-medium hover:underline ${r.status === 'ACTIVE' ? 'text-red-600' : 'text-brand-700'}`}
-          onClick={() => setStatusTarget(r)}
-        >
-          <span className="inline-flex items-center gap-1">
-            <Power size={12} /> {r.status === 'ACTIVE' ? 'Deactivate' : 'Reactivate'}
-          </span>
-        </button>
-      ),
-    },
-  ];
-
   return (
-    <div className="space-y-6">
-      <Card padded={false} className="p-5">
-        <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-          <h3 className="font-semibold text-slate-900">Employees</h3>
-          <Button size="sm" icon={Plus} onClick={() => setCreateOpen(true)}>
-            Add Employee
-          </Button>
+    <div className="space-y-8 pb-8">
+      {/* Page Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-6 sm:p-8 rounded-3xl border border-slate-200/90 shadow-sm">
+        <div>
+          <span className="text-xs sm:text-sm font-extrabold uppercase tracking-widest text-brand-700 bg-brand-50 px-3 py-1 rounded-md border border-brand-200/60">
+            Workforce Management
+          </span>
+          <h2 className="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight mt-2.5">
+            Employee Directory
+          </h2>
+          <p className="text-base text-slate-500 mt-1">Manage staff profiles, departments, and active statuses across ZORX INDIA.</p>
         </div>
+        <Button size="lg" icon={Plus} onClick={() => setCreateOpen(true)} className="self-start sm:self-auto font-bold shadow-md">
+          Add Employee
+        </Button>
+      </div>
 
-        <div className="flex flex-wrap gap-3 mb-4">
-          <div className="relative flex-1 min-w-[200px]">
-            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+      {/* Search & Filters Bar */}
+      <Card className="rounded-3xl border border-slate-200/90 shadow-sm p-6 bg-white">
+        <div className="flex flex-col md:flex-row items-center gap-4">
+          <div className="relative flex-1 w-full">
+            <Search size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
             <Input
-              placeholder="Search by name, code, designation…"
-              className="pl-9"
+              placeholder="Search by name, employee code, designation…"
+              className="pl-10"
               value={search}
               onChange={(e) => {
                 setPage(1);
@@ -125,7 +103,7 @@ export function Employees() {
             />
           </div>
           <Select
-            className="w-48"
+            className="w-full md:w-56"
             value={departmentId}
             onChange={(e) => {
               setPage(1);
@@ -140,7 +118,7 @@ export function Employees() {
             ))}
           </Select>
           <Select
-            className="w-40"
+            className="w-full md:w-44"
             value={status}
             onChange={(e) => {
               setPage(1);
@@ -152,16 +130,115 @@ export function Employees() {
             <option value="INACTIVE">Inactive</option>
           </Select>
         </div>
-
-        <Table
-          columns={columns}
-          data={employees}
-          loading={loading}
-          emptyState={<EmptyState icon={Users} title="No employees found" description="Try adjusting your search or filters." />}
-        />
-        <Pagination page={meta.page} pages={meta.pages} total={meta.total} onPageChange={setPage} />
       </Card>
 
+      {/* Employee Cards Grid (4 Cards Per Row on Desktop) */}
+      {loading ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {Array.from({ length: 8 }).map((_, i) => (
+            <CardSkeleton key={i} />
+          ))}
+        </div>
+      ) : employees.length === 0 ? (
+        <Card className="rounded-3xl border border-slate-200/90 p-12 text-center">
+          <EmptyState
+            icon={Users}
+            title="No employees found"
+            description="Try adjusting your search or filters to find staff members."
+          />
+        </Card>
+      ) : (
+        <>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {employees.map((emp) => (
+              <div
+                key={emp._id}
+                className="bg-white rounded-3xl border border-slate-200/90 shadow-sm hover:shadow-md hover:-translate-y-1 transition-all duration-200 overflow-hidden flex flex-col justify-between group"
+              >
+                <div>
+                  {/* Large Profile Picture Header */}
+                  <div className="relative w-full aspect-square bg-gradient-to-br from-brand-900 via-brand-800 to-brand-950 p-4 flex flex-col items-center justify-center overflow-hidden">
+                    {emp.avatarUrl ? (
+                      <img
+                        src={emp.avatarUrl}
+                        alt={`${emp.firstName} ${emp.lastName}`}
+                        className="w-full h-full object-cover rounded-2xl shadow-md"
+                      />
+                    ) : (
+                      <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl bg-brand-100/90 border-2 border-white/20 text-brand-950 flex items-center justify-center text-3xl sm:text-4xl font-black shadow-inner">
+                        {initials(emp.firstName, emp.lastName)}
+                      </div>
+                    )}
+                    <div className="absolute top-3.5 right-3.5">
+                      <Badge color={emp.status === 'ACTIVE' ? 'green' : 'slate'}>{emp.status}</Badge>
+                    </div>
+                  </div>
+
+                  {/* Employee Info Block */}
+                  <div className="p-5 space-y-3">
+                    <div>
+                      <Link to={`/admin/employees/${emp._id}`}>
+                        <h4 className="text-lg sm:text-xl font-extrabold text-slate-900 group-hover:text-brand-800 transition-colors leading-snug">
+                          {emp.firstName} {emp.lastName}
+                        </h4>
+                      </Link>
+                      <p className="text-xs font-mono font-bold text-slate-400 mt-0.5">{emp.employeeCode}</p>
+                    </div>
+
+                    <div className="space-y-2 pt-2 border-t border-slate-100 text-sm">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-slate-400 font-medium">Designation:</span>
+                        <span className="font-semibold text-slate-800 truncate text-right">{emp.designation || '—'}</span>
+                      </div>
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-slate-400 font-medium">Department:</span>
+                        <span className="font-semibold text-slate-800 truncate text-right">{emp.departmentId?.name || '—'}</span>
+                      </div>
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-slate-400 font-medium">Joined:</span>
+                        <span className="font-medium text-slate-700">{formatDate(emp.joiningDate)}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Existing Card Actions Footer */}
+                <div className="px-5 py-3.5 bg-slate-50/80 border-t border-slate-100 flex items-center justify-between">
+                  <Link
+                    to={`/admin/employees/${emp._id}`}
+                    className="text-xs font-extrabold text-brand-800 hover:text-brand-950 hover:underline inline-flex items-center gap-1"
+                  >
+                    View Details <ExternalLink size={12} />
+                  </Link>
+
+                  <button
+                    type="button"
+                    className={`text-xs font-extrabold transition-all ${
+                      emp.status === 'ACTIVE'
+                        ? 'text-rose-600 hover:text-rose-800 hover:underline'
+                        : 'text-emerald-700 hover:text-emerald-900 hover:underline'
+                    }`}
+                    onClick={() => setStatusTarget(emp)}
+                  >
+                    <span className="inline-flex items-center gap-1">
+                      <Power size={13} /> {emp.status === 'ACTIVE' ? 'Deactivate' : 'Reactivate'}
+                    </span>
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Pagination (Only rendered when > 8 employees exist) */}
+          {meta.total > 8 && (
+            <div className="mt-8 flex justify-center">
+              <Pagination page={meta.page} pages={meta.pages} total={meta.total} onPageChange={setPage} />
+            </div>
+          )}
+        </>
+      )}
+
+      {/* Modals & Dialogs */}
       <CreateEmployeeModal
         open={createOpen}
         onClose={() => setCreateOpen(false)}
