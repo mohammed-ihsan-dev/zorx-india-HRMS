@@ -4,12 +4,14 @@ import { requireAuth } from '../middleware/auth.js';
 import { validateBody } from '../middleware/validate.js';
 import { loginSchema, changePasswordSchema } from '../validators/authValidators.js';
 import rateLimit from 'express-rate-limit';
+import { env } from '../config/env.js';
 
 const router = Router();
 
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  limit: 20,
+  limit: env.nodeEnv === 'development' ? 1000 : 20,
+  skip: () => env.nodeEnv === 'development',
   standardHeaders: true,
   legacyHeaders: false,
   message: { success: false, message: 'Too many login attempts. Please try again later.' },

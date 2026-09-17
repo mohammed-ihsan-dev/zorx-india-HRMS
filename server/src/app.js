@@ -30,7 +30,8 @@ export function createApp() {
 
   const apiLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
-    limit: 300,
+    limit: env.nodeEnv === 'development' ? 5000 : 300,
+    skip: () => env.nodeEnv === 'development',
     standardHeaders: true,
     legacyHeaders: false,
   });
