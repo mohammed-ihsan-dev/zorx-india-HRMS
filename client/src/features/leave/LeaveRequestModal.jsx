@@ -106,10 +106,16 @@ export function LeaveRequestModal({ open, onClose, initialDate, onSubmitted }) {
         <Select label="Leave Type" value={form.leaveType} onChange={(e) => setForm((f) => ({ ...f, leaveType: e.target.value }))}>
           {LEAVE_TYPES.map((t) => (
             <option key={t} value={t}>
-              {titleCase(t)} Leave
+              {titleCase(t)} Leave {t === 'CASUAL' ? '(User Risk - 0 Allowed)' : ''}
             </option>
           ))}
         </Select>
+
+        {form.leaveType === 'CASUAL' && (
+          <p className="text-xs font-semibold text-amber-900 bg-amber-50 border border-amber-200 rounded-lg p-2.5">
+            ⚠️ Company policy allows 0 casual leaves. You may submit casual leave at your own risk.
+          </p>
+        )}
 
         <div className="grid grid-cols-2 gap-3">
           <Input

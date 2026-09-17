@@ -4,9 +4,9 @@ import { LEAVE_TYPE, LEAVE_STATUS } from '../utils/constants.js';
 import { ApiError } from '../utils/ApiError.js';
 
 const DEFAULT_BALANCES = {
-  [LEAVE_TYPE.CASUAL]: 12,
-  [LEAVE_TYPE.SICK]: 8,
-  [LEAVE_TYPE.EARNED]: 10,
+  [LEAVE_TYPE.CASUAL]: 0,
+  [LEAVE_TYPE.SICK]: 1,
+  [LEAVE_TYPE.EARNED]: 1,
 };
 
 export async function getOrCreateLeaveBalance(employeeId, year = new Date().getFullYear()) {
@@ -56,10 +56,15 @@ export async function assertNoOverlap(employeeId, startDate, endDate, excludeLea
 export async function deductLeaveBalance(employeeId, leaveType, days, year) {
   if (leaveType === LEAVE_TYPE.UNPAID) return; // unpaid leave does not draw from balance
   const balance = await getOrCreateLeaveBalance(employeeId, year);
-  const available = balance.balances[leaveType] - balance.used[leaveType];
-  if (days > available) {
-    throw ApiError.badRequest(`Insufficient ${leaveType.toLowerCase()} leave balance. Available: ${available} day(s).`);
+  
+  // Casual leave has 0 company balance allowance, but employees can take it at their own risk
+  if (leaveType !== LEAVE_TYPE.CASUAL) {
+    const available = balance.balances[leaveType] - balance.used[leaveType];
+    if (days > available) {
+      throw ApiError.badRequest(`Insufficient ${leaveType.toLowerCase()} leave balance. Available: ${available} day(s).`);
+    }
   }
+
   balance.used[leaveType] += days;
   await balance.save();
   return balance;

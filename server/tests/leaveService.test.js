@@ -29,22 +29,26 @@ describe('leaveService', () => {
     expect(() => leaveService.calculateLeaveDays('2026-02-12', '2026-02-10')).toThrow();
   });
 
-  test('deducts from leave balance and prevents overdraw', async () => {
+  test('deducts from leave balance and prevents overdraw for sick/earned leave, allows casual leave at own risk', async () => {
     const balance = await leaveService.getOrCreateLeaveBalance(employeeId, year);
-    expect(balance.balances[LEAVE_TYPE.CASUAL]).toBe(12);
+    expect(balance.balances[LEAVE_TYPE.CASUAL]).toBe(0);
+    expect(balance.balances[LEAVE_TYPE.SICK]).toBe(1);
+    expect(balance.balances[LEAVE_TYPE.EARNED]).toBe(1);
 
+    // Casual leave can be deducted even with 0 company balance (user's own risk)
     await leaveService.deductLeaveBalance(employeeId, LEAVE_TYPE.CASUAL, 5, year);
     const updated = await leaveService.getOrCreateLeaveBalance(employeeId, year);
     expect(updated.used[LEAVE_TYPE.CASUAL]).toBe(5);
 
-    await expect(leaveService.deductLeaveBalance(employeeId, LEAVE_TYPE.CASUAL, 10, year)).rejects.toMatchObject({
+    // Sick leave has 1 day available, deducting 2 should fail
+    await expect(leaveService.deductLeaveBalance(employeeId, LEAVE_TYPE.SICK, 2, year)).rejects.toMatchObject({
       statusCode: 400,
     });
   });
 
   test('restoring leave balance after cancellation', async () => {
-    await leaveService.deductLeaveBalance(employeeId, LEAVE_TYPE.SICK, 3, year);
-    await leaveService.restoreLeaveBalance(employeeId, LEAVE_TYPE.SICK, 3, year);
+    await leaveService.deductLeaveBalance(employeeId, LEAVE_TYPE.SICK, 1, year);
+    await leaveService.restoreLeaveBalance(employeeId, LEAVE_TYPE.SICK, 1, year);
     const balance = await leaveService.getOrCreateLeaveBalance(employeeId, year);
     expect(balance.used[LEAVE_TYPE.SICK]).toBe(0);
   });

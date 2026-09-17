@@ -80,15 +80,37 @@ export function Leave() {
 
       {balance && (
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-          {Object.keys(balance.balances).map((type) => (
-            <div key={type} className="bg-white rounded-xl border border-slate-200 p-4">
-              <p className="text-sm text-slate-500 font-medium">{titleCase(type)} Leave</p>
-              <p className="text-lg font-bold text-slate-900 mt-1">
-                {balance.balances[type] - balance.used[type]}{' '}
-                <span className="text-sm font-normal text-slate-400">/ {balance.balances[type]} days left</span>
-              </p>
-            </div>
-          ))}
+          {Object.keys(balance.balances).map((type) => {
+            const isCasual = type === 'CASUAL';
+            const total = balance.balances[type];
+            const used = balance.used[type];
+            const remaining = Math.max(0, total - used);
+
+            return (
+              <div key={type} className="bg-white rounded-xl border border-slate-200 p-4">
+                <div className="flex items-center justify-between gap-1">
+                  <p className="text-sm text-slate-500 font-medium">{titleCase(type)} Leave</p>
+                  {isCasual && (
+                    <span className="text-[10px] font-extrabold uppercase tracking-wider text-amber-800 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded">
+                      User Risk
+                    </span>
+                  )}
+                </div>
+                <p className="text-lg font-bold text-slate-900 mt-1">
+                  {isCasual ? (
+                    <>
+                      {used} <span className="text-sm font-normal text-slate-500">day{used === 1 ? '' : 's'} taken (0 allowed)</span>
+                    </>
+                  ) : (
+                    <>
+                      {remaining}{' '}
+                      <span className="text-sm font-normal text-slate-400">/ {total} day{total === 1 ? '' : 's'} left</span>
+                    </>
+                  )}
+                </p>
+              </div>
+            );
+          })}
         </div>
       )}
 
