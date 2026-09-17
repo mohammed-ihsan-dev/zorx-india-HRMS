@@ -53,6 +53,30 @@ export async function assertNoOverlap(employeeId, startDate, endDate, excludeLea
   }
 }
 
+/**
+ * Throws if the employee already has a pending or approved Earned Leave request in the same month.
+ */
+export async function assertEarnedLeaveMonthlyLimit(employeeId, startDate, excludeLeaveId = null) {
+  const dateObj = new Date(startDate);
+  const startOfMonth = new Date(dateObj.getFullYear(), dateObj.getMonth(), 1, 0, 0, 0, 0);
+  const endOfMonth = new Date(dateObj.getFullYear(), dateObj.getMonth() + 1, 0, 23, 59, 59, 999);
+
+  const filter = {
+    employeeId,
+    leaveType: LEAVE_TYPE.EARNED,
+    status: { $in: [LEAVE_STATUS.PENDING, LEAVE_STATUS.APPROVED] },
+    startDate: { $gte: startOfMonth, $lte: endOfMonth },
+  };
+  if (excludeLeaveId) filter._id = { $ne: excludeLeaveId };
+
+  const existing = await Leave.findOne(filter);
+  if (existing) {
+    throw ApiError.badRequest(
+      'You can only request 1 Earned (Paid) Leave per month. You already have a pending or approved Earned Leave for this month.'
+    );
+  }
+}
+
 export async function deductLeaveBalance(employeeId, leaveType, days, year) {
   if (leaveType === LEAVE_TYPE.UNPAID) return; // unpaid leave does not draw from balance
   const balance = await getOrCreateLeaveBalance(employeeId, year);

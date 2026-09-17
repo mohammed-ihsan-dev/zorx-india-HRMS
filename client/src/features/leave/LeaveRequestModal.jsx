@@ -117,6 +117,12 @@ export function LeaveRequestModal({ open, onClose, initialDate, onSubmitted }) {
           </p>
         )}
 
+        {form.leaveType === 'EARNED' && (
+          <p className="text-xs font-semibold text-brand-900 bg-brand-50 border border-brand-200 rounded-lg p-2.5">
+            ℹ️ Maximum 1 Earned (Paid) Leave is allowed per calendar month.
+          </p>
+        )}
+
         <div className="grid grid-cols-2 gap-3">
           <Input
             type="date"

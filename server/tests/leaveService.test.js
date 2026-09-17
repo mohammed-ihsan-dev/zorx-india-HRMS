@@ -103,4 +103,27 @@ describe('leaveService', () => {
       leaveService.assertNoOverlap(employeeId, new Date('2026-09-19'), new Date('2026-09-19'))
     ).resolves.toBeUndefined();
   });
+
+  test('assertEarnedLeaveMonthlyLimit restricts employee to 1 Earned Leave per month', async () => {
+    const { Leave } = await import('../src/models/Leave.js');
+    await Leave.create({
+      employeeId,
+      leaveType: LEAVE_TYPE.EARNED,
+      startDate: new Date('2026-09-05'),
+      endDate: new Date('2026-09-05'),
+      days: 1,
+      reason: 'First earned leave',
+      status: 'APPROVED',
+    });
+
+    // Trying to create another earned leave in September should fail
+    await expect(
+      leaveService.assertEarnedLeaveMonthlyLimit(employeeId, new Date('2026-09-25'))
+    ).rejects.toMatchObject({ statusCode: 400 });
+
+    // Earned leave in October should be allowed
+    await expect(
+      leaveService.assertEarnedLeaveMonthlyLimit(employeeId, new Date('2026-10-05'))
+    ).resolves.toBeUndefined();
+  });
 });

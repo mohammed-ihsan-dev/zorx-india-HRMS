@@ -11,10 +11,11 @@ import {
   restoreLeaveBalance,
   getOrCreateLeaveBalance,
   assertNoOverlap,
+  assertEarnedLeaveMonthlyLimit,
 } from '../services/leaveService.js';
 import { notify } from '../services/notificationService.js';
 import { recordAudit } from '../services/auditService.js';
-import { LEAVE_STATUS, NOTIFICATION_TYPE, BACK_OFFICE_ROLES } from '../utils/constants.js';
+import { LEAVE_TYPE, LEAVE_STATUS, NOTIFICATION_TYPE, BACK_OFFICE_ROLES } from '../utils/constants.js';
 
 function requireEmployee(req) {
   const employeeId = req.user.employeeId?._id;
@@ -46,6 +47,10 @@ export const createLeave = asyncHandler(async (req, res) => {
     if (!document) {
       throw ApiError.badRequest('The supporting document could not be found.');
     }
+  }
+
+  if (leaveType === LEAVE_TYPE.EARNED) {
+    await assertEarnedLeaveMonthlyLimit(employeeId, startDate);
   }
 
   await assertNoOverlap(employeeId, startDate, endDate);
