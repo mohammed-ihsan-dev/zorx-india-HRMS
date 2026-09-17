@@ -6,9 +6,10 @@ import { asyncHandler } from '../utils/asyncHandler.js';
 import { sendSuccess } from '../utils/ApiResponse.js';
 import { ApiError } from '../utils/ApiError.js';
 import { recordAudit } from '../services/auditService.js';
-import { TASK_STATUS, ATTENDANCE_STATUS } from '../utils/constants.js';
+import { notify } from '../services/notificationService.js';
+import { TASK_STATUS, ATTENDANCE_STATUS, USER_STATUS, NOTIFICATION_TYPE } from '../utils/constants.js';
 
-async function generateEmployeeCode() {
+export async function generateEmployeeCode() {
   const count = await Employee.countDocuments();
   const next = count + 1;
   return `ZX${String(next).padStart(4, '0')}`;
@@ -48,7 +49,7 @@ export const createEmployee = asyncHandler(async (req, res) => {
 });
 
 export const listEmployees = asyncHandler(async (req, res) => {
-  const { search = '', departmentId, status, page = 1, limit = 20 } = req.query;
+  const { search = '', departmentId, status, authStatus, page = 1, limit = 20 } = req.query;
 
   // Exclude SUPER_ADMIN users from the employee directory
   const superAdminUsers = await User.find({ role: 'SUPER_ADMIN' }).select('_id');
@@ -59,9 +60,13 @@ export const listEmployees = asyncHandler(async (req, res) => {
   };
   if (status) filter.status = status;
   if (departmentId) filter.departmentId = departmentId;
+  if (authStatus) {
+    const matchingUsers = await User.find({ status: authStatus }).select('_id');
+    filter.userId = { $in: matchingUsers.map((u) => u._id), $nin: superAdminUserIds };
+  }
   if (search) {
     filter.$and = [
-      { userId: { $nin: superAdminUserIds } },
+      { userId: filter.userId },
       {
         $or: [
           { firstName: { $regex: search, $options: 'i' } },
@@ -81,6 +86,7 @@ export const listEmployees = asyncHandler(async (req, res) => {
     Employee.find(filter)
       .populate('departmentId', 'name')
       .populate('managerId', 'firstName lastName')
+      .populate('userId', 'email status role')
       .sort({ createdAt: -1 })
       .skip((pageNum - 1) * limitNum)
       .limit(limitNum),
@@ -160,6 +166,76 @@ export const updateEmployeeStatus = asyncHandler(async (req, res) => {
   });
 
   sendSuccess(res, { message: `Employee ${status === 'ACTIVE' ? 'reactivated' : 'deactivated'} successfully.`, data: employee });
+});
+
+export const approveUserAccount = asyncHandler(async (req, res) => {
+  const employee = await Employee.findById(req.params.id);
+  if (!employee) throw ApiError.notFound('Employee not found.');
+
+  const user = await User.findOne({ employeeId: employee._id });
+  if (!user) throw ApiError.notFound('Account not found for this employee.');
+  if (user.status !== USER_STATUS.PENDING_APPROVAL) {
+    throw ApiError.badRequest('Only accounts pending approval can be approved.');
+  }
+  if (user._id.equals(req.user._id)) {
+    throw ApiError.forbidden('You cannot approve your own account.');
+  }
+
+  user.status = USER_STATUS.ACTIVE;
+  await user.save();
+
+  await notify({
+    userId: user._id,
+    type: NOTIFICATION_TYPE.ACCOUNT_APPROVED,
+    title: 'Account approved',
+    message: 'Your account has been approved. You can now log in.',
+    link: '/login',
+  });
+
+  await recordAudit({
+    actorId: req.user._id,
+    action: 'ACCOUNT_APPROVED',
+    targetType: 'User',
+    targetId: user._id,
+    description: `Approved account for ${employee.firstName} ${employee.lastName}`,
+  });
+
+  sendSuccess(res, { message: 'Account approved successfully.', data: { employeeId: employee._id, status: user.status } });
+});
+
+export const rejectUserAccount = asyncHandler(async (req, res) => {
+  const employee = await Employee.findById(req.params.id);
+  if (!employee) throw ApiError.notFound('Employee not found.');
+
+  const user = await User.findOne({ employeeId: employee._id });
+  if (!user) throw ApiError.notFound('Account not found for this employee.');
+  if (user.status !== USER_STATUS.PENDING_APPROVAL) {
+    throw ApiError.badRequest('Only accounts pending approval can be rejected.');
+  }
+  if (user._id.equals(req.user._id)) {
+    throw ApiError.forbidden('You cannot reject your own account.');
+  }
+
+  user.status = USER_STATUS.REJECTED;
+  await user.save();
+
+  await notify({
+    userId: user._id,
+    type: NOTIFICATION_TYPE.ACCOUNT_REJECTED,
+    title: 'Account not approved',
+    message: 'Your account registration has not been approved. Please contact HR/Admin.',
+    link: '/login',
+  });
+
+  await recordAudit({
+    actorId: req.user._id,
+    action: 'ACCOUNT_REJECTED',
+    targetType: 'User',
+    targetId: user._id,
+    description: `Rejected account for ${employee.firstName} ${employee.lastName}`,
+  });
+
+  sendSuccess(res, { message: 'Account rejected.', data: { employeeId: employee._id, status: user.status } });
 });
 
 export const getMyProfile = asyncHandler(async (req, res) => {

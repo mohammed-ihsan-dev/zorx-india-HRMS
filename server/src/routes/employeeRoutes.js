@@ -28,5 +28,7 @@ router.patch(
   validateBody(updateStatusSchema),
   employeeController.updateEmployeeStatus
 );
+router.patch('/:id/approve-account', requireRole(...BACK_OFFICE_ROLES), employeeController.approveUserAccount);
+router.patch('/:id/reject-account', requireRole(...BACK_OFFICE_ROLES), employeeController.rejectUserAccount);
 
 export default router;

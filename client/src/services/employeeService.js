@@ -25,6 +25,16 @@ export async function updateEmployeeStatus(id, status) {
   return data.data;
 }
 
+export async function approveUserAccount(id) {
+  const { data } = await apiClient.patch(`/employees/${id}/approve-account`);
+  return data.data;
+}
+
+export async function rejectUserAccount(id) {
+  const { data } = await apiClient.patch(`/employees/${id}/reject-account`);
+  return data.data;
+}
+
 export async function getMyProfile() {
   const { data } = await apiClient.get('/employees/me/profile');
   return data.data;

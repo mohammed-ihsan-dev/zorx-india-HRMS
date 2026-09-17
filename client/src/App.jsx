@@ -4,6 +4,7 @@ import { RoleRoute } from './routes/RoleRoute.jsx';
 import { EmployeeLayout } from './layouts/EmployeeLayout.jsx';
 import { AdminLayout } from './layouts/AdminLayout.jsx';
 import { Login } from './pages/auth/Login.jsx';
+import { Signup } from './pages/auth/Signup.jsx';
 import { NotAuthorized } from './pages/NotAuthorized.jsx';
 import { NotFound } from './pages/NotFound.jsx';
 
@@ -35,6 +36,7 @@ export default function App() {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
+      <Route path="/signup" element={<Signup />} />
       <Route path="/not-authorized" element={<NotAuthorized />} />
 
       <Route element={<ProtectedRoute />}>

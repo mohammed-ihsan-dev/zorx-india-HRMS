@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { LogIn, ShieldCheck } from 'lucide-react';
 import { Button } from '../../components/Button.jsx';
 import { Input } from '../../components/Input.jsx';
@@ -112,6 +112,13 @@ export function Login() {
               Sign In
             </Button>
           </form>
+
+          <p className="text-center text-sm text-slate-500 mt-6">
+            Don&apos;t have an account?{' '}
+            <Link to="/signup" className="font-semibold text-brand-700 hover:text-brand-800 hover:underline">
+              Sign Up
+            </Link>
+          </p>
 
           {/* Quick Demo Credentials */}
           <div className="mt-6 pt-6 border-t border-slate-100">

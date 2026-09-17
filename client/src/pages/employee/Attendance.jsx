@@ -9,11 +9,14 @@ import * as attendanceService from '../../services/attendanceService.js';
 import { formatDate, formatTime, formatMinutes } from '../../utils/formatters.js';
 import { useToast } from '../../hooks/useToast.js';
 import { getErrorMessage } from '../../services/apiClient.js';
+import { useTodayAttendance } from '../../features/attendance/useTodayAttendance.js';
+import { TodayAttendanceTimeline } from '../../features/attendance/TodayAttendanceTimeline.jsx';
 
 const STATUS_OPTIONS = ['', 'PRESENT', 'LATE', 'HALF_DAY', 'ABSENT', 'LEAVE'];
 
 export function Attendance() {
   const toast = useToast();
+  const { record: todayRecord, loading: todayLoading } = useTodayAttendance();
   const [records, setRecords] = useState([]);
   const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState('');
@@ -82,6 +85,9 @@ export function Attendance() {
         <SummaryStat label="Half Day" value={summary.halfDay} tone="blue" icon={Clock3} />
         <SummaryStat label="Absent" value={summary.absent} tone="red" icon={UserX} />
       </div>
+
+      {/* Today's Attendance Visual Timeline */}
+      <TodayAttendanceTimeline record={todayRecord} loading={todayLoading} />
 
       {/* Attendance Log Table Card with Go-to-Date & Search */}
       <Card className="rounded-3xl border border-slate-200/90 shadow-md p-6 sm:p-8 bg-white">

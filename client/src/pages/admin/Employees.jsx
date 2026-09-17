@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Plus, Search, Users, Power, ExternalLink } from 'lucide-react';
+import { Plus, Search, Users, Power, ExternalLink, Check, X } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Card } from '../../components/Card.jsx';
 import { Pagination } from '../../components/Pagination.jsx';
@@ -28,6 +28,8 @@ export function Employees() {
   const [page, setPage] = useState(1);
   const [createOpen, setCreateOpen] = useState(false);
   const [statusTarget, setStatusTarget] = useState(null);
+  const [accountAction, setAccountAction] = useState(null); // { employee, action: 'approve' | 'reject' }
+  const [authStatus, setAuthStatus] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -41,6 +43,7 @@ export function Employees() {
         search: search || undefined,
         departmentId: departmentId || undefined,
         status: status || undefined,
+        authStatus: authStatus || undefined,
         page,
         limit: 8,
       })
@@ -52,7 +55,26 @@ export function Employees() {
       .finally(() => setLoading(false));
   };
 
-  useEffect(load, [search, departmentId, status, page]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(load, [search, departmentId, status, authStatus, page]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleAccountAction = async () => {
+    setSubmitting(true);
+    try {
+      if (accountAction.action === 'approve') {
+        await employeeService.approveUserAccount(accountAction.employee._id);
+        toast.success('Account approved. The employee can now log in.');
+      } else {
+        await employeeService.rejectUserAccount(accountAction.employee._id);
+        toast.success('Account rejected.');
+      }
+      setAccountAction(null);
+      load();
+    } catch (err) {
+      toast.error(getErrorMessage(err));
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   const handleToggleStatus = async () => {
     setSubmitting(true);
@@ -129,6 +151,19 @@ export function Employees() {
             <option value="ACTIVE">Active</option>
             <option value="INACTIVE">Inactive</option>
           </Select>
+          <Select
+            className="w-full md:w-48"
+            value={authStatus}
+            onChange={(e) => {
+              setPage(1);
+              setAuthStatus(e.target.value);
+            }}
+          >
+            <option value="">All Accounts</option>
+            <option value="PENDING_APPROVAL">Pending Approval</option>
+            <option value="REJECTED">Rejected</option>
+            <option value="SUSPENDED">Suspended</option>
+          </Select>
         </div>
       </Card>
 
@@ -170,7 +205,13 @@ export function Employees() {
                       </div>
                     )}
                     <div className="absolute top-3.5 right-3.5">
-                      <Badge color={emp.status === 'ACTIVE' ? 'green' : 'slate'}>{emp.status}</Badge>
+                      {emp.userId?.status && emp.userId.status !== 'ACTIVE' ? (
+                        <Badge color={emp.userId.status === 'PENDING_APPROVAL' ? 'amber' : 'red'}>
+                          {emp.userId.status.replace('_', ' ')}
+                        </Badge>
+                      ) : (
+                        <Badge color={emp.status === 'ACTIVE' ? 'green' : 'slate'}>{emp.status}</Badge>
+                      )}
                     </div>
                   </div>
 
@@ -235,19 +276,38 @@ export function Employees() {
                     View Details <ExternalLink size={12} />
                   </Link>
 
-                  <button
-                    type="button"
-                    className={`text-xs font-extrabold transition-all ${
-                      emp.status === 'ACTIVE'
-                        ? 'text-rose-600 hover:text-rose-800 hover:underline'
-                        : 'text-emerald-700 hover:text-emerald-900 hover:underline'
-                    }`}
-                    onClick={() => setStatusTarget(emp)}
-                  >
-                    <span className="inline-flex items-center gap-1">
-                      <Power size={13} /> {emp.status === 'ACTIVE' ? 'Deactivate' : 'Reactivate'}
-                    </span>
-                  </button>
+                  {emp.userId?.status === 'PENDING_APPROVAL' ? (
+                    <div className="flex items-center gap-3">
+                      <button
+                        type="button"
+                        className="text-xs font-extrabold text-emerald-700 hover:text-emerald-900 hover:underline inline-flex items-center gap-1"
+                        onClick={() => setAccountAction({ employee: emp, action: 'approve' })}
+                      >
+                        <Check size={13} /> Approve
+                      </button>
+                      <button
+                        type="button"
+                        className="text-xs font-extrabold text-rose-600 hover:text-rose-800 hover:underline inline-flex items-center gap-1"
+                        onClick={() => setAccountAction({ employee: emp, action: 'reject' })}
+                      >
+                        <X size={13} /> Reject
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      className={`text-xs font-extrabold transition-all ${
+                        emp.status === 'ACTIVE'
+                          ? 'text-rose-600 hover:text-rose-800 hover:underline'
+                          : 'text-emerald-700 hover:text-emerald-900 hover:underline'
+                      }`}
+                      onClick={() => setStatusTarget(emp)}
+                    >
+                      <span className="inline-flex items-center gap-1">
+                        <Power size={13} /> {emp.status === 'ACTIVE' ? 'Deactivate' : 'Reactivate'}
+                      </span>
+                    </button>
+                  )}
                 </div>
               </div>
             ))}
@@ -286,6 +346,21 @@ export function Employees() {
         }
         confirmLabel={statusTarget?.status === 'ACTIVE' ? 'Deactivate' : 'Reactivate'}
         variant={statusTarget?.status === 'ACTIVE' ? 'danger' : 'primary'}
+      />
+
+      <ConfirmDialog
+        open={Boolean(accountAction)}
+        onClose={() => setAccountAction(null)}
+        onConfirm={handleAccountAction}
+        loading={submitting}
+        title={accountAction?.action === 'approve' ? 'Approve this account?' : 'Reject this account?'}
+        description={
+          accountAction?.action === 'approve'
+            ? `${accountAction?.employee.firstName} ${accountAction?.employee.lastName} will be able to log in immediately.`
+            : `${accountAction?.employee.firstName} ${accountAction?.employee.lastName} will not be able to log in.`
+        }
+        confirmLabel={accountAction?.action === 'approve' ? 'Approve' : 'Reject'}
+        variant={accountAction?.action === 'approve' ? 'primary' : 'danger'}
       />
     </div>
   );

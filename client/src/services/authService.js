@@ -5,6 +5,11 @@ export async function login(email, password) {
   return data.data;
 }
 
+export async function signup(payload) {
+  const { data } = await apiClient.post('/auth/signup', payload);
+  return data;
+}
+
 export async function logout() {
   await apiClient.post('/auth/logout');
 }

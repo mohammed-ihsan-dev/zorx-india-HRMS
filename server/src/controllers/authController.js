@@ -1,9 +1,78 @@
 import { User } from '../models/User.js';
+import { Employee } from '../models/Employee.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { sendSuccess } from '../utils/ApiResponse.js';
 import { ApiError } from '../utils/ApiError.js';
 import { signToken } from '../middleware/auth.js';
-import { USER_STATUS } from '../utils/constants.js';
+import { generateEmployeeCode } from './employeeController.js';
+import { recordAudit } from '../services/auditService.js';
+import { notifyMany } from '../services/notificationService.js';
+import { USER_STATUS, ROLES, BACK_OFFICE_ROLES, NOTIFICATION_TYPE } from '../utils/constants.js';
+
+const STATUS_MESSAGES = {
+  [USER_STATUS.PENDING_APPROVAL]: 'Your account is awaiting admin approval.',
+  [USER_STATUS.REJECTED]: 'Your account has not been approved.',
+  [USER_STATUS.SUSPENDED]: 'Your account is currently suspended.',
+  [USER_STATUS.INACTIVE]: 'Your account is not active. Please contact HR/Admin.',
+};
+
+export const signup = asyncHandler(async (req, res) => {
+  const { name, email, password } = req.body;
+  const normalizedEmail = email.toLowerCase().trim();
+
+  const existingUser = await User.findOne({ email: normalizedEmail });
+  if (existingUser) {
+    throw ApiError.conflict('An account with this email already exists.');
+  }
+
+  const [firstName, ...rest] = name.trim().split(/\s+/);
+  const lastName = rest.join(' ');
+
+  const passwordHash = await User.hashPassword(password);
+  const user = await User.create({
+    email: normalizedEmail,
+    passwordHash,
+    role: ROLES.EMPLOYEE,
+    status: USER_STATUS.PENDING_APPROVAL,
+  });
+
+  const employeeCode = await generateEmployeeCode();
+  const employee = await Employee.create({
+    userId: user._id,
+    employeeCode,
+    firstName,
+    lastName,
+    joiningDate: new Date(),
+  });
+  user.employeeId = employee._id;
+  await user.save();
+
+  await recordAudit({
+    actorId: user._id,
+    action: 'ACCOUNT_SIGNUP',
+    targetType: 'User',
+    targetId: user._id,
+    description: `${name} signed up and is awaiting admin approval.`,
+  });
+
+  const backOfficeUsers = await User.find({ role: { $in: BACK_OFFICE_ROLES }, status: USER_STATUS.ACTIVE }).select('_id');
+  if (backOfficeUsers.length) {
+    await notifyMany(
+      backOfficeUsers.map((u) => u._id),
+      {
+        type: NOTIFICATION_TYPE.SIGNUP_SUBMITTED,
+        title: 'New account pending approval',
+        message: `${name} (${normalizedEmail}) has requested access and is awaiting approval.`,
+        link: '/admin/employees',
+      }
+    );
+  }
+
+  sendSuccess(res, {
+    statusCode: 201,
+    message: 'Account created successfully. Your account is awaiting admin approval.',
+  });
+});
 
 export const login = asyncHandler(async (req, res) => {
   const { email, password } = req.body;
@@ -13,7 +82,7 @@ export const login = asyncHandler(async (req, res) => {
     throw ApiError.unauthorized('Invalid email or password.');
   }
   if (user.status !== USER_STATUS.ACTIVE) {
-    throw ApiError.forbidden('Your account is not active. Please contact HR/Admin.');
+    throw ApiError.forbidden(STATUS_MESSAGES[user.status] || 'Your account is not active. Please contact HR/Admin.');
   }
 
   const isMatch = await user.comparePassword(password);
