@@ -1,14 +1,9 @@
-import { useState } from 'react';
-import { MapPin, CheckCircle2, XCircle, LoaderCircle, AlertTriangle, Radio, Clock, Coffee } from 'lucide-react';
+import { MapPin, CheckCircle2, LoaderCircle, AlertTriangle, Radio, Clock, Coffee, LogOut, Play } from 'lucide-react';
 import { Card } from '../../components/Card.jsx';
-import { Button } from '../../components/Button.jsx';
-import { Modal } from '../../components/Modal.jsx';
 import { StatusBadge } from '../../components/StatusBadge.jsx';
-import { formatTime, formatMeters, titleCase } from '../../utils/formatters.js';
+import { formatTime } from '../../utils/formatters.js';
 import { ATTENDANCE_UI_STATE } from './useTodayAttendance.js';
 import { LOCATION_STATUS } from '../../hooks/useGeolocation.js';
-
-const BREAK_TYPES = ['TEA', 'WASHROOM', 'LUNCH', 'PERSONAL', 'OTHER'];
 
 export function AttendanceWidget({ data }) {
   const {
@@ -17,15 +12,12 @@ export function AttendanceWidget({ data }) {
     record,
     uiState,
     geolocation,
-    locationStatus,
     checkIn,
     checkOut,
-    activeBreak,
     breakSubmitting,
     startBreak,
     endBreak,
   } = data;
-  const [breakModalOpen, setBreakModalOpen] = useState(false);
 
   if (loading) {
     return <Card className="h-full min-h-[360px] animate-pulse bg-slate-100" />;
@@ -55,6 +47,7 @@ export function AttendanceWidget({ data }) {
 
   return (
     <Card className="h-full flex flex-col border-brand-200/80 shadow-md relative overflow-hidden bg-gradient-to-b from-white via-white to-brand-50/20">
+      {/* Widget Header */}
       <div className="flex items-center justify-between mb-6 pb-4 border-b border-slate-100">
         <div className="flex items-center gap-2.5">
           <div className="w-9 h-9 rounded-xl bg-brand-100 text-brand-800 flex items-center justify-center shrink-0">
@@ -68,18 +61,20 @@ export function AttendanceWidget({ data }) {
         {record?.status && <StatusBadge status={record.status} />}
       </div>
 
+      {/* Check In / Out Time Stats */}
       <div className="grid grid-cols-2 gap-6 mb-6 bg-slate-50/80 p-5 rounded-2xl border border-slate-100">
         <TimeStat label="Check In" value={record?.checkIn ? formatTime(record.checkIn.timestamp) : null} accent="brand" />
         <TimeStat label="Check Out" value={record?.checkOut ? formatTime(record.checkOut.timestamp) : null} accent="neutral" />
       </div>
 
-      <div className="mb-6 space-y-4">
+      {/* Status Info Block */}
+      <div className="mb-4">
         {uiState === ATTENDANCE_UI_STATE.NOT_CHECKED_IN && (
           <StateBlock
             icon={MapPin}
             iconTone="brand"
             title="Ready for Check-In"
-            subtitle="GPS location verification is required to mark attendance."
+            subtitle="Press the Check In button below to log your attendance."
           />
         )}
         {uiState === ATTENDANCE_UI_STATE.WORKING && (
@@ -94,8 +89,8 @@ export function AttendanceWidget({ data }) {
           <StateBlock
             icon={Coffee}
             iconTone="live"
-            title={`On Break — ${titleCase(activeBreak.type)}`}
-            subtitle="End your break to resume working and check out."
+            title="On Break"
+            subtitle="Press End Break to resume your work timer."
           />
         )}
         {uiState === ATTENDANCE_UI_STATE.COMPLETED && (
@@ -106,101 +101,99 @@ export function AttendanceWidget({ data }) {
             subtitle="Great work today! Enjoy your evening."
           />
         )}
-
-        {locationStatus && (
-          <div
-            className={`flex items-center gap-2.5 p-3.5 rounded-xl text-base font-semibold border ${
-              locationStatus.inside
-                ? 'bg-brand-50 text-brand-900 border-brand-200'
-                : 'bg-red-50 text-red-800 border-red-200'
-            }`}
-          >
-            {locationStatus.inside ? (
-              <CheckCircle2 size={20} className="shrink-0 text-brand-700" />
-            ) : (
-              <XCircle size={20} className="shrink-0 text-red-600" />
-            )}
-            <span className="text-sm sm:text-base">
-              {locationStatus.inside ? '✓ Location Verified' : 'Outside Attendance Area'} ·{' '}
-              {formatMeters(locationStatus.distance)} from office
-            </span>
-          </div>
-        )}
       </div>
 
-      {transientBanner && <div className="mb-6">{transientBanner}</div>}
+      {transientBanner && <div className="mb-4">{transientBanner}</div>}
 
-      <div className="mt-auto">
+      {/* Round Circular Action Buttons */}
+      <div className="mt-auto py-4 flex items-center justify-center min-h-[160px]">
         {uiState === ATTENDANCE_UI_STATE.NOT_CHECKED_IN && (
-          <Button
-            variant="primary"
-            size="lg"
-            className="w-full text-lg sm:text-xl py-4 min-h-[54px] shadow-md hover:bg-brand-900 font-extrabold tracking-wide"
-            icon={MapPin}
-            loading={submitting}
+          <button
+            type="button"
+            disabled={submitting}
             onClick={checkIn}
+            className="w-32 h-32 sm:w-36 sm:h-36 rounded-full bg-gradient-to-br from-brand-800 via-brand-900 to-brand-950 text-white font-extrabold shadow-xl shadow-brand-950/30 hover:scale-105 active:scale-95 transition-all duration-200 flex flex-col items-center justify-center gap-1.5 cursor-pointer ring-4 ring-brand-100 hover:ring-brand-200 disabled:opacity-50 disabled:pointer-events-none"
           >
-            CHECK IN NOW
-          </Button>
+            {submitting ? (
+              <LoaderCircle size={32} className="animate-spin" />
+            ) : (
+              <>
+                <MapPin size={30} />
+                <span className="text-base sm:text-lg tracking-wider uppercase">Check In</span>
+              </>
+            )}
+          </button>
         )}
+
         {uiState === ATTENDANCE_UI_STATE.WORKING && (
-          <>
-            <Button
-              variant="danger"
-              size="lg"
-              className="w-full text-lg sm:text-xl py-4 min-h-[54px] shadow-md font-extrabold tracking-wide"
-              icon={MapPin}
-              loading={submitting}
-              onClick={checkOut}
-            >
-              CHECK OUT NOW
-            </Button>
+          <div className="flex items-center justify-center gap-6 sm:gap-10">
+            {/* Direct Start Break Circle Button */}
             <button
               type="button"
-              onClick={() => setBreakModalOpen(true)}
-              className="w-full flex items-center justify-center gap-1.5 mt-3 text-sm font-semibold text-slate-500 hover:text-brand-700"
+              disabled={breakSubmitting}
+              onClick={() => startBreak('TEA')}
+              className="w-28 h-28 sm:w-32 sm:h-32 rounded-full bg-gradient-to-br from-amber-500 to-amber-600 text-white font-extrabold shadow-lg shadow-amber-500/30 hover:scale-105 active:scale-95 transition-all duration-200 flex flex-col items-center justify-center gap-1 cursor-pointer ring-4 ring-amber-100 hover:ring-amber-200 disabled:opacity-50 disabled:pointer-events-none"
             >
-              <Coffee size={14} /> Start Break
+              {breakSubmitting ? (
+                <LoaderCircle size={28} className="animate-spin" />
+              ) : (
+                <>
+                  <Coffee size={26} />
+                  <span className="text-xs sm:text-sm font-black tracking-wide uppercase text-center leading-tight">
+                    Start<br />Break
+                  </span>
+                </>
+              )}
             </button>
-          </>
+
+            {/* Check Out Circle Button */}
+            <button
+              type="button"
+              disabled={submitting}
+              onClick={checkOut}
+              className="w-28 h-28 sm:w-32 sm:h-32 rounded-full bg-gradient-to-br from-rose-600 to-rose-700 text-white font-extrabold shadow-lg shadow-rose-600/30 hover:scale-105 active:scale-95 transition-all duration-200 flex flex-col items-center justify-center gap-1 cursor-pointer ring-4 ring-rose-100 hover:ring-rose-200 disabled:opacity-50 disabled:pointer-events-none"
+            >
+              {submitting ? (
+                <LoaderCircle size={28} className="animate-spin" />
+              ) : (
+                <>
+                  <LogOut size={26} />
+                  <span className="text-xs sm:text-sm font-black tracking-wide uppercase text-center leading-tight">
+                    Check<br />Out
+                  </span>
+                </>
+              )}
+            </button>
+          </div>
         )}
+
         {uiState === ATTENDANCE_UI_STATE.ON_BREAK && (
-          <Button
-            variant="secondary"
-            size="lg"
-            className="w-full text-lg sm:text-xl py-4 min-h-[54px] font-extrabold tracking-wide"
-            icon={Coffee}
-            loading={breakSubmitting}
+          <button
+            type="button"
+            disabled={breakSubmitting}
             onClick={endBreak}
+            className="w-32 h-32 sm:w-36 sm:h-36 rounded-full bg-gradient-to-br from-emerald-600 to-emerald-700 text-white font-extrabold shadow-xl shadow-emerald-600/30 hover:scale-105 active:scale-95 transition-all duration-200 flex flex-col items-center justify-center gap-1.5 cursor-pointer ring-4 ring-emerald-100 hover:ring-emerald-200 disabled:opacity-50 disabled:pointer-events-none"
           >
-            END BREAK
-          </Button>
+            {breakSubmitting ? (
+              <LoaderCircle size={32} className="animate-spin" />
+            ) : (
+              <>
+                <Play size={28} fill="currentColor" />
+                <span className="text-sm sm:text-base font-black tracking-wider uppercase text-center leading-tight">
+                  End<br />Break
+                </span>
+              </>
+            )}
+          </button>
         )}
+
         {uiState === ATTENDANCE_UI_STATE.COMPLETED && (
-          <div className="w-full text-center py-4 rounded-xl bg-brand-100 text-brand-900 font-extrabold text-lg border border-brand-200 shadow-2xs">
-            ✓ Attendance Completed Today
+          <div className="w-28 h-28 sm:w-32 sm:h-32 rounded-full bg-brand-50 border-4 border-brand-600 text-brand-900 flex flex-col items-center justify-center text-center font-black p-3 shadow-sm">
+            <CheckCircle2 size={32} className="text-brand-700 mb-1" />
+            <span className="text-xs uppercase tracking-wider leading-tight">Done for<br />Today</span>
           </div>
         )}
       </div>
-
-      <Modal open={breakModalOpen} onClose={() => setBreakModalOpen(false)} title="Start Break" size="sm">
-        <p className="text-sm text-slate-500 mb-4">Select a reason for your break.</p>
-        <div className="grid grid-cols-2 gap-2.5">
-          {BREAK_TYPES.map((type) => (
-            <Button
-              key={type}
-              variant="outline"
-              loading={breakSubmitting}
-              onClick={async () => {
-                await startBreak(type);
-                setBreakModalOpen(false);
-              }}
-            >
-              {titleCase(type)}
-            </Button>
-          ))}
-        </div>
-      </Modal>
     </Card>
   );
 }
