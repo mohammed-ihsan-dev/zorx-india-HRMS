@@ -242,6 +242,7 @@ export async function performEndBreak(employeeId) {
   const activeBreak = getActiveBreak(existing);
   activeBreak.endTime = now;
   activeBreak.durationMinutes = Math.max(0, Math.round((now.getTime() - activeBreak.startTime.getTime()) / 60000));
+  existing.breakMinutes = totalCompletedBreakMinutes(existing);
 
   await existing.save();
   return existing;

@@ -101,7 +101,18 @@ export function useTodayAttendance() {
     return Math.max(0, elapsedMs / 1000);
   }, [activeBreak, tick]);
 
-  const pastBreakSeconds = (record?.breakMinutes || 0) * 60;
+  const pastBreakSeconds = useMemo(() => {
+    const breaks = record?.breaks || [];
+    let seconds = 0;
+    for (const b of breaks) {
+      if (b.startTime && b.endTime) {
+        const ms = new Date(b.endTime).getTime() - new Date(b.startTime).getTime();
+        seconds += Math.max(0, ms / 1000);
+      }
+    }
+    return seconds;
+  }, [record]);
+
   const totalBreakSecondsUsed = pastBreakSeconds + activeBreakSeconds;
   const breakRemainingSeconds = Math.max(0, maxBreakSeconds - totalBreakSecondsUsed);
   const breakCountdownStr = formatCountdownSeconds(breakRemainingSeconds);
