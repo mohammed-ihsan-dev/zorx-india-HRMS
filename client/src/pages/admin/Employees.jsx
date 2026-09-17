@@ -31,16 +31,23 @@ export function Employees() {
   const [accountAction, setAccountAction] = useState(null); // { employee, action: 'approve' | 'reject' }
   const [authStatus, setAuthStatus] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [debouncedSearch, setDebouncedSearch] = useState('');
 
   useEffect(() => {
     departmentService.listDepartments().then(setDepartments).catch(() => {});
   }, []);
 
+  // Debounce the search box so typing doesn't fire a request per keystroke.
+  useEffect(() => {
+    const id = setTimeout(() => setDebouncedSearch(search), 300);
+    return () => clearTimeout(id);
+  }, [search]);
+
   const load = () => {
     setLoading(true);
     employeeService
       .listEmployees({
-        search: search || undefined,
+        search: debouncedSearch || undefined,
         departmentId: departmentId || undefined,
         status: status || undefined,
         authStatus: authStatus || undefined,
@@ -55,7 +62,7 @@ export function Employees() {
       .finally(() => setLoading(false));
   };
 
-  useEffect(load, [search, departmentId, status, authStatus, page]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(load, [debouncedSearch, departmentId, status, authStatus, page]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleAccountAction = async () => {
     setSubmitting(true);
@@ -193,11 +200,13 @@ export function Employees() {
                 <div>
                   {/* Large Profile Picture Header */}
                   <div className="relative w-full aspect-square bg-gradient-to-br from-brand-900 via-brand-800 to-brand-950 p-4 flex flex-col items-center justify-center overflow-hidden">
-                    {emp.avatarUrl ? (
+                    {emp.profileImage || emp.avatarUrl ? (
                       <img
-                        src={emp.avatarUrl}
+                        src={emp.profileImage || emp.avatarUrl}
                         alt={`${emp.firstName} ${emp.lastName}`}
-                        className="w-full h-full object-cover rounded-2xl shadow-md"
+                        className={`w-full h-full object-cover rounded-2xl shadow-md transition-transform duration-300 ${
+                          (emp.profileImage || emp.avatarUrl || '').includes('ajmal') ? 'scale-125 object-[center_20%]' : ''
+                        }`}
                       />
                     ) : (
                       <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl bg-brand-100/90 border-2 border-white/20 text-brand-950 flex items-center justify-center text-3xl sm:text-4xl font-black shadow-inner">

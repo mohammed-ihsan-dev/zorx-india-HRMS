@@ -14,12 +14,14 @@ export function EmployeeLayout() {
   const location = useLocation();
 
   return (
-    <div className="min-h-screen flex bg-slate-50">
+    <div className="h-screen w-full flex overflow-hidden bg-slate-50">
       <Sidebar items={employeeNavItems} open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-      <div className="flex-1 min-w-0 flex flex-col">
+      <div className="flex-1 min-w-0 flex flex-col h-full overflow-hidden">
         <Topbar onMenuClick={() => setSidebarOpen(true)} title={getTitle(location.pathname)} profilePath="/profile" />
-        <main className="flex-1 p-4 lg:p-6 max-w-6xl w-full mx-auto">
-          <Outlet />
+        <main className="flex-1 overflow-y-auto p-4 lg:p-6 w-full">
+          <div className="max-w-6xl mx-auto">
+            <Outlet />
+          </div>
         </main>
       </div>
     </div>

@@ -13,9 +13,21 @@ export function ProfileSummaryCard({ profile }) {
   return (
     <Card>
       <div className="flex flex-col sm:flex-row sm:items-center gap-5">
-        <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-brand-100 text-brand-800 flex items-center justify-center text-3xl font-extrabold shrink-0">
-          {initials(profile.firstName, profile.lastName)}
-        </div>
+        {profile.profileImage || profile.avatarUrl ? (
+          <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full overflow-hidden border-2 border-brand-200/80 shadow-sm shrink-0">
+            <img
+              src={profile.profileImage || profile.avatarUrl}
+              alt={`${profile.firstName} ${profile.lastName}`}
+              className={`w-full h-full object-cover ${
+                (profile.profileImage || profile.avatarUrl || '').includes('ajmal') ? 'scale-125 object-[center_20%]' : ''
+              }`}
+            />
+          </div>
+        ) : (
+          <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-brand-100 text-brand-800 flex items-center justify-center text-3xl font-extrabold shrink-0">
+            {initials(profile.firstName, profile.lastName)}
+          </div>
+        )}
 
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2.5">

@@ -67,6 +67,7 @@ export function isNotProvided(val) {
   const str = String(val).trim().toLowerCase();
   return (
     str === '' ||
+    str === '0' ||
     str === 'no' ||
     str === 'nil' ||
     str === 'nill' ||

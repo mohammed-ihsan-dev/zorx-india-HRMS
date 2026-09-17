@@ -46,6 +46,7 @@ async function seedInitialEmployeeAccounts(departments) {
       designation: 'SEO Specialist',
       joiningDate: new Date('2026-09-07'),
       departmentName: 'Marketing',
+      profileImage: '/profile/shamila.png',
     },
     {
       name: 'Mishab P',
@@ -53,6 +54,7 @@ async function seedInitialEmployeeAccounts(departments) {
       designation: 'Graphic Designer',
       joiningDate: new Date('2026-09-01'),
       departmentName: 'Marketing',
+      profileImage: '/profile/mishab.jpeg',
     },
     {
       name: 'Shijin P',
@@ -60,6 +62,7 @@ async function seedInitialEmployeeAccounts(departments) {
       designation: 'Web Developer',
       joiningDate: new Date('2026-09-12'),
       departmentName: 'Development',
+      profileImage: '/profile/shijin.jpeg',
     },
     {
       name: 'Neethu N',
@@ -67,6 +70,7 @@ async function seedInitialEmployeeAccounts(departments) {
       designation: 'DIGITAL MARKETER',
       joiningDate: new Date('2026-09-01'),
       departmentName: 'Marketing',
+      profileImage: '/profile/neethu.jpeg',
     },
     {
       name: 'Nahida Sherin K',
@@ -74,6 +78,7 @@ async function seedInitialEmployeeAccounts(departments) {
       designation: 'Office Administration & SOP Specialist',
       joiningDate: new Date('2026-09-01'),
       departmentName: 'Operations',
+      profileImage: '/profile/nahida.jpeg',
     },
     {
       name: 'Mohammed Ajmal M',
@@ -81,6 +86,7 @@ async function seedInitialEmployeeAccounts(departments) {
       designation: 'Senior Graphic Designer',
       joiningDate: new Date('2026-09-11'),
       departmentName: 'Marketing',
+      profileImage: '/profile/ajmal.jpeg',
     },
     {
       name: 'Mohammed Ihsan',
@@ -88,6 +94,7 @@ async function seedInitialEmployeeAccounts(departments) {
       designation: 'Web Developer',
       joiningDate: new Date('2026-10-12'),
       departmentName: 'Development',
+      profileImage: '/profile/ihsan.jpeg',
     },
   ];
 
@@ -137,11 +144,12 @@ async function seedInitialEmployeeAccounts(departments) {
       joiningDate: item.joiningDate,
       departmentId: deptMap.get(item.departmentName) || null,
       employmentType: 'FULL_TIME',
+      profileImage: item.profileImage,
     });
 
     user.employeeId = employee._id;
     await user.save();
-    console.log(`[seed] Created initial employee account: ${item.name} (${normalizedEmail}) - Code: ${employeeCode}`);
+    console.log(`[seed] Created initial employee account: ${item.name} (${normalizedEmail})`);
   }
 }
 

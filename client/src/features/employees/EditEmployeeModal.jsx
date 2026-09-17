@@ -101,7 +101,17 @@ export function EditEmployeeModal({ open, onClose, employee, departments, onUpda
           <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Personal & Work Details</p>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <Input label="Employee ID / Code" value={form.employeeCode} onChange={handleChange('employeeCode')} required />
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-sm font-semibold text-slate-700">Employee ID / Code</span>
+                {form.employeeCode && (
+                  <button type="button" onClick={() => clearField('employeeCode')} className="text-xs text-brand-700 hover:underline">
+                    Mark Not Provided
+                  </button>
+                )}
+              </div>
+              <Input value={form.employeeCode} onChange={handleChange('employeeCode')} placeholder="Not Provided" />
+            </div>
             <Input label="First Name" value={form.firstName} onChange={handleChange('firstName')} required />
             <Input label="Last Name" value={form.lastName} onChange={handleChange('lastName')} required />
           </div>

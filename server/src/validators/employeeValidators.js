@@ -24,7 +24,7 @@ export const createEmployeeSchema = z.object({
 });
 
 export const updateEmployeeSchema = z.object({
-  employeeCode: z.string().min(1).optional(),
+  employeeCode: z.string().optional(),
   firstName: z.string().min(1).optional(),
   lastName: z.string().min(1).optional(),
   phone: z.string().optional(),

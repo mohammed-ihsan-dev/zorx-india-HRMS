@@ -14,9 +14,15 @@ import { TodayAttendanceTimeline } from '../../features/attendance/TodayAttendan
 
 const STATUS_OPTIONS = ['', 'PRESENT', 'LATE', 'HALF_DAY', 'ABSENT', 'LEAVE'];
 
+// Isolated so the live working-hours tick (from useTodayAttendance) only
+// re-renders the timeline card, not the summary stats + full log table below.
+function TodayTimelineSection() {
+  const { record, loading } = useTodayAttendance();
+  return <TodayAttendanceTimeline record={record} loading={loading} />;
+}
+
 export function Attendance() {
   const toast = useToast();
-  const { record: todayRecord, loading: todayLoading } = useTodayAttendance();
   const [records, setRecords] = useState([]);
   const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState('');
@@ -87,7 +93,7 @@ export function Attendance() {
       </div>
 
       {/* Today's Attendance Visual Timeline */}
-      <TodayAttendanceTimeline record={todayRecord} loading={todayLoading} />
+      <TodayTimelineSection />
 
       {/* Attendance Log Table Card with Go-to-Date & Search */}
       <Card className="rounded-3xl border border-slate-200/90 shadow-md p-6 sm:p-8 bg-white">

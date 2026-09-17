@@ -15,6 +15,25 @@ export async function generateEmployeeCode() {
   return `ZX${String(next).padStart(4, '0')}`;
 }
 
+export function isUnassignedCode(code) {
+  if (code === undefined || code === null) return true;
+  const str = String(code).trim().toLowerCase();
+  return (
+    str === '' ||
+    str === '0' ||
+    str === 'null' ||
+    str === 'undefined' ||
+    str === 'none' ||
+    str === 'nil' ||
+    str === 'nill' ||
+    str === 'na' ||
+    str === 'n/a' ||
+    str === '—' ||
+    str === '-' ||
+    str === 'unassigned'
+  );
+}
+
 export const createEmployee = asyncHandler(async (req, res) => {
   const { email, password, role, employeeCode, ...employeeFields } = req.body;
 
@@ -24,7 +43,14 @@ export const createEmployee = asyncHandler(async (req, res) => {
   }
 
   const passwordHash = await User.hashPassword(password || 'Password');
-  const codeToUse = employeeCode && typeof employeeCode === 'string' ? employeeCode.trim() : '';
+  const codeToUse = isUnassignedCode(employeeCode) ? '' : String(employeeCode).trim();
+
+  if (codeToUse) {
+    const existingCode = await Employee.findOne({ employeeCode: codeToUse });
+    if (existingCode) {
+      throw ApiError.conflict(`Employee ID ${codeToUse} is already assigned to another employee.`);
+    }
+  }
 
   const user = await User.create({ email: email.toLowerCase(), passwordHash, role: role || 'EMPLOYEE' });
 
@@ -123,9 +149,12 @@ export const getEmployeeById = asyncHandler(async (req, res) => {
 });
 
 export const updateEmployee = asyncHandler(async (req, res) => {
-  if (req.body.employeeCode) {
-    const code = req.body.employeeCode.trim();
-    if (code) {
+  if (req.body.employeeCode !== undefined) {
+    if (isUnassignedCode(req.body.employeeCode)) {
+      req.body.employeeCode = '';
+    } else {
+      const code = String(req.body.employeeCode).trim();
+      req.body.employeeCode = code;
       const existing = await Employee.findOne({
         employeeCode: code,
         _id: { $ne: req.params.id },

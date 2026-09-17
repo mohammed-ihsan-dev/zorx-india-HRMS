@@ -21,11 +21,44 @@ function greeting() {
   return 'Good Evening';
 }
 
+// Isolated so the once-a-second tick only re-renders this small clock block,
+// not the whole Dashboard (tasks/announcements/chart don't depend on the time).
+function LiveClockBanner() {
+  const clock = useLiveClock();
+  return (
+    <div className="flex items-center gap-5 bg-slate-50 border border-slate-200/80 rounded-2xl px-6 py-4 shadow-2xs self-start sm:self-auto">
+      <div className="flex items-center gap-2.5">
+        <Clock size={22} className="text-brand-800 shrink-0" />
+        <span className="text-2xl sm:text-3xl font-black text-slate-900 tabular-nums tracking-tight">{clock.time}</span>
+      </div>
+      <div className="w-px h-8 bg-slate-300 shrink-0" />
+      <div className="flex items-center gap-2.5">
+        <CalendarDays size={22} className="text-brand-800 shrink-0" />
+        <span className="text-base sm:text-lg font-extrabold text-slate-700 tracking-wide">{clock.dateShort}</span>
+      </div>
+    </div>
+  );
+}
+
+// Isolated so the working-hours tick (every 1-10s while checked in) only
+// re-renders the punch station, not the tasks/announcements/chart below it.
+function PunchStation() {
+  const attendance = useTodayAttendance();
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div className="lg:col-span-2">
+        <AttendanceWidget data={attendance} />
+      </div>
+      <div className="lg:col-span-1">
+        <WorkingHoursCard data={attendance} />
+      </div>
+    </div>
+  );
+}
+
 export function Dashboard() {
   const { user } = useAuth();
   const employee = user?.employee;
-  const clock = useLiveClock();
-  const attendance = useTodayAttendance();
 
   const [tasks, setTasks] = useState([]);
   const [tasksLoading, setTasksLoading] = useState(true);
@@ -58,30 +91,12 @@ export function Dashboard() {
           </h2>
         </div>
 
-        <div className="flex items-center gap-5 bg-slate-50 border border-slate-200/80 rounded-2xl px-6 py-4 shadow-2xs self-start sm:self-auto">
-          <div className="flex items-center gap-2.5">
-            <Clock size={22} className="text-brand-800 shrink-0" />
-            <span className="text-2xl sm:text-3xl font-black text-slate-900 tabular-nums tracking-tight">{clock.time}</span>
-          </div>
-          <div className="w-px h-8 bg-slate-300 shrink-0" />
-          <div className="flex items-center gap-2.5">
-            <CalendarDays size={22} className="text-brand-800 shrink-0" />
-            <span className="text-base sm:text-lg font-extrabold text-slate-700 tracking-wide">{clock.dateShort}</span>
-          </div>
-        </div>
+        <LiveClockBanner />
       </div>
 
       {/* Punch Station & Working Hours */}
-      <div className="order-1 min-[425px]:order-2 grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Attendance Punch Widget - Top Position on Mobile (<425px) */}
-        <div className="lg:col-span-2">
-          <AttendanceWidget data={attendance} />
-        </div>
-
-        {/* Working Hours Tracker */}
-        <div className="lg:col-span-1">
-          <WorkingHoursCard data={attendance} />
-        </div>
+      <div className="order-1 min-[425px]:order-2">
+        <PunchStation />
       </div>
 
       {/* Tasks, Announcements & Progress */}

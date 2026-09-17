@@ -37,6 +37,10 @@ employeeSchema.virtual('fullName').get(function fullName() {
   return `${this.firstName} ${this.lastName}`;
 });
 
+employeeSchema.virtual('avatarUrl').get(function avatarUrl() {
+  return this.profileImage || '';
+});
+
 employeeSchema.set('toJSON', { virtuals: true });
 employeeSchema.set('toObject', { virtuals: true });
 

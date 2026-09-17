@@ -13,7 +13,7 @@ import * as employeeService from '../../services/employeeService.js';
 import * as departmentService from '../../services/departmentService.js';
 import * as attendanceService from '../../services/attendanceService.js';
 import * as taskService from '../../services/taskService.js';
-import { formatDate, formatTime, formatMinutes, initials, titleCase } from '../../utils/formatters.js';
+import { formatDate, formatTime, formatMinutes, initials, titleCase, isNotProvided } from '../../utils/formatters.js';
 import { useToast } from '../../hooks/useToast.js';
 import { getErrorMessage } from '../../services/apiClient.js';
 
@@ -70,15 +70,27 @@ export function EmployeeDetail() {
 
       <Card>
         <div className="flex flex-wrap items-center gap-4">
-          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-brand-900 to-brand-800 text-brand-50 flex items-center justify-center text-2xl font-black shadow-inner">
-            {initials(employee.firstName, employee.lastName)}
-          </div>
+          {employee.profileImage || employee.avatarUrl ? (
+            <div className="w-16 h-16 rounded-2xl overflow-hidden border-2 border-slate-200/90 shadow-sm shrink-0">
+              <img
+                src={employee.profileImage || employee.avatarUrl}
+                alt={`${employee.firstName} ${employee.lastName}`}
+                className={`w-full h-full object-cover ${
+                  (employee.profileImage || employee.avatarUrl || '').includes('ajmal') ? 'scale-125 object-[center_20%]' : ''
+                }`}
+              />
+            </div>
+          ) : (
+            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-brand-900 to-brand-800 text-brand-50 flex items-center justify-center text-2xl font-black shadow-inner shrink-0">
+              {initials(employee.firstName, employee.lastName)}
+            </div>
+          )}
           <div className="flex-1 min-w-[200px]">
             <h2 className="text-xl font-extrabold text-slate-900">
               {employee.firstName} {employee.lastName}
             </h2>
             <p className="text-sm font-semibold text-brand-800 mt-0.5">
-              {employee.designation || 'No designation'} · Code: {employee.employeeCode} · {employee.departmentId?.name || 'Unassigned'}
+              {employee.designation || 'No designation'} · Code: {isNotProvided(employee.employeeCode) ? 'Not Provided' : employee.employeeCode} · {employee.departmentId?.name || 'Unassigned'}
             </p>
             <Badge color={employee.status === 'ACTIVE' ? 'green' : 'slate'} className="mt-1.5">
               {employee.status}
@@ -155,12 +167,12 @@ export function EmployeeDetail() {
 }
 
 function Row({ label, value }) {
-  const isNotProvided = !value || value === '—' || value === 'Unassigned';
+  const missing = isNotProvided(value);
   return (
     <div className="flex justify-between gap-4 py-0.5">
       <dt className="text-slate-500 font-medium">{label}</dt>
       <dd className="font-semibold text-slate-800 text-right">
-        {isNotProvided ? (
+        {missing ? (
           <span className="inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-semibold bg-slate-100 text-slate-500 border border-slate-200/80">
             Not Provided
           </span>
