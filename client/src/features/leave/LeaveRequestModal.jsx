@@ -22,14 +22,23 @@ export function LeaveRequestModal({ open, onClose, initialDate, onSubmitted }) {
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
+  const todayYMD = (() => {
+    const d = new Date();
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  })();
+
   useEffect(() => {
     if (open) {
-      setForm({ leaveType: 'CASUAL', startDate: initialDate, endDate: initialDate, reason: '' });
+      const defaultDate = initialDate && initialDate >= todayYMD ? initialDate : todayYMD;
+      setForm({ leaveType: 'CASUAL', startDate: defaultDate, endDate: defaultDate, reason: '' });
       setFile(null);
       setFileError('');
       setError('');
     }
-  }, [open, initialDate]);
+  }, [open, initialDate, todayYMD]);
 
   const days = countDaysInclusive(form.startDate, form.endDate);
 
@@ -59,6 +68,7 @@ export function LeaveRequestModal({ open, onClose, initialDate, onSubmitted }) {
 
     if (!form.leaveType) return setError('Please select a leave type.');
     if (!form.startDate || !form.endDate) return setError('Please select an end date.');
+    if (form.startDate < todayYMD) return setError('You cannot request leave for past dates.');
     if (days < 1) return setError('End date must be on or after the start date.');
     if (!form.reason.trim()) return setError('Please provide a reason.');
 
@@ -101,6 +111,7 @@ export function LeaveRequestModal({ open, onClose, initialDate, onSubmitted }) {
           <Input
             type="date"
             label="Start Date"
+            min={todayYMD}
             value={form.startDate}
             onChange={(e) => setForm((f) => ({ ...f, startDate: e.target.value }))}
             required
@@ -108,6 +119,7 @@ export function LeaveRequestModal({ open, onClose, initialDate, onSubmitted }) {
           <Input
             type="date"
             label="End Date"
+            min={form.startDate || todayYMD}
             value={form.endDate}
             onChange={(e) => setForm((f) => ({ ...f, endDate: e.target.value }))}
             required

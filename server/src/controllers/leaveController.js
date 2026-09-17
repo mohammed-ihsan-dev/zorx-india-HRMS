@@ -28,6 +28,16 @@ export const createLeave = asyncHandler(async (req, res) => {
   const employeeId = requireEmployee(req);
   const { leaveType, startDate, endDate, reason, supportingDocumentId } = req.body;
 
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const start = new Date(startDate);
+  start.setHours(0, 0, 0, 0);
+
+  if (start < today) {
+    throw ApiError.badRequest('Leave request start date cannot be before today.');
+  }
+
   const days = calculateLeaveDays(startDate, endDate);
   const year = new Date(startDate).getFullYear();
 
