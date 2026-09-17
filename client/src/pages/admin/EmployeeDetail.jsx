@@ -1,16 +1,19 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Pencil } from 'lucide-react';
 import { Card, CardHeader } from '../../components/Card.jsx';
 import { Badge } from '../../components/Badge.jsx';
+import { Button } from '../../components/Button.jsx';
 import { Loader } from '../../components/Loader.jsx';
 import { Table } from '../../components/Table.jsx';
 import { StatusBadge, PriorityBadge } from '../../components/StatusBadge.jsx';
 import { EmptyState } from '../../components/EmptyState.jsx';
+import { EditEmployeeModal } from '../../features/employees/EditEmployeeModal.jsx';
 import * as employeeService from '../../services/employeeService.js';
+import * as departmentService from '../../services/departmentService.js';
 import * as attendanceService from '../../services/attendanceService.js';
 import * as taskService from '../../services/taskService.js';
-import { formatDate, formatTime, formatMinutes, initials } from '../../utils/formatters.js';
+import { formatDate, formatTime, formatMinutes, initials, titleCase } from '../../utils/formatters.js';
 import { useToast } from '../../hooks/useToast.js';
 import { getErrorMessage } from '../../services/apiClient.js';
 
@@ -18,12 +21,16 @@ export function EmployeeDetail() {
   const { id } = useParams();
   const toast = useToast();
   const [employee, setEmployee] = useState(null);
+  const [departments, setDepartments] = useState([]);
   const [stats, setStats] = useState(null);
   const [attendance, setAttendance] = useState([]);
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [editModalOpen, setEditModalOpen] = useState(false);
 
   useEffect(() => {
+    departmentService.listDepartments().then(setDepartments).catch(() => {});
+
     Promise.all([
       employeeService.getEmployee(id),
       attendanceService.getEmployeeAttendance(id),
@@ -52,43 +59,60 @@ export function EmployeeDetail() {
 
   return (
     <div className="space-y-6">
-      <Link to="/admin/employees" className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-800">
-        <ArrowLeft size={15} /> Back to Employees
-      </Link>
+      <div className="flex items-center justify-between">
+        <Link to="/admin/employees" className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-800 font-medium">
+          <ArrowLeft size={15} /> Back to Employees
+        </Link>
+        <Button icon={Pencil} size="sm" onClick={() => setEditModalOpen(true)}>
+          Edit Profile
+        </Button>
+      </div>
 
       <Card>
         <div className="flex flex-wrap items-center gap-4">
-          <div className="w-16 h-16 rounded-full bg-brand-100 text-brand-800 flex items-center justify-center text-xl font-bold">
+          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-brand-900 to-brand-800 text-brand-50 flex items-center justify-center text-2xl font-black shadow-inner">
             {initials(employee.firstName, employee.lastName)}
           </div>
           <div className="flex-1 min-w-[200px]">
-            <h2 className="text-lg font-bold text-slate-900">
+            <h2 className="text-xl font-extrabold text-slate-900">
               {employee.firstName} {employee.lastName}
             </h2>
-            <p className="text-sm text-slate-500">
-              {employee.designation} · {employee.employeeCode} · {employee.departmentId?.name || 'No department'}
+            <p className="text-sm font-semibold text-brand-800 mt-0.5">
+              {employee.designation || 'No designation'} · Code: {employee.employeeCode} · {employee.departmentId?.name || 'Unassigned'}
             </p>
             <Badge color={employee.status === 'ACTIVE' ? 'green' : 'slate'} className="mt-1.5">
               {employee.status}
             </Badge>
           </div>
           <div className="grid grid-cols-3 gap-3 text-center">
-            <MiniStat label="Present" value={stats.presentCount} />
-            <MiniStat label="Late" value={stats.lateCount} />
-            <MiniStat label="Leave" value={stats.leaveCount} />
+            <MiniStat label="Present" value={stats?.presentCount || 0} />
+            <MiniStat label="Late" value={stats?.lateCount || 0} />
+            <MiniStat label="Leave" value={stats?.leaveCount || 0} />
           </div>
         </div>
       </Card>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card padded={false} className="p-5">
-          <CardHeader title="Work Information" />
+          <CardHeader title="Work & Personal Information" />
           <dl className="space-y-3 text-sm">
+            <Row label="Full Name" value={`${employee.firstName} ${employee.lastName}`} />
+            <Row label="Designation" value={employee.designation || '—'} />
+            <Row label="Department" value={employee.departmentId?.name || '—'} />
             <Row label="Phone" value={employee.phone || '—'} />
+            <Row label="Date of Birth" value={employee.dateOfBirth ? formatDate(employee.dateOfBirth) : '—'} />
             <Row label="Joining Date" value={formatDate(employee.joiningDate)} />
-            <Row label="Employment Type" value={employee.employmentType} />
+            <Row label="Employment Type" value={employee.employmentType ? titleCase(employee.employmentType) : '—'} />
             <Row label="Manager" value={employee.managerId ? `${employee.managerId.firstName} ${employee.managerId.lastName}` : '—'} />
             <Row label="Address" value={employee.address || '—'} />
+            <Row
+              label="Emergency Contact"
+              value={
+                employee.emergencyContact?.name
+                  ? `${employee.emergencyContact.name} (${employee.emergencyContact.phone || ''}) - ${employee.emergencyContact.relation || ''}`
+                  : '—'
+              }
+            />
           </dl>
         </Card>
 
@@ -100,7 +124,7 @@ export function EmployeeDetail() {
             <div className="space-y-3">
               {tasks.map((t) => (
                 <div key={t._id} className="flex items-center justify-between gap-2">
-                  <p className="text-sm text-slate-700 truncate">{t.title}</p>
+                  <p className="text-sm font-semibold text-slate-800 truncate">{t.title}</p>
                   <div className="flex items-center gap-2 shrink-0">
                     <PriorityBadge priority={t.priority} />
                     <StatusBadge status={t.status} />
@@ -116,6 +140,16 @@ export function EmployeeDetail() {
         <CardHeader title="Recent Attendance" />
         <Table columns={attendanceColumns} data={attendance} emptyState={<EmptyState title="No attendance records" />} />
       </Card>
+
+      <EditEmployeeModal
+        open={editModalOpen}
+        onClose={() => setEditModalOpen(false)}
+        employee={employee}
+        departments={departments}
+        onUpdated={(updated) => {
+          setEmployee(updated);
+        }}
+      />
     </div>
   );
 }

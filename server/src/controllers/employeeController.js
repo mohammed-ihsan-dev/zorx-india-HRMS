@@ -50,16 +50,28 @@ export const createEmployee = asyncHandler(async (req, res) => {
 export const listEmployees = asyncHandler(async (req, res) => {
   const { search = '', departmentId, status, page = 1, limit = 20 } = req.query;
 
-  const filter = {};
+  // Exclude SUPER_ADMIN users from the employee directory
+  const superAdminUsers = await User.find({ role: 'SUPER_ADMIN' }).select('_id');
+  const superAdminUserIds = superAdminUsers.map((u) => u._id);
+
+  const filter = {
+    userId: { $nin: superAdminUserIds },
+  };
   if (status) filter.status = status;
   if (departmentId) filter.departmentId = departmentId;
   if (search) {
-    filter.$or = [
-      { firstName: { $regex: search, $options: 'i' } },
-      { lastName: { $regex: search, $options: 'i' } },
-      { employeeCode: { $regex: search, $options: 'i' } },
-      { designation: { $regex: search, $options: 'i' } },
+    filter.$and = [
+      { userId: { $nin: superAdminUserIds } },
+      {
+        $or: [
+          { firstName: { $regex: search, $options: 'i' } },
+          { lastName: { $regex: search, $options: 'i' } },
+          { employeeCode: { $regex: search, $options: 'i' } },
+          { designation: { $regex: search, $options: 'i' } },
+        ],
+      },
     ];
+    delete filter.userId;
   }
 
   const pageNum = Number(page) || 1;
