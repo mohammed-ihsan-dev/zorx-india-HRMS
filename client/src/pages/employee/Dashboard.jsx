@@ -47,8 +47,8 @@ export function Dashboard() {
 
   return (
     <div className="space-y-8 pb-8">
-      {/* Top Greeting Header & Live Clock Banner */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6 bg-white p-6 sm:p-8 rounded-3xl border border-slate-200/90 shadow-sm">
+      {/* Top Greeting Header & Live Clock Banner (Desktop & Tablet view only) */}
+      <div className="hidden sm:flex sm:flex-row sm:items-center sm:justify-between gap-6 bg-white p-6 sm:p-8 rounded-3xl border border-slate-200/90 shadow-sm">
         <div>
           <span className="text-xs sm:text-sm font-extrabold uppercase tracking-widest text-brand-700 bg-brand-50 px-3 py-1 rounded-md border border-brand-200/60">
             Employee Portal
