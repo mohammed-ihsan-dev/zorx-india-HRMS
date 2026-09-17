@@ -1,6 +1,6 @@
 import { Clock, Coffee, LogOut, MapPin, Play } from 'lucide-react';
 import { Card } from '../../components/Card.jsx';
-import { formatTime, titleCase } from '../../utils/formatters.js';
+import { formatTime } from '../../utils/formatters.js';
 
 export function getTodayTimelineEvents(record) {
   if (!record) return [];
@@ -23,7 +23,6 @@ export function getTodayTimelineEvents(record) {
         events.push({
           id: `break-start-${index}`,
           label: 'BREAK',
-          breakType: b.type,
           time: b.startTime,
           tone: 'red',
           icon: Coffee,
@@ -33,7 +32,6 @@ export function getTodayTimelineEvents(record) {
         events.push({
           id: `break-end-${index}`,
           label: 'BREAK END',
-          breakType: b.type,
           time: b.endTime,
           tone: 'green',
           icon: Play,
@@ -112,11 +110,6 @@ export function TodayAttendanceTimeline({ record, loading }) {
                   <span className={`text-xs font-black uppercase tracking-wider ${isGreen ? 'text-emerald-800' : 'text-rose-800'}`}>
                     {evt.label}
                   </span>
-                  {evt.breakType && (
-                    <span className="text-[11px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200/60 ml-auto">
-                      {titleCase(evt.breakType)}
-                    </span>
-                  )}
                 </div>
               </div>
             );
