@@ -66,7 +66,7 @@ async function run() {
   ]);
 
   console.log('[seed] creating users...');
-  const { employee: superAdminEmp } = await createUserWithEmployee({
+  await createUserWithEmployee({
     email: 'ihsan@spadmin.com',
     role: ROLES.SUPER_ADMIN,
     firstName: 'Ihsan',
@@ -74,17 +74,6 @@ async function run() {
     designation: 'Super Administrator',
     departmentId: operations._id,
     employeeCode: 'ZX0001',
-  });
-
-  // Also create legacy alias
-  await createUserWithEmployee({
-    email: 'superadmin@zorxindia.dev',
-    role: ROLES.SUPER_ADMIN,
-    firstName: 'Zorx',
-    lastName: 'SuperAdmin',
-    designation: 'Super Administrator',
-    departmentId: operations._id,
-    employeeCode: 'ZX0000',
   });
 
   const { employee: adminEmp } = await createUserWithEmployee({
@@ -97,18 +86,7 @@ async function run() {
     employeeCode: 'ZX0002',
   });
 
-  // Also create legacy alias
   await createUserWithEmployee({
-    email: 'admin@zorxindia.dev',
-    role: ROLES.ADMIN,
-    firstName: 'Arjun',
-    lastName: 'Nair',
-    designation: 'Admin & HR Manager',
-    departmentId: hrDept._id,
-    employeeCode: 'ZX0000B',
-  });
-
-  const { employee: userEmp } = await createUserWithEmployee({
     email: 'ihsan@user.com',
     role: ROLES.EMPLOYEE,
     firstName: 'Ihsan',
@@ -118,30 +96,6 @@ async function run() {
     managerId: adminEmp._id,
     employeeCode: 'ZX0003',
   });
-
-  const employeeNames = [
-    { firstName: 'Anjali', lastName: 'Krishnan', designation: 'Software Engineer', departmentId: dev._id },
-    { firstName: 'Rahul', lastName: 'Varma', designation: 'Software Engineer', departmentId: dev._id },
-    { firstName: 'Meera', lastName: 'Suresh', designation: 'Marketing Executive', departmentId: marketing._id },
-    { firstName: 'Vishnu', lastName: 'Das', designation: 'Sales Executive', departmentId: sales._id },
-    { firstName: 'Priya', lastName: 'Thomas', designation: 'Accountant', departmentId: finance._id },
-  ];
-
-  const employees = [userEmp];
-  for (let i = 0; i < employeeNames.length; i += 1) {
-    const info = employeeNames[i];
-    const { employee } = await createUserWithEmployee({
-      email: `employee${i + 1}@zorxindia.dev`,
-      role: ROLES.EMPLOYEE,
-      firstName: info.firstName,
-      lastName: info.lastName,
-      designation: info.designation,
-      departmentId: info.departmentId,
-      managerId: null,
-      employeeCode: `ZX${String(4 + i).padStart(4, '0')}`,
-    });
-    employees.push(employee);
-  }
 
   console.log('\n[seed] Done! Development login credentials (password is the same for all):');
   console.log(`    Password: ${DEV_PASSWORD}\n`);
