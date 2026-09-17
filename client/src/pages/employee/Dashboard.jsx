@@ -56,7 +56,6 @@ export function Dashboard() {
           <h2 className="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight mt-2.5">
             {greeting()}, {employee?.firstName || 'there'} 👋
           </h2>
-          <p className="text-base sm:text-lg font-medium text-slate-500 mt-1">{clock.dateLong}</p>
         </div>
 
         <div className="flex items-center gap-5 bg-slate-50 border border-slate-200/80 rounded-2xl px-6 py-4 shadow-2xs self-start sm:self-auto">
