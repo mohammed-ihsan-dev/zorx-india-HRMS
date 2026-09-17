@@ -82,7 +82,13 @@ export function DocumentsTab() {
                 </div>
               </div>
               <div className="flex items-center gap-3 shrink-0">
-                <Badge color="green">{doc.status}</Badge>
+                {doc.status === 'PENDING' ? (
+                  <Badge color="amber">Pending Admin Approval</Badge>
+                ) : doc.status === 'APPROVED' ? (
+                  <Badge color="green">Approved</Badge>
+                ) : (
+                  <Badge color="red">Rejected</Badge>
+                )}
                 <Button size="sm" variant="ghost" icon={Eye} loading={openingId === doc._id} onClick={() => handleView(doc)}>
                   View
                 </Button>

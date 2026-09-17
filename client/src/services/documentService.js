@@ -30,3 +30,18 @@ export async function openDocument(id) {
   window.open(url, '_blank', 'noopener,noreferrer');
   setTimeout(() => window.URL.revokeObjectURL(url), 60000);
 }
+
+export async function listAllDocuments(params = {}) {
+  const { data } = await apiClient.get('/documents/admin/all', { params });
+  return data;
+}
+
+export async function approveDocument(id) {
+  const { data } = await apiClient.patch(`/documents/${id}/approve`);
+  return data.data;
+}
+
+export async function rejectDocument(id, reason = '') {
+  const { data } = await apiClient.patch(`/documents/${id}/reject`, { reason });
+  return data.data;
+}

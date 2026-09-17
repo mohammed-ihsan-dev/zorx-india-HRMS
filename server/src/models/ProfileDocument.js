@@ -11,7 +11,10 @@ const profileDocumentSchema = new mongoose.Schema(
     storedFileName: { type: String, required: true },
     mimeType: { type: String, required: true },
     sizeBytes: { type: Number, required: true },
-    status: { type: String, enum: ['UPLOADED'], default: 'UPLOADED' },
+    status: { type: String, enum: ['PENDING', 'APPROVED', 'REJECTED'], default: 'PENDING' },
+    reviewedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    reviewedAt: { type: Date },
+    rejectionReason: { type: String, default: '' },
   },
   { timestamps: true }
 );

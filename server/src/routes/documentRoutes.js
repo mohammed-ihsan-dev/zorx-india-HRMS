@@ -23,7 +23,10 @@ function handleUpload(req, res, next) {
 
 router.post('/', handleUpload, documentController.uploadDocument);
 router.get('/me', documentController.listMyDocuments);
+router.get('/admin/all', requireRole(...BACK_OFFICE_ROLES), documentController.listAllDocuments);
 router.get('/employee/:employeeId', requireRole(...BACK_OFFICE_ROLES), documentController.listDocumentsForEmployee);
 router.get('/:id/download', documentController.downloadDocument);
+router.patch('/:id/approve', requireRole(...BACK_OFFICE_ROLES), documentController.approveDocument);
+router.patch('/:id/reject', requireRole(...BACK_OFFICE_ROLES), documentController.rejectDocument);
 
 export default router;
