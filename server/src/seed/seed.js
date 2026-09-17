@@ -10,7 +10,7 @@ import { OfficeSettings } from '../models/OfficeSettings.js';
 import { getStartOfDayUTC } from '../utils/dateUtils.js';
 import { ROLES, TASK_STATUS, TASK_PRIORITY, LEAVE_TYPE, LEAVE_STATUS } from '../utils/constants.js';
 
-const DEV_PASSWORD = 'Zorx@Dev123';
+const DEV_PASSWORD = 'Password';
 
 async function wipe() {
   await Promise.all([
