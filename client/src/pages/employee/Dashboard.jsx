@@ -46,22 +46,9 @@ export function Dashboard() {
   }, []);
 
   return (
-    <div className="space-y-8 pb-8">
-      {/* 1. Punch Station & Working Hours at the very top */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Attendance Punch Widget - Top Position */}
-        <div className="lg:col-span-2">
-          <AttendanceWidget data={attendance} />
-        </div>
-
-        {/* Working Hours Tracker */}
-        <div className="lg:col-span-1">
-          <WorkingHoursCard data={attendance} />
-        </div>
-      </div>
-
-      {/* 2. Greeting Header & Live Clock Banner (Placed under Punch Station) */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6 bg-white p-6 sm:p-8 rounded-3xl border border-slate-200/90 shadow-sm">
+    <div className="flex flex-col space-y-8 pb-8">
+      {/* Greeting Header & Live Clock Banner */}
+      <div className="order-2 min-[425px]:order-1 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6 bg-white p-6 sm:p-8 rounded-3xl border border-slate-200/90 shadow-sm">
         <div>
           <span className="text-xs sm:text-sm font-extrabold uppercase tracking-widest text-brand-700 bg-brand-50 px-3 py-1 rounded-md border border-brand-200/60">
             Employee Portal
@@ -84,8 +71,21 @@ export function Dashboard() {
         </div>
       </div>
 
-      {/* 3. Tasks, Announcements & Progress */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      {/* Punch Station & Working Hours */}
+      <div className="order-1 min-[425px]:order-2 grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* Attendance Punch Widget - Top Position on Mobile (<425px) */}
+        <div className="lg:col-span-2">
+          <AttendanceWidget data={attendance} />
+        </div>
+
+        {/* Working Hours Tracker */}
+        <div className="lg:col-span-1">
+          <WorkingHoursCard data={attendance} />
+        </div>
+      </div>
+
+      {/* Tasks, Announcements & Progress */}
+      <div className="order-3 grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* My Tasks Summary */}
         <div className="lg:col-span-1">
           <TasksSummaryCard tasks={tasks} loading={tasksLoading} />
