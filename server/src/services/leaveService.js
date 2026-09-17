@@ -18,6 +18,24 @@ export async function getOrCreateLeaveBalance(employeeId, year = new Date().getF
       balances: DEFAULT_BALANCES,
       used: { [LEAVE_TYPE.CASUAL]: 0, [LEAVE_TYPE.SICK]: 0, [LEAVE_TYPE.EARNED]: 0 },
     });
+  } else {
+    // Sync existing DB records to the current company leave policy defaults
+    let modified = false;
+    if (balance.balances[LEAVE_TYPE.CASUAL] !== DEFAULT_BALANCES[LEAVE_TYPE.CASUAL]) {
+      balance.balances[LEAVE_TYPE.CASUAL] = DEFAULT_BALANCES[LEAVE_TYPE.CASUAL];
+      modified = true;
+    }
+    if (balance.balances[LEAVE_TYPE.SICK] !== DEFAULT_BALANCES[LEAVE_TYPE.SICK]) {
+      balance.balances[LEAVE_TYPE.SICK] = DEFAULT_BALANCES[LEAVE_TYPE.SICK];
+      modified = true;
+    }
+    if (balance.balances[LEAVE_TYPE.EARNED] !== DEFAULT_BALANCES[LEAVE_TYPE.EARNED]) {
+      balance.balances[LEAVE_TYPE.EARNED] = DEFAULT_BALANCES[LEAVE_TYPE.EARNED];
+      modified = true;
+    }
+    if (modified) {
+      await balance.save();
+    }
   }
   return balance;
 }
