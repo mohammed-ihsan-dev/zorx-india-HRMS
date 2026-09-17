@@ -5,7 +5,7 @@ import { env } from './config/env.js';
 async function main() {
   await connectDB();
   const app = createApp();
-  app.listen(env.port, () => {
+  app.listen(env.port, '0.0.0.0', () => {
     console.log(`[server] ZORX INDIA API listening on port ${env.port} (${env.nodeEnv})`);
   });
 }

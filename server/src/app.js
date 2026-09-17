@@ -48,8 +48,12 @@ export function createApp() {
   });
   app.use('/api', apiLimiter);
 
+  app.get('/health', (req, res) => {
+    res.json({ success: true, status: 'ok', message: 'ZORX INDIA API is running.' });
+  });
+
   app.get('/api/health', (req, res) => {
-    res.json({ success: true, message: 'ZORX INDIA API is running.' });
+    res.json({ success: true, status: 'ok', message: 'ZORX INDIA API is running.' });
   });
 
   app.use('/api', routes);
