@@ -198,22 +198,22 @@ export function Employees() {
                 className="bg-white rounded-3xl border border-slate-200/90 shadow-sm hover:shadow-md hover:-translate-y-1 transition-all duration-200 overflow-hidden flex flex-col justify-between group"
               >
                 <div>
-                  {/* Large Profile Picture Header */}
-                  <div className="relative w-full aspect-square bg-gradient-to-br from-brand-900 via-brand-800 to-brand-950 p-4 flex flex-col items-center justify-center overflow-hidden">
+                  {/* Profile Picture Header */}
+                  <div className="relative w-full aspect-square bg-slate-100 flex flex-col items-center justify-center overflow-hidden border-b border-slate-100">
                     {emp.profileImage || emp.avatarUrl ? (
                       <img
                         src={emp.profileImage || emp.avatarUrl}
                         alt={`${emp.firstName} ${emp.lastName}`}
-                        className={`w-full h-full object-cover rounded-2xl shadow-md transition-transform duration-300 ${
+                        className={`w-full h-full object-cover transition-transform duration-300 ${
                           (emp.profileImage || emp.avatarUrl || '').includes('ajmal') ? 'scale-125 object-[center_20%]' : ''
                         }`}
                       />
                     ) : (
-                      <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl bg-brand-100/90 border-2 border-white/20 text-brand-950 flex items-center justify-center text-3xl sm:text-4xl font-black shadow-inner">
+                      <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl bg-brand-100/90 border border-brand-200/80 text-brand-950 flex items-center justify-center text-3xl sm:text-4xl font-black shadow-xs">
                         {initials(emp.firstName, emp.lastName)}
                       </div>
                     )}
-                    <div className="absolute top-3.5 right-3.5">
+                    <div className="absolute top-3.5 right-3.5 z-10">
                       {emp.userId?.status && emp.userId.status !== 'ACTIVE' ? (
                         <Badge color={emp.userId.status === 'PENDING_APPROVAL' ? 'amber' : 'red'}>
                           {emp.userId.status.replace('_', ' ')}
