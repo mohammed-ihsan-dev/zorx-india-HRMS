@@ -15,6 +15,7 @@ export function FirstLoginPasswordChange() {
   const navigate = useNavigate();
   const toast = useToast();
 
+  const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
@@ -28,11 +29,11 @@ export function FirstLoginPasswordChange() {
       setError('Please enter a new password.');
       return;
     }
-    if (newPassword.length < 6) {
-      setError('Password must be at least 6 characters long.');
+    if (newPassword.length < 8) {
+      setError('New password must be at least 8 characters long.');
       return;
     }
-    if (newPassword === '1234') {
+    if (newPassword === '1234' || newPassword === 'Password' || newPassword === 'Zorx@Dev123') {
       setError('Your new password cannot be the temporary password. Please choose a secure password.');
       return;
     }
@@ -43,7 +44,7 @@ export function FirstLoginPasswordChange() {
 
     setSubmitting(true);
     try {
-      await authService.changePassword({ newPassword });
+      await authService.changePassword(currentPassword, newPassword);
       const updatedUser = await refreshUser();
       toast.success('Password updated successfully.');
       const isBackOffice = updatedUser && BACK_OFFICE_ROLES.includes(updatedUser.role);
@@ -82,10 +83,19 @@ export function FirstLoginPasswordChange() {
 
         <form onSubmit={handleSubmit} className="space-y-5">
           <Input
+            label="Current / Temporary Password (Optional)"
+            type="password"
+            autoComplete="current-password"
+            placeholder="Enter temporary password if prompted"
+            value={currentPassword}
+            onChange={(e) => setCurrentPassword(e.target.value)}
+          />
+
+          <Input
             label="New Password"
             type="password"
             autoComplete="new-password"
-            placeholder="Enter new password (min 6 characters)"
+            placeholder="Enter new password (min 8 characters)"
             value={newPassword}
             onChange={(e) => setNewPassword(e.target.value)}
             required
