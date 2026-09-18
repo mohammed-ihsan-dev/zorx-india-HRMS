@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 
-export function Dropdown({ trigger, children, align = 'right', className = '' }) {
+export function Dropdown({ trigger, children, align = 'right', responsive = false, className = '' }) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
 
@@ -12,14 +12,18 @@ export function Dropdown({ trigger, children, align = 'right', className = '' })
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  const positionClasses = responsive
+    ? 'fixed left-3 right-3 top-16 sm:absolute sm:top-full sm:inset-auto sm:mt-2 sm:right-0 max-w-[calc(100vw-1.5rem)] sm:max-w-none'
+    : align === 'right'
+    ? 'absolute right-0 mt-2 max-w-[calc(100vw-1.5rem)]'
+    : 'absolute left-0 mt-2 max-w-[calc(100vw-1.5rem)]';
+
   return (
     <div className="relative" ref={ref}>
       <div onClick={() => setOpen((o) => !o)}>{trigger}</div>
       {open && (
         <div
-          className={`absolute z-40 mt-2 min-w-[12rem] bg-white rounded-lg border border-slate-200 shadow-popover py-1.5 ${
-            align === 'right' ? 'right-0' : 'left-0'
-          } ${className}`}
+          className={`z-50 bg-white rounded-2xl sm:rounded-xl border border-slate-200 shadow-card-lg py-1.5 ${positionClasses} ${className}`}
           onClick={() => setOpen(false)}
         >
           {children}

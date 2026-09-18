@@ -21,19 +21,19 @@ export function Topbar({ onMenuClick, title, profilePath }) {
   };
 
   return (
-    <header className="sticky top-0 z-20 flex items-center justify-between gap-4 bg-white/95 backdrop-blur-md border-b border-slate-200/80 px-4 sm:px-6 lg:px-8 py-4 shadow-xs">
-      <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+    <header className="sticky top-0 z-20 flex items-center justify-between gap-2 sm:gap-4 bg-white/95 backdrop-blur-md border-b border-slate-200/80 px-3 sm:px-6 lg:px-8 py-3.5 sm:py-4 shadow-xs">
+      <div className="flex items-center gap-2 sm:gap-4 min-w-0 flex-1 sm:flex-initial">
         <button
           onClick={onMenuClick}
-          className="lg:hidden p-2 -ml-2 text-slate-600 hover:bg-slate-100 rounded-xl transition-colors shrink-0"
+          className="lg:hidden p-1.5 -ml-1 text-slate-600 hover:bg-slate-100 rounded-xl transition-colors shrink-0"
           aria-label="Toggle navigation menu"
         >
-          <Menu size={24} />
+          <Menu size={22} />
         </button>
         <div className="lg:hidden shrink-0 pr-2 border-r border-slate-200">
           <ZorxLogo variant="green" size="sm" />
         </div>
-        <h1 className="text-xl sm:text-2xl font-bold text-slate-900 truncate tracking-tight">{title}</h1>
+        <h1 className="text-sm sm:text-2xl font-extrabold text-slate-900 truncate tracking-tight">{title}</h1>
       </div>
 
       <div className="flex items-center gap-3 sm:gap-4 shrink-0">
