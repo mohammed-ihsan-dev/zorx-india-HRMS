@@ -8,12 +8,13 @@ import { Loader } from '../../components/Loader.jsx';
 import { Table } from '../../components/Table.jsx';
 import { StatusBadge, PriorityBadge } from '../../components/StatusBadge.jsx';
 import { EmptyState } from '../../components/EmptyState.jsx';
+import { Avatar } from '../../components/Avatar.jsx';
 import { EditEmployeeModal } from '../../features/employees/EditEmployeeModal.jsx';
 import * as employeeService from '../../services/employeeService.js';
 import * as departmentService from '../../services/departmentService.js';
 import * as attendanceService from '../../services/attendanceService.js';
 import * as taskService from '../../services/taskService.js';
-import { formatDate, formatTime, formatMinutes, initials, titleCase, isNotProvided } from '../../utils/formatters.js';
+import { formatDate, formatTime, formatMinutes, titleCase, isNotProvided } from '../../utils/formatters.js';
 import { useToast } from '../../hooks/useToast.js';
 import { getErrorMessage } from '../../services/apiClient.js';
 
@@ -70,21 +71,15 @@ export function EmployeeDetail() {
 
       <Card>
         <div className="flex flex-wrap items-center gap-4">
-          {employee.profileImage || employee.avatarUrl ? (
-            <div className="w-16 h-16 rounded-2xl overflow-hidden border-2 border-slate-200/90 shadow-sm shrink-0">
-              <img
-                src={employee.profileImage || employee.avatarUrl}
-                alt={`${employee.firstName} ${employee.lastName}`}
-                className={`w-full h-full object-cover ${
-                  (employee.profileImage || employee.avatarUrl || '').includes('ajmal') ? 'scale-125 object-[center_20%]' : ''
-                }`}
-              />
-            </div>
-          ) : (
-            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-brand-900 to-brand-800 text-brand-50 flex items-center justify-center text-2xl font-black shadow-inner shrink-0">
-              {initials(employee.firstName, employee.lastName)}
-            </div>
-          )}
+          <Avatar
+            src={employee.profileImage || employee.avatarUrl}
+            firstName={employee.firstName}
+            lastName={employee.lastName}
+            size="w-16 h-16"
+            shape="square"
+            textSize="text-2xl"
+            className="border-2 border-slate-200/90 shadow-sm"
+          />
           <div className="flex-1 min-w-[200px]">
             <h2 className="text-xl font-extrabold text-slate-900">
               {employee.firstName} {employee.lastName}

@@ -1,11 +1,16 @@
 import { useState } from 'react';
+import { UploadCloud, X } from 'lucide-react';
 import { Modal } from '../../components/Modal.jsx';
 import { Button } from '../../components/Button.jsx';
 import { Input, Select } from '../../components/Input.jsx';
+import { Avatar } from '../../components/Avatar.jsx';
 import * as employeeService from '../../services/employeeService.js';
 import { useToast } from '../../hooks/useToast.js';
 import { getErrorMessage } from '../../services/apiClient.js';
 import { ROLE_LABELS } from '../../utils/constants.js';
+
+const PROFILE_PICTURE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+const MAX_PROFILE_PICTURE_BYTES = 2 * 1024 * 1024;
 
 const EMPTY_FORM = {
   email: '',
@@ -25,21 +30,55 @@ export function CreateEmployeeModal({ open, onClose, departments, onCreated }) {
   const [form, setForm] = useState(EMPTY_FORM);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [photoFile, setPhotoFile] = useState(null);
+  const [photoPreview, setPhotoPreview] = useState('');
 
   const handleClose = () => {
     setForm(EMPTY_FORM);
     setError('');
+    setPhotoFile(null);
+    setPhotoPreview('');
     onClose();
   };
 
   const handleChange = (field) => (e) => setForm((f) => ({ ...f, [field]: e.target.value }));
+
+  const handlePhotoChange = (e) => {
+    const selected = e.target.files?.[0];
+    e.target.value = '';
+    if (!selected) return;
+
+    if (!PROFILE_PICTURE_TYPES.includes(selected.type)) {
+      setError('Profile picture must be a JPG, PNG, or WEBP image.');
+      return;
+    }
+    if (selected.size > MAX_PROFILE_PICTURE_BYTES) {
+      setError('Profile picture must be 2MB or smaller.');
+      return;
+    }
+    setError('');
+    setPhotoFile(selected);
+    setPhotoPreview(URL.createObjectURL(selected));
+  };
+
+  const removePhoto = () => {
+    setPhotoFile(null);
+    setPhotoPreview('');
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     setSubmitting(true);
     try {
-      await employeeService.createEmployee({ ...form, departmentId: form.departmentId || null });
+      const created = await employeeService.createEmployee({ ...form, departmentId: form.departmentId || null });
+      if (photoFile) {
+        try {
+          await employeeService.uploadProfilePicture(created._id, photoFile);
+        } catch (photoErr) {
+          toast.error(getErrorMessage(photoErr, 'Employee created, but the profile picture could not be uploaded.'));
+        }
+      }
       toast.success('Employee created successfully.');
       handleClose();
       onCreated();
@@ -54,6 +93,30 @@ export function CreateEmployeeModal({ open, onClose, departments, onCreated }) {
     <Modal open={open} onClose={handleClose} title="Add Employee" size="lg">
       <form onSubmit={handleSubmit} className="space-y-4">
         {error && <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3.5 py-2.5">{error}</p>}
+
+        <div className="flex items-center gap-4">
+          <Avatar src={photoPreview} firstName={form.firstName} lastName={form.lastName} size="w-16 h-16" textSize="text-xl" className="border border-slate-200" />
+          <div className="flex-1">
+            <span className="text-sm font-semibold text-slate-700 block mb-1.5">Profile Picture</span>
+            <div className="flex items-center gap-2">
+              <label className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-slate-300 text-sm font-semibold text-slate-700 hover:bg-slate-50 cursor-pointer">
+                <UploadCloud size={15} />
+                {photoFile ? 'Change' : 'Upload'}
+                <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={handlePhotoChange} />
+              </label>
+              {photoFile && (
+                <button
+                  type="button"
+                  onClick={removePhoto}
+                  className="inline-flex items-center gap-1 text-sm font-semibold text-slate-500 hover:text-red-600"
+                >
+                  <X size={14} /> Remove
+                </button>
+              )}
+            </div>
+            <p className="text-xs text-slate-400 mt-1">JPG, PNG, or WEBP · Max 2MB</p>
+          </div>
+        </div>
 
         <div className="grid grid-cols-2 gap-3">
           <Input label="First Name" value={form.firstName} onChange={handleChange('firstName')} required />

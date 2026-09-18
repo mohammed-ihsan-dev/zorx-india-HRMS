@@ -2,11 +2,11 @@ import { useState } from 'react';
 import { Menu, ChevronDown, LogOut, User, KeyRound } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Dropdown, DropdownItem } from './Dropdown.jsx';
+import { Avatar } from './Avatar.jsx';
 import { NotificationBell } from '../features/notifications/NotificationBell.jsx';
 import { ChangePasswordModal } from '../features/auth/ChangePasswordModal.jsx';
 import { ZorxLogo } from './ZorxLogo.jsx';
 import { useAuth } from '../hooks/useAuth.js';
-import { initials } from '../utils/formatters.js';
 import { ROLE_LABELS } from '../utils/constants.js';
 
 export function Topbar({ onMenuClick, title, profilePath }) {
@@ -42,21 +42,12 @@ export function Topbar({ onMenuClick, title, profilePath }) {
         <Dropdown
           trigger={
             <button className="flex items-center gap-3 p-1.5 sm:px-3 sm:py-2 rounded-xl hover:bg-slate-100/80 transition-all border border-transparent hover:border-slate-200">
-              {employee?.profileImage || employee?.avatarUrl ? (
-                <div className="w-10 h-10 rounded-full overflow-hidden border border-brand-200 shrink-0 shadow-xs">
-                  <img
-                    src={employee.profileImage || employee.avatarUrl}
-                    alt={`${employee.firstName} ${employee.lastName}`}
-                    className={`w-full h-full object-cover ${
-                      (employee.profileImage || employee.avatarUrl || '').includes('ajmal') ? 'scale-125 object-[center_20%]' : ''
-                    }`}
-                  />
-                </div>
-              ) : (
-                <div className="w-10 h-10 rounded-full bg-brand-100 text-brand-900 border border-brand-200 flex items-center justify-center text-sm font-bold shrink-0 shadow-xs">
-                  {employee ? initials(employee.firstName, employee.lastName) : 'U'}
-                </div>
-              )}
+              <Avatar
+                src={employee?.profileImage || employee?.avatarUrl}
+                firstName={employee?.firstName}
+                lastName={employee?.lastName}
+                className="border border-brand-200 shadow-xs"
+              />
               <div className="hidden sm:flex flex-col text-left">
                 <span className="text-sm sm:text-base font-semibold text-slate-900 leading-tight">
                   {employee ? `${employee.firstName} ${employee.lastName}` : user?.email}

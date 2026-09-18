@@ -9,11 +9,17 @@ import rateLimit from 'express-rate-limit';
 import { env, isTest } from './config/env.js';
 import routes from './routes/index.js';
 import { notFoundHandler, errorHandler } from './middleware/errorHandler.js';
+import { PROFILE_PICTURES_DIR } from './services/fileStorageService.js';
 
 export function createApp() {
   const app = express();
 
-  app.use(helmet());
+  // Render (and most PaaS hosts) terminate TLS at a reverse proxy — without this,
+  // req.protocol always reports "http", which would bake wrong http:// URLs into
+  // stored profile picture links.
+  app.set('trust proxy', 1);
+
+  app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
   const allowedOrigins = (env.clientOrigins || [env.clientOrigin]).map((o) =>
     o.replace(/\/+$/, '')
   );
@@ -55,6 +61,10 @@ export function createApp() {
   app.get('/api/health', (req, res) => {
     res.json({ success: true, status: 'ok', message: 'ZORX INDIA API is running.' });
   });
+
+  // Profile pictures only — intentionally public (rendered as <img> across the
+  // app), unlike the private/authenticated employee document downloads.
+  app.use('/uploads/profile-pictures', express.static(PROFILE_PICTURES_DIR, { maxAge: '7d' }));
 
   app.use('/api', routes);
 

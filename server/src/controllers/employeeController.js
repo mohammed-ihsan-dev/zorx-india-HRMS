@@ -7,6 +7,7 @@ import { sendSuccess } from '../utils/ApiResponse.js';
 import { ApiError } from '../utils/ApiError.js';
 import { recordAudit } from '../services/auditService.js';
 import { notify } from '../services/notificationService.js';
+import { profilePicturePublicPath, deleteProfilePicture } from '../services/fileStorageService.js';
 import { TASK_STATUS, ATTENDANCE_STATUS, USER_STATUS, NOTIFICATION_TYPE } from '../utils/constants.js';
 
 export async function generateEmployeeCode() {
@@ -179,6 +180,38 @@ export const updateEmployee = asyncHandler(async (req, res) => {
   });
 
   sendSuccess(res, { message: 'Employee updated successfully.', data: employee });
+});
+
+export const uploadProfilePicture = asyncHandler(async (req, res) => {
+  if (!req.file) {
+    throw ApiError.badRequest('No image was uploaded.');
+  }
+
+  const employee = await Employee.findById(req.params.id);
+  if (!employee) {
+    deleteProfilePicture(req.file.filename);
+    throw ApiError.notFound('Employee not found.');
+  }
+
+  const previousImage = employee.profileImage;
+  employee.profileImage = `${req.protocol}://${req.get('host')}${profilePicturePublicPath(req.file.filename)}`;
+  await employee.save();
+
+  // Only remove the old file if it was one of our own uploads (not a static
+  // seed-data asset served from the frontend's public/ folder).
+  if (previousImage && previousImage.includes('/uploads/profile-pictures/')) {
+    deleteProfilePicture(previousImage.split('/uploads/profile-pictures/').pop());
+  }
+
+  await recordAudit({
+    actorId: req.user._id,
+    action: 'EMPLOYEE_PROFILE_PICTURE_UPDATED',
+    targetType: 'Employee',
+    targetId: employee._id,
+    description: `Updated profile picture for ${employee.firstName} ${employee.lastName}`,
+  });
+
+  sendSuccess(res, { message: 'Profile picture uploaded successfully.', data: employee });
 });
 
 export const updateEmployeeStatus = asyncHandler(async (req, res) => {

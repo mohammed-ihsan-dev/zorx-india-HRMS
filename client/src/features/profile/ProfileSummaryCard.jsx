@@ -1,7 +1,8 @@
 import { Building2, Briefcase, CalendarDays, UserCircle2 } from 'lucide-react';
 import { Card } from '../../components/Card.jsx';
 import { Badge } from '../../components/Badge.jsx';
-import { initials, formatDate, isNotProvided } from '../../utils/formatters.js';
+import { Avatar } from '../../components/Avatar.jsx';
+import { formatDate, isNotProvided } from '../../utils/formatters.js';
 
 export function ProfileSummaryCard({ profile }) {
   const notProvidedBadge = (
@@ -13,21 +14,14 @@ export function ProfileSummaryCard({ profile }) {
   return (
     <Card>
       <div className="flex flex-col sm:flex-row sm:items-center gap-5">
-        {profile.profileImage || profile.avatarUrl ? (
-          <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full overflow-hidden border-2 border-brand-200/80 shadow-sm shrink-0">
-            <img
-              src={profile.profileImage || profile.avatarUrl}
-              alt={`${profile.firstName} ${profile.lastName}`}
-              className={`w-full h-full object-cover ${
-                (profile.profileImage || profile.avatarUrl || '').includes('ajmal') ? 'scale-125 object-[center_20%]' : ''
-              }`}
-            />
-          </div>
-        ) : (
-          <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-brand-100 text-brand-800 flex items-center justify-center text-3xl font-extrabold shrink-0">
-            {initials(profile.firstName, profile.lastName)}
-          </div>
-        )}
+        <Avatar
+          src={profile.profileImage || profile.avatarUrl}
+          firstName={profile.firstName}
+          lastName={profile.lastName}
+          size="w-20 h-20 sm:w-24 sm:h-24"
+          textSize="text-3xl"
+          className="border-2 border-brand-200/80 shadow-sm"
+        />
 
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2.5">

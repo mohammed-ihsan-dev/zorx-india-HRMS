@@ -14,6 +14,13 @@ export const UPLOADS_DIR = path.join(__dirname, '..', '..', 'uploads', 'document
 
 fs.mkdirSync(UPLOADS_DIR, { recursive: true });
 
+// Profile pictures are the one upload type meant to be publicly viewable (they're
+// rendered as plain <img> tags across the app), so — unlike UPLOADS_DIR above —
+// this directory is served directly via express.static in app.js.
+export const PROFILE_PICTURES_DIR = path.join(__dirname, '..', '..', 'uploads', 'profile-pictures');
+
+fs.mkdirSync(PROFILE_PICTURES_DIR, { recursive: true });
+
 const ALLOWED_MIME_TYPES = {
   'application/pdf': '.pdf',
   'image/jpeg': '.jpg',
@@ -76,4 +83,41 @@ export function absolutePathFor(storedFileName) {
 export function deleteStoredFile(storedFileName) {
   const target = absolutePathFor(storedFileName);
   fs.unlink(target, () => {}); // best-effort cleanup, never blocks the response
+}
+
+const PROFILE_PICTURE_MIME_TYPES = {
+  'image/jpeg': '.jpg',
+  'image/png': '.png',
+  'image/webp': '.webp',
+};
+
+const MAX_PROFILE_PICTURE_BYTES = 2 * 1024 * 1024; // 2MB, matches the existing PROFILE_PHOTO document-type limit
+
+const profilePictureStorage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, PROFILE_PICTURES_DIR),
+  // Random UUID filename — never derived from the client-supplied name — rules
+  // out path traversal and filename collisions/overwrites entirely.
+  filename: (req, file, cb) => cb(null, `${crypto.randomUUID()}${PROFILE_PICTURE_MIME_TYPES[file.mimetype] || ''}`),
+});
+
+function profilePictureFileFilter(req, file, cb) {
+  if (!Object.prototype.hasOwnProperty.call(PROFILE_PICTURE_MIME_TYPES, file.mimetype)) {
+    cb(ApiError.badRequest('Profile picture must be a JPG, PNG, or WEBP image.'));
+    return;
+  }
+  cb(null, true);
+}
+
+export const profilePictureUpload = multer({
+  storage: profilePictureStorage,
+  fileFilter: profilePictureFileFilter,
+  limits: { fileSize: MAX_PROFILE_PICTURE_BYTES },
+}).single('file');
+
+export function profilePicturePublicPath(storedFileName) {
+  return `/uploads/profile-pictures/${storedFileName}`;
+}
+
+export function deleteProfilePicture(storedFileName) {
+  fs.unlink(path.join(PROFILE_PICTURES_DIR, storedFileName), () => {});
 }

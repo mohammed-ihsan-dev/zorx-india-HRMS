@@ -16,6 +16,27 @@ import { formatDate, initials, isNotProvided } from '../../utils/formatters.js';
 import { useToast } from '../../hooks/useToast.js';
 import { getErrorMessage } from '../../services/apiClient.js';
 
+// Large card-header photo tile — visually distinct from the small circular
+// Avatar used elsewhere, but needs the same broken-image fallback behavior.
+function EmployeePhotoTile({ src, firstName, lastName }) {
+  const [failed, setFailed] = useState(false);
+
+  return src && !failed ? (
+    <img
+      src={src}
+      alt={`${firstName} ${lastName}`}
+      onError={() => setFailed(true)}
+      className={`w-full h-full object-cover transition-transform duration-300 ${
+        src.includes('ajmal') ? 'scale-125 object-[center_20%]' : ''
+      }`}
+    />
+  ) : (
+    <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl bg-brand-100/90 border border-brand-200/80 text-brand-950 flex items-center justify-center text-3xl sm:text-4xl font-black shadow-xs">
+      {initials(firstName, lastName)}
+    </div>
+  );
+}
+
 export function Employees() {
   const toast = useToast();
   const [employees, setEmployees] = useState([]);
@@ -200,19 +221,7 @@ export function Employees() {
                 <div>
                   {/* Profile Picture Header */}
                   <div className="relative w-full aspect-square bg-slate-100 flex flex-col items-center justify-center overflow-hidden border-b border-slate-100">
-                    {emp.profileImage || emp.avatarUrl ? (
-                      <img
-                        src={emp.profileImage || emp.avatarUrl}
-                        alt={`${emp.firstName} ${emp.lastName}`}
-                        className={`w-full h-full object-cover transition-transform duration-300 ${
-                          (emp.profileImage || emp.avatarUrl || '').includes('ajmal') ? 'scale-125 object-[center_20%]' : ''
-                        }`}
-                      />
-                    ) : (
-                      <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl bg-brand-100/90 border border-brand-200/80 text-brand-950 flex items-center justify-center text-3xl sm:text-4xl font-black shadow-xs">
-                        {initials(emp.firstName, emp.lastName)}
-                      </div>
-                    )}
+                    <EmployeePhotoTile src={emp.profileImage || emp.avatarUrl} firstName={emp.firstName} lastName={emp.lastName} />
                     <div className="absolute top-3.5 right-3.5 z-10">
                       {emp.userId?.status && emp.userId.status !== 'ACTIVE' ? (
                         <Badge color={emp.userId.status === 'PENDING_APPROVAL' ? 'amber' : 'red'}>

@@ -35,6 +35,15 @@ export async function rejectUserAccount(id) {
   return data.data;
 }
 
+export async function uploadProfilePicture(id, file) {
+  const formData = new FormData();
+  formData.append('file', file);
+  const { data } = await apiClient.post(`/employees/${id}/profile-picture`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+  return data.data;
+}
+
 export async function getMyProfile() {
   const { data } = await apiClient.get('/employees/me/profile');
   return data.data;
