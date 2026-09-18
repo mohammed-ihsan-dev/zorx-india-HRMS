@@ -19,7 +19,7 @@ export function Signup() {
     const next = {};
     if (!form.name.trim()) next.name = 'Name is required.';
     if (!/^\S+@\S+\.\S+$/.test(form.email)) next.email = 'Enter a valid email address.';
-    if (form.password.length < 8) next.password = 'Password must be at least 8 characters.';
+    if (form.password.length < 6) next.password = 'Password must be at least 6 characters.';
     if (form.confirmPassword !== form.password) next.confirmPassword = 'Passwords do not match.';
     setErrors(next);
     return Object.keys(next).length === 0;
@@ -122,7 +122,7 @@ export function Signup() {
                   value={form.password}
                   onChange={setField('password')}
                   error={errors.password}
-                  hint={!errors.password ? 'At least 8 characters.' : undefined}
+                  hint={!errors.password ? 'At least 6 characters.' : undefined}
                   required
                 />
                 <Input

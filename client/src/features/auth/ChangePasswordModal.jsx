@@ -21,8 +21,8 @@ export function ChangePasswordModal({ open, onClose }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
-    if (form.newPassword.length < 8) {
-      setError('New password must be at least 8 characters.');
+    if (form.newPassword.length < 6) {
+      setError('New password must be at least 6 characters.');
       return;
     }
     if (form.newPassword !== form.confirmPassword) {
@@ -56,7 +56,7 @@ export function ChangePasswordModal({ open, onClose }) {
           type="password"
           value={form.newPassword}
           onChange={(e) => setForm((f) => ({ ...f, newPassword: e.target.value }))}
-          hint="At least 8 characters."
+          hint="At least 6 characters."
           required
         />
         <Input

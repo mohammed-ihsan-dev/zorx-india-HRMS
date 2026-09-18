@@ -29,8 +29,8 @@ export function FirstLoginPasswordChange() {
       setError('Please enter a new password.');
       return;
     }
-    if (newPassword.length < 8) {
-      setError('New password must be at least 8 characters long.');
+    if (newPassword.length < 6) {
+      setError('New password must be at least 6 characters long.');
       return;
     }
     if (newPassword === '1234' || newPassword === 'Password' || newPassword === 'Zorx@Dev123') {
@@ -95,7 +95,7 @@ export function FirstLoginPasswordChange() {
             label="New Password"
             type="password"
             autoComplete="new-password"
-            placeholder="Enter new password (min 8 characters)"
+            placeholder="Enter new password (min 6 characters)"
             value={newPassword}
             onChange={(e) => setNewPassword(e.target.value)}
             required
