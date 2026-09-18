@@ -1,11 +1,14 @@
+import { useState } from 'react';
 import { MapPin, CheckCircle2, LoaderCircle, AlertTriangle, Radio, Clock, Coffee, LogOut, Play } from 'lucide-react';
 import { Card } from '../../components/Card.jsx';
+import { ConfirmDialog } from '../../components/ConfirmDialog.jsx';
 import { StatusBadge } from '../../components/StatusBadge.jsx';
 import { formatTime } from '../../utils/formatters.js';
 import { ATTENDANCE_UI_STATE } from './useTodayAttendance.js';
 import { LOCATION_STATUS } from '../../hooks/useGeolocation.js';
 
 export function AttendanceWidget({ data }) {
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const {
     loading,
     submitting,
@@ -151,7 +154,7 @@ export function AttendanceWidget({ data }) {
             <button
               type="button"
               disabled={submitting}
-              onClick={checkOut}
+              onClick={() => setConfirmOpen(true)}
               className="w-28 h-28 sm:w-32 sm:h-32 rounded-full bg-gradient-to-br from-rose-600 to-rose-700 text-white font-extrabold shadow-lg shadow-rose-600/30 hover:scale-105 active:scale-95 transition-all duration-200 flex flex-col items-center justify-center gap-1 cursor-pointer ring-4 ring-rose-100 hover:ring-rose-200 disabled:opacity-50 disabled:pointer-events-none"
             >
               {submitting ? (
@@ -198,6 +201,24 @@ export function AttendanceWidget({ data }) {
           </div>
         )}
       </div>
+
+      {/* Confirmation Modal before Check Out */}
+      <ConfirmDialog
+        open={confirmOpen}
+        onClose={() => !submitting && setConfirmOpen(false)}
+        onConfirm={async () => {
+          try {
+            await checkOut();
+          } finally {
+            setConfirmOpen(false);
+          }
+        }}
+        title="Confirm Check Out?"
+        description="Are you sure you want to check out now? Once checked out, this action cannot be undone for the current attendance session."
+        confirmLabel="Confirm Checkout"
+        variant="primary"
+        loading={submitting}
+      />
     </Card>
   );
 }
