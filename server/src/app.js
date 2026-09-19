@@ -32,9 +32,10 @@ export function createApp() {
         if (allowedOrigins.includes(cleanOrigin) || env.nodeEnv === 'development') {
           return callback(null, true);
         }
-        return callback(new Error(`CORS policy error: Origin ${origin} is not allowed.`));
+        return callback(null, false);
       },
       credentials: true,
+      optionsSuccessStatus: 204,
     })
   );
   app.use(express.json({ limit: '2mb' }));
