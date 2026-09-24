@@ -28,5 +28,21 @@ apiClient.interceptors.response.use(
 );
 
 export function getErrorMessage(error, fallback = 'Something went wrong. Please try again.') {
-  return error?.response?.data?.message || fallback;
+  const data = error?.response?.data;
+  if (data?.details?.fieldErrors) {
+    const fieldMessages = Object.entries(data.details.fieldErrors)
+      .flatMap(([field, errors]) => {
+        const fieldName = field.charAt(0).toUpperCase() + field.slice(1);
+        const errList = Array.isArray(errors) ? errors : [errors];
+        return errList.map((err) => `${fieldName}: ${err}`);
+      })
+      .filter(Boolean);
+    if (fieldMessages.length > 0) {
+      return fieldMessages.join('. ');
+    }
+  }
+  if (data?.details?.formErrors && Array.isArray(data.details.formErrors) && data.details.formErrors.length > 0) {
+    return data.details.formErrors.join('. ');
+  }
+  return data?.message || fallback;
 }

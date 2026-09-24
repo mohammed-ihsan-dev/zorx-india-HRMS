@@ -69,6 +69,12 @@ export function CreateEmployeeModal({ open, onClose, departments, onCreated }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+
+    if (form.password.length < 8) {
+      setError('Temporary password must be at least 8 characters long.');
+      return;
+    }
+
     setSubmitting(true);
     try {
       const created = await employeeService.createEmployee({ ...form, departmentId: form.departmentId || null });
@@ -130,6 +136,7 @@ export function CreateEmployeeModal({ open, onClose, departments, onCreated }) {
             type="text"
             value={form.password}
             onChange={handleChange('password')}
+            minLength={8}
             hint="At least 8 characters. Share securely with the employee."
             required
           />
