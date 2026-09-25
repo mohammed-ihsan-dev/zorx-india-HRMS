@@ -1,15 +1,22 @@
 import { useState, useEffect } from 'react';
+import { UploadCloud, X, Camera } from 'lucide-react';
 import { Modal } from '../../components/Modal.jsx';
 import { Button } from '../../components/Button.jsx';
 import { Input, Select, Textarea } from '../../components/Input.jsx';
+import { Avatar } from '../../components/Avatar.jsx';
 import * as employeeService from '../../services/employeeService.js';
 import { useToast } from '../../hooks/useToast.js';
 import { getErrorMessage } from '../../services/apiClient.js';
+
+const PROFILE_PICTURE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+const MAX_PROFILE_PICTURE_BYTES = 2 * 1024 * 1024;
 
 export function EditEmployeeModal({ open, onClose, employee, departments, onUpdated }) {
   const toast = useToast();
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [photoFile, setPhotoFile] = useState(null);
+  const [photoPreview, setPhotoPreview] = useState('');
 
   const [form, setForm] = useState({
     employeeCode: '',
@@ -44,10 +51,35 @@ export function EditEmployeeModal({ open, onClose, employee, departments, onUpda
         emergencyPhone: employee.emergencyContact?.phone || '',
         emergencyRelation: employee.emergencyContact?.relation || '',
       });
+      setPhotoFile(null);
+      setPhotoPreview(employee.profileImage || employee.avatarUrl || '');
     }
   }, [employee]);
 
   const handleChange = (field) => (e) => setForm((f) => ({ ...f, [field]: e.target.value }));
+
+  const handlePhotoChange = (e) => {
+    const selected = e.target.files?.[0];
+    e.target.value = '';
+    if (!selected) return;
+
+    if (!PROFILE_PICTURE_TYPES.includes(selected.type)) {
+      setError('Profile picture must be a JPG, PNG, or WEBP image.');
+      return;
+    }
+    if (selected.size > MAX_PROFILE_PICTURE_BYTES) {
+      setError('Profile picture must be 2MB or smaller.');
+      return;
+    }
+    setError('');
+    setPhotoFile(selected);
+    setPhotoPreview(URL.createObjectURL(selected));
+  };
+
+  const removeSelectedPhoto = () => {
+    setPhotoFile(null);
+    setPhotoPreview(employee?.profileImage || employee?.avatarUrl || '');
+  };
 
   const clearField = (field) => {
     setForm((f) => ({ ...f, [field]: '' }));
@@ -81,10 +113,23 @@ export function EditEmployeeModal({ open, onClose, employee, departments, onUpda
         },
       };
 
-      const updated = await employeeService.updateEmployee(employee._id, payload);
+      let updatedRes = await employeeService.updateEmployee(employee._id, payload);
+      let updatedData = updatedRes.data || updatedRes;
+
+      if (photoFile) {
+        try {
+          const photoRes = await employeeService.uploadProfilePicture(employee._id, photoFile);
+          if (photoRes) {
+            updatedData = { ...updatedData, profileImage: photoRes.profileImage || photoRes };
+          }
+        } catch (photoErr) {
+          toast.error(getErrorMessage(photoErr, 'Profile updated, but profile picture could not be uploaded.'));
+        }
+      }
+
       toast.success('Employee profile updated successfully.');
       onClose();
-      if (onUpdated) onUpdated(updated.data || updated);
+      if (onUpdated) onUpdated(updatedData);
     } catch (err) {
       setError(getErrorMessage(err, 'Could not update employee profile.'));
     } finally {
@@ -96,6 +141,31 @@ export function EditEmployeeModal({ open, onClose, employee, departments, onUpda
     <Modal open={open} onClose={onClose} title="Edit Employee Profile" size="lg">
       <form onSubmit={handleSubmit} className="space-y-4 max-h-[75vh] overflow-y-auto pr-1">
         {error && <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3.5 py-2.5">{error}</p>}
+
+        {/* Profile Picture Upload Section */}
+        <div className="flex items-center gap-4 bg-slate-50 p-4 rounded-2xl border border-slate-200/80">
+          <Avatar src={photoPreview} firstName={form.firstName} lastName={form.lastName} size="w-16 h-16" textSize="text-xl" className="border-2 border-slate-200 shadow-sm" />
+          <div className="flex-1">
+            <span className="text-sm font-bold text-slate-800 block mb-1">Profile Photo</span>
+            <div className="flex items-center gap-2.5">
+              <label className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl border border-slate-300 text-xs font-bold text-slate-700 hover:bg-white cursor-pointer transition-colors shadow-xs">
+                <UploadCloud size={14} />
+                {photoFile ? 'Change Selected' : 'Upload New Photo'}
+                <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={handlePhotoChange} />
+              </label>
+              {photoFile && (
+                <button
+                  type="button"
+                  onClick={removeSelectedPhoto}
+                  className="inline-flex items-center gap-1 text-xs font-bold text-slate-500 hover:text-red-600"
+                >
+                  <X size={14} /> Cancel Selection
+                </button>
+              )}
+            </div>
+            <p className="text-[11px] text-slate-400 mt-1">JPG, PNG, or WEBP · Max 2MB</p>
+          </div>
+        </div>
 
         <div className="space-y-3">
           <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Personal & Work Details</p>

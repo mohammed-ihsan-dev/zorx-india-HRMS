@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, Pencil } from 'lucide-react';
+import { ArrowLeft, Pencil, Camera } from 'lucide-react';
 import { Card, CardHeader } from '../../components/Card.jsx';
 import { Badge } from '../../components/Badge.jsx';
 import { Button } from '../../components/Button.jsx';
@@ -28,6 +28,27 @@ export function EmployeeDetail() {
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [editModalOpen, setEditModalOpen] = useState(false);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+
+  const handleDirectPhotoUpload = async (e) => {
+    const selected = e.target.files?.[0];
+    e.target.value = '';
+    if (!selected) return;
+
+    setUploadingPhoto(true);
+    try {
+      const res = await employeeService.uploadProfilePicture(id, selected);
+      setEmployee((prev) => ({
+        ...prev,
+        profileImage: res.profileImage || res,
+      }));
+      toast.success('Profile picture updated successfully.');
+    } catch (err) {
+      toast.error(getErrorMessage(err, 'Failed to upload profile picture.'));
+    } finally {
+      setUploadingPhoto(false);
+    }
+  };
 
   useEffect(() => {
     departmentService.listDepartments().then(setDepartments).catch(() => {});
@@ -71,15 +92,28 @@ export function EmployeeDetail() {
 
       <Card>
         <div className="flex flex-wrap items-center gap-4">
-          <Avatar
-            src={employee.profileImage || employee.avatarUrl}
-            firstName={employee.firstName}
-            lastName={employee.lastName}
-            size="w-16 h-16"
-            shape="square"
-            textSize="text-2xl"
-            className="border-2 border-slate-200/90 shadow-sm"
-          />
+          <div className="relative group">
+            <Avatar
+              src={employee.profileImage || employee.avatarUrl}
+              firstName={employee.firstName}
+              lastName={employee.lastName}
+              size="w-20 h-20"
+              shape="square"
+              textSize="text-2xl"
+              className="border-2 border-slate-200/90 shadow-sm"
+            />
+            <label className="absolute inset-0 bg-slate-900/60 rounded-2xl flex flex-col items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
+              <Camera size={20} />
+              <span className="text-[10px] font-bold mt-1">{uploadingPhoto ? 'Uploading…' : 'Change Photo'}</span>
+              <input
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                className="hidden"
+                disabled={uploadingPhoto}
+                onChange={handleDirectPhotoUpload}
+              />
+            </label>
+          </div>
           <div className="flex-1 min-w-[200px]">
             <h2 className="text-xl font-extrabold text-slate-900">
               {employee.firstName} {employee.lastName}
