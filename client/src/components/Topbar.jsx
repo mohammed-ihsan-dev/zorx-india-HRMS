@@ -49,8 +49,11 @@ export function Topbar({ onMenuClick, title, profilePath }) {
                 className="border border-brand-200 shadow-xs"
               />
               <div className="hidden sm:flex flex-col text-left">
-                <span className="text-sm sm:text-base font-semibold text-slate-900 leading-tight">
+                <span className="text-sm font-semibold text-slate-900 leading-tight">
                   {employee ? `${employee.firstName} ${employee.lastName}` : user?.email}
+                </span>
+                <span className="text-xs text-slate-500 font-medium truncate max-w-[180px]">
+                  {user?.email}
                 </span>
                 <span className="text-xs font-semibold text-brand-700 bg-brand-50 border border-brand-200/60 px-2 py-0.5 rounded-md mt-0.5 inline-block w-fit">
                   {ROLE_LABELS[user?.role] || user?.role}

@@ -129,7 +129,8 @@ export const listEmployees = asyncHandler(async (req, res) => {
 export const getEmployeeById = asyncHandler(async (req, res) => {
   const employee = await Employee.findById(req.params.id)
     .populate('departmentId', 'name')
-    .populate('managerId', 'firstName lastName');
+    .populate('managerId', 'firstName lastName')
+    .populate('userId', 'email status role');
   if (!employee) throw ApiError.notFound('Employee not found.');
 
   const [presentCount, lateCount, absentCount, leaveCount, tasksCompleted, tasksPending] = await Promise.all([

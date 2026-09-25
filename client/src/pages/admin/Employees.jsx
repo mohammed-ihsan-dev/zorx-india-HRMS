@@ -255,6 +255,12 @@ export function Employees() {
 
                     <div className="space-y-2 pt-2 border-t border-slate-100 text-sm">
                       <div className="flex items-center justify-between gap-2">
+                        <span className="text-slate-400 font-medium shrink-0">Email:</span>
+                        <span className="font-semibold text-slate-800 truncate text-right text-xs" title={emp.userId?.email || '—'}>
+                          {emp.userId?.email || '—'}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between gap-2">
                         <span className="text-slate-400 font-medium">Employee ID:</span>
                         <span className="font-mono font-bold text-slate-800 truncate text-right">
                           {isNotProvided(emp.employeeCode) ? (

@@ -85,7 +85,7 @@ export function EmployeeDetail() {
               {employee.firstName} {employee.lastName}
             </h2>
             <p className="text-sm font-semibold text-brand-800 mt-0.5">
-              {employee.designation || 'No designation'} · Code: {isNotProvided(employee.employeeCode) ? 'Not Provided' : employee.employeeCode} · {employee.departmentId?.name || 'Unassigned'}
+              {employee.designation || 'No designation'} · {employee.userId?.email || ''} · Code: {isNotProvided(employee.employeeCode) ? 'Not Provided' : employee.employeeCode} · {employee.departmentId?.name || 'Unassigned'}
             </p>
             <Badge color={employee.status === 'ACTIVE' ? 'green' : 'slate'} className="mt-1.5">
               {employee.status}
@@ -104,6 +104,7 @@ export function EmployeeDetail() {
           <CardHeader title="Work & Personal Information" />
           <dl className="space-y-3 text-sm">
             <Row label="Full Name" value={`${employee.firstName} ${employee.lastName}`} />
+            <Row label="Email Address" value={employee.userId?.email || '—'} />
             <Row label="Designation" value={employee.designation || '—'} />
             <Row label="Department" value={employee.departmentId?.name || '—'} />
             <Row label="Phone" value={employee.phone || '—'} />
