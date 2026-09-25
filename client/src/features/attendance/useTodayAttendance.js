@@ -145,10 +145,11 @@ export function useTodayAttendance() {
       } catch (err) {
         if (err?.response) {
           toast.error(getErrorMessage(err));
-        } else if (err?.code === undefined) {
-          toast.error('Something went wrong. Please try again.');
+        } else if (err?.message) {
+          toast.error(err.message);
+        } else {
+          toast.error('Could not access your location. Please check browser permissions.');
         }
-        // Geolocation-specific errors are already reflected via geolocation.status/errorMessage.
       } finally {
         setSubmitting(false);
       }
