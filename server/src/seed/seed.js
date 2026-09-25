@@ -42,7 +42,7 @@ async function seedInitialEmployeeAccounts(departments) {
   const INITIAL_EMPLOYEES = [
     {
       name: 'Shamila Sherin K.P',
-      email: 'shamilasherin.08@gmail.com',
+      email: 'shamila@zorxmedia.com',
       designation: 'SEO Specialist',
       joiningDate: new Date('2026-09-07'),
       departmentName: 'Marketing',
@@ -50,7 +50,7 @@ async function seedInitialEmployeeAccounts(departments) {
     },
     {
       name: 'Mishab P',
-      email: 'mizhab107@gmail.com',
+      email: 'mishab@zorxmedia.com',
       designation: 'Graphic Designer',
       joiningDate: new Date('2026-09-01'),
       departmentName: 'Marketing',
@@ -58,7 +58,7 @@ async function seedInitialEmployeeAccounts(departments) {
     },
     {
       name: 'Shijin P',
-      email: 'shijinp9404@gmail.com',
+      email: 'shijin@zorxmedia.com',
       designation: 'Web Developer',
       joiningDate: new Date('2026-09-12'),
       departmentName: 'Development',
@@ -66,7 +66,7 @@ async function seedInitialEmployeeAccounts(departments) {
     },
     {
       name: 'Neethu N',
-      email: 'neethurkailas@gmail.com',
+      email: 'neethu@zorxmedia.com',
       designation: 'DIGITAL MARKETER',
       joiningDate: new Date('2026-09-01'),
       departmentName: 'Marketing',
@@ -74,7 +74,7 @@ async function seedInitialEmployeeAccounts(departments) {
     },
     {
       name: 'Nahida Sherin K',
-      email: 'nahidasherin01@gmail.com',
+      email: 'nahida@zorxmedia.com',
       designation: 'Office Administration & SOP Specialist',
       joiningDate: new Date('2026-09-01'),
       departmentName: 'Operations',
@@ -82,7 +82,7 @@ async function seedInitialEmployeeAccounts(departments) {
     },
     {
       name: 'Mohammed Ajmal M',
-      email: 'Ajmalmuhmmd777@gmail.com',
+      email: 'ajmal@zorxmedia.com',
       designation: 'Senior Graphic Designer',
       joiningDate: new Date('2026-09-11'),
       departmentName: 'Marketing',
@@ -90,11 +90,19 @@ async function seedInitialEmployeeAccounts(departments) {
     },
     {
       name: 'Mohammed Ihsan',
-      email: 'mdihsan0010@gmail.com',
+      email: 'ihsan@zorxmedia.com',
       designation: 'Web Developer',
       joiningDate: new Date('2026-10-12'),
       departmentName: 'Development',
       profileImage: '/profile/ihsan.jpeg',
+    },
+    {
+      name: 'Goutham Krishna',
+      email: 'goutham@zorxmedia.com',
+      designation: 'Video Editor',
+      joiningDate: new Date('2026-09-15'),
+      departmentName: 'Marketing',
+      profileImage: '/profile/goutham.png',
     },
   ];
 
@@ -173,36 +181,25 @@ async function run() {
   const deptMap = new Map(departments.map((d) => [d.name, d._id]));
 
   console.log('[seed] checking/creating admin users...');
-  await createUserWithEmployee({
-    email: 'ihsan@spadmin.com',
-    role: ROLES.SUPER_ADMIN,
-    firstName: 'Ihsan',
-    lastName: 'SuperAdmin',
-    designation: 'Super Administrator',
-    departmentId: deptMap.get('Operations'),
-    employeeCode: 'ZX0001',
-  });
+  const ADMIN_ACCOUNTS = [
+    { email: 'superadmin@zorxmedia.com', role: ROLES.SUPER_ADMIN, firstName: 'Super', lastName: 'Admin', designation: 'Super Administrator', department: 'Operations' },
+    { email: 'ajzal@zorxmedia.com', role: ROLES.SUPER_ADMIN, firstName: 'Ajzal', lastName: '.', designation: 'Super Administrator', department: 'Operations' },
+    { email: 'sameel@zorxmedia.com', role: ROLES.SUPER_ADMIN, firstName: 'Sameel', lastName: '.', designation: 'Super Administrator', department: 'Operations' },
+    { email: 'hr@zorxmedia.com', role: ROLES.ADMIN, firstName: 'HR', lastName: 'Manager', designation: 'HR Manager', department: 'HR' },
+    { email: 'krishnakumar@zorxmedia.com', role: ROLES.ADMIN, firstName: 'Krishna', lastName: 'Kumar', designation: 'Administrator', department: 'Operations' },
+    { email: 'arun@zorxmedia.com', role: ROLES.ADMIN, firstName: 'Arun', lastName: '.', designation: 'Administrator', department: 'Operations' },
+  ];
 
-  const { employee: adminEmp } = await createUserWithEmployee({
-    email: 'ihsan@admin.com',
-    role: ROLES.ADMIN,
-    firstName: 'Ihsan',
-    lastName: 'Admin',
-    designation: 'Admin & HR Manager',
-    departmentId: deptMap.get('HR'),
-    employeeCode: 'ZX0002',
-  });
-
-  await createUserWithEmployee({
-    email: 'ihsan@user.com',
-    role: ROLES.EMPLOYEE,
-    firstName: 'Ihsan',
-    lastName: 'User',
-    designation: 'Software Engineer',
-    departmentId: deptMap.get('Development'),
-    managerId: adminEmp ? adminEmp._id : null,
-    employeeCode: 'ZX0003',
-  });
+  for (const adm of ADMIN_ACCOUNTS) {
+    await createUserWithEmployee({
+      email: adm.email,
+      role: adm.role,
+      firstName: adm.firstName,
+      lastName: adm.lastName,
+      designation: adm.designation,
+      departmentId: deptMap.get(adm.department),
+    });
+  }
 
   console.log('[seed] checking/creating initial employee accounts...');
   await seedInitialEmployeeAccounts(departments);
