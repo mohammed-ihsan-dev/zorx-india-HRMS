@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { initials } from '../utils/formatters.js';
+import { initials, getProfileImageUrl } from '../utils/formatters.js';
 
 const SHAPES = {
   circle: 'rounded-full',
@@ -18,17 +18,18 @@ export function Avatar({ src, firstName, lastName, size = 'w-10 h-10', shape = '
     setFailed(false);
   }, [src]);
 
-  const showImage = Boolean(src) && !failed;
+  const resolvedSrc = getProfileImageUrl(src);
+  const showImage = Boolean(resolvedSrc) && !failed;
   const shapeClass = SHAPES[shape] || SHAPES.circle;
 
   if (showImage) {
     return (
       <div className={`${size} ${shapeClass} overflow-hidden shrink-0 ${className}`}>
         <img
-          src={src}
+          src={resolvedSrc}
           alt={`${firstName || ''} ${lastName || ''}`.trim() || 'Profile'}
           onError={() => setFailed(true)}
-          className={`w-full h-full object-cover ${src.includes('ajmal') ? 'scale-125 object-[center_20%]' : ''}`}
+          className={`w-full h-full object-cover ${resolvedSrc.includes('ajmal') ? 'scale-125 object-[center_20%]' : ''}`}
         />
       </div>
     );

@@ -194,7 +194,10 @@ export const uploadProfilePicture = asyncHandler(async (req, res) => {
   }
 
   const previousImage = employee.profileImage;
-  employee.profileImage = `${req.protocol}://${req.get('host')}${profilePicturePublicPath(req.file.filename)}`;
+  const rawProtocol = req.headers['x-forwarded-proto'] || req.protocol || 'https';
+  const host = req.get('host');
+  const scheme = (rawProtocol === 'http' && !host.includes('localhost')) ? 'https' : rawProtocol;
+  employee.profileImage = `${scheme}://${host}${profilePicturePublicPath(req.file.filename)}`;
   await employee.save();
 
   // Only remove the old file if it was one of our own uploads (not a static

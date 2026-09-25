@@ -12,7 +12,7 @@ import { CardSkeleton } from '../../components/Skeleton.jsx';
 import { CreateEmployeeModal } from '../../features/employees/CreateEmployeeModal.jsx';
 import * as employeeService from '../../services/employeeService.js';
 import * as departmentService from '../../services/departmentService.js';
-import { formatDate, initials, isNotProvided } from '../../utils/formatters.js';
+import { formatDate, initials, isNotProvided, getProfileImageUrl } from '../../utils/formatters.js';
 import { useToast } from '../../hooks/useToast.js';
 import { getErrorMessage } from '../../services/apiClient.js';
 
@@ -20,14 +20,15 @@ import { getErrorMessage } from '../../services/apiClient.js';
 // Avatar used elsewhere, but needs the same broken-image fallback behavior.
 function EmployeePhotoTile({ src, firstName, lastName }) {
   const [failed, setFailed] = useState(false);
+  const resolvedSrc = getProfileImageUrl(src);
 
-  return src && !failed ? (
+  return resolvedSrc && !failed ? (
     <img
-      src={src}
+      src={resolvedSrc}
       alt={`${firstName} ${lastName}`}
       onError={() => setFailed(true)}
       className={`w-full h-full object-cover transition-transform duration-300 ${
-        src.includes('ajmal') ? 'scale-125 object-[center_20%]' : ''
+        resolvedSrc.includes('ajmal') ? 'scale-125 object-[center_20%]' : ''
       }`}
     />
   ) : (

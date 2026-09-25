@@ -82,4 +82,37 @@ export function isNotProvided(val) {
   );
 }
 
+export function getProfileImageUrl(url) {
+  if (!url) return '';
+
+  // Blob URLs (e.g. upload previews) or data URLs
+  if (url.startsWith('blob:') || url.startsWith('data:')) {
+    return url;
+  }
+
+  // If it's an HTTP/HTTPS absolute URL
+  if (url.startsWith('http://') || url.startsWith('https://')) {
+    // In HTTPS environments, upgrade http:// to https:// to prevent mixed content blocking
+    if (typeof window !== 'undefined' && window.location.protocol === 'https:' && url.startsWith('http://')) {
+      url = url.replace(/^http:\/\//i, 'https://');
+    }
+    // If it points to localhost in a production frontend, replace host with API origin
+    if (typeof window !== 'undefined' && !window.location.hostname.includes('localhost') && url.includes('localhost:')) {
+      const apiOrigin = new URL(import.meta.env.VITE_API_URL || 'https://api.zorxindia.online/api').origin;
+      url = url.replace(/^https?:\/\/localhost:\d+/i, apiOrigin);
+    }
+    return url;
+  }
+
+  // If it's an uploaded image starting with /uploads/
+  if (url.startsWith('/uploads/')) {
+    const apiOrigin = new URL(import.meta.env.VITE_API_URL || 'https://api.zorxindia.online/api').origin;
+    return `${apiOrigin}${url}`;
+  }
+
+  // Static relative asset (e.g. /profile/shamila.png) served by frontend public folder
+  return url;
+}
+
+
 
