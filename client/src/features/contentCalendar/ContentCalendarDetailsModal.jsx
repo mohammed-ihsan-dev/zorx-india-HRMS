@@ -149,7 +149,7 @@ export function ContentCalendarDetailsModal({ open, onClose, item, canManage, on
                     : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
                 }`}
               >
-                Remaining
+                Upcoming
               </button>
               <button
                 type="button"

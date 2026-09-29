@@ -119,7 +119,7 @@ export function ContentCalendarItemModal({ open, onClose, item, employees = [], 
             <option value="URGENT">Urgent</option>
           </Select>
           <Select label="Work Status" value={form.workStatus} onChange={handleChange('workStatus')}>
-            <option value="REMAINING">Remaining</option>
+            <option value="REMAINING">Upcoming</option>
             <option value="ONGOING">Ongoing</option>
             <option value="COMPLETED">Completed</option>
           </Select>

@@ -389,7 +389,7 @@ export function ContentCalendar() {
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
                 {[
-                  { key: 'REMAINING', label: 'Remaining', color: 'border-t-slate-400 bg-slate-50/50' },
+                  { key: 'REMAINING', label: 'Upcoming', color: 'border-t-slate-400 bg-slate-50/50' },
                   { key: 'ONGOING', label: 'Ongoing', color: 'border-t-blue-500 bg-blue-50/20' },
                   { key: 'COMPLETED', label: 'Completed', color: 'border-t-emerald-500 bg-emerald-50/20' },
                 ].map((col) => {

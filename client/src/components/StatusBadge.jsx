@@ -3,7 +3,8 @@ import { STATUS_COLORS, PRIORITY_COLORS } from '../utils/constants.js';
 import { titleCase } from '../utils/formatters.js';
 
 export function StatusBadge({ status }) {
-  return <Badge color={STATUS_COLORS[status] || 'slate'}>{titleCase(status)}</Badge>;
+  const label = status === 'REMAINING' ? 'Upcoming' : titleCase(status);
+  return <Badge color={STATUS_COLORS[status] || 'slate'}>{label}</Badge>;
 }
 
 export function PriorityBadge({ priority }) {
