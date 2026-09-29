@@ -4,7 +4,7 @@ import { requireAuth } from '../middleware/auth.js';
 import { requireRole } from '../middleware/rbac.js';
 import { validateBody } from '../middleware/validate.js';
 import { punchSchema, startBreakSchema } from '../validators/attendanceValidators.js';
-import { BACK_OFFICE_ROLES, ROLES } from '../utils/constants.js';
+import { BACK_OFFICE_ROLES } from '../utils/constants.js';
 
 const router = Router();
 
@@ -17,7 +17,7 @@ router.post('/break/end', attendanceController.endBreak);
 router.get('/me/today', attendanceController.getMyAttendanceToday);
 router.get('/me', attendanceController.getMyAttendanceHistory);
 
-router.get('/', requireRole(...BACK_OFFICE_ROLES, ROLES.MANAGER), attendanceController.listAttendance);
-router.get('/:employeeId', requireRole(...BACK_OFFICE_ROLES, ROLES.MANAGER), attendanceController.getEmployeeAttendance);
+router.get('/', requireRole(...BACK_OFFICE_ROLES), attendanceController.listAttendance);
+router.get('/:employeeId', requireRole(...BACK_OFFICE_ROLES), attendanceController.getEmployeeAttendance);
 
 export default router;

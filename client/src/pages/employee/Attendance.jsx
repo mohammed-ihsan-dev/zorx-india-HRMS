@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Navigate } from 'react-router-dom';
 import { CalendarX2, CheckCircle2, Clock, UserX, Clock3, Calendar, Search, RotateCcw } from 'lucide-react';
 import { Card } from '../../components/Card.jsx';
 import { Table } from '../../components/Table.jsx';
@@ -8,6 +9,7 @@ import { Select } from '../../components/Input.jsx';
 import * as attendanceService from '../../services/attendanceService.js';
 import { formatDate, formatTime, formatMinutes } from '../../utils/formatters.js';
 import { useToast } from '../../hooks/useToast.js';
+import { useAuth } from '../../hooks/useAuth.js';
 import { getErrorMessage } from '../../services/apiClient.js';
 import { useTodayAttendance } from '../../features/attendance/useTodayAttendance.js';
 import { TodayAttendanceTimeline } from '../../features/attendance/TodayAttendanceTimeline.jsx';
@@ -23,6 +25,8 @@ function TodayTimelineSection() {
 
 export function Attendance() {
   const toast = useToast();
+  const { user } = useAuth();
+  const isSuperAdmin = user?.role === 'SUPER_ADMIN';
   const [records, setRecords] = useState([]);
   const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState('');
@@ -30,6 +34,7 @@ export function Attendance() {
   const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
+    if (isSuperAdmin) return; // administrative-only — no personal attendance to load
     setLoading(true);
     const params = {
       status: status || undefined,
@@ -41,7 +46,13 @@ export function Attendance() {
       .then((res) => setRecords(res.data))
       .catch((err) => toast.error(getErrorMessage(err)))
       .finally(() => setLoading(false));
-  }, [selectedDate, status, toast]);
+  }, [selectedDate, status, toast, isSuperAdmin]);
+
+  // Super Admin's attendance is an administrative monitoring view only
+  // (/admin/attendance) — they never see or use a personal punch history page.
+  if (isSuperAdmin) {
+    return <Navigate to="/admin/attendance" replace />;
+  }
 
   const summary = records.reduce(
     (acc, r) => {

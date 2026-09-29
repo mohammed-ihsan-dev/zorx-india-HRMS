@@ -1,6 +1,6 @@
 import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
-import { ROLE_VALUES, USER_STATUS } from '../utils/constants.js';
+import { ROLE_VALUES, USER_STATUS, PERMISSION_VALUES } from '../utils/constants.js';
 
 const userSchema = new mongoose.Schema(
   {
@@ -31,6 +31,14 @@ const userSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Employee',
       default: null,
+    },
+    // Explicit permission grants on top of the role's defaults (see
+    // utils/permissions.js). Empty for a normal user of any role — e.g. a
+    // "Creator" is simply role: EMPLOYEE with ['CONTENT_CALENDAR_MANAGE'] here.
+    permissions: {
+      type: [String],
+      enum: PERMISSION_VALUES,
+      default: [],
     },
     mustChangePassword: {
       type: Boolean,

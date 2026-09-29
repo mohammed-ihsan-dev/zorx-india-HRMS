@@ -4,16 +4,40 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recha
 import { StatCard } from '../../components/StatCard.jsx';
 import { Card, CardHeader } from '../../components/Card.jsx';
 import { EmptyState } from '../../components/EmptyState.jsx';
+import { AttendanceWidget } from '../../features/attendance/AttendanceWidget.jsx';
+import { WorkingHoursCard } from '../../features/attendance/WorkingHoursCard.jsx';
+import { useTodayAttendance } from '../../features/attendance/useTodayAttendance.js';
 import * as dashboardService from '../../services/dashboardService.js';
 import { formatDate, formatDateTime } from '../../utils/formatters.js';
 import { useToast } from '../../hooks/useToast.js';
+import { useAuth } from '../../hooks/useAuth.js';
 import { getErrorMessage } from '../../services/apiClient.js';
 import { CardSkeleton } from '../../components/Skeleton.jsx';
 
 const TASK_COLORS = ['#94a3b8', '#0ea5e9', '#f59e0b', '#1f5138', '#ef4444'];
 
+// HR/Admin is also an employee for their own attendance (unlike Super Admin,
+// who is purely administrative) — reuses the exact same punch-station
+// components as the employee dashboard, just embedded here instead of a
+// separate page, isolated so its live tick doesn't re-render the org stats.
+function MyPunchStation() {
+  const attendance = useTodayAttendance();
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="lg:col-span-2">
+        <AttendanceWidget data={attendance} />
+      </div>
+      <div className="lg:col-span-1">
+        <WorkingHoursCard data={attendance} />
+      </div>
+    </div>
+  );
+}
+
 export function AdminDashboard() {
   const toast = useToast();
+  const { user } = useAuth();
+  const isHr = user?.role === 'ADMIN';
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -59,6 +83,8 @@ export function AdminDashboard() {
           <p className="text-base text-slate-500 mt-1">Real-time attendance, leave status, and workforce metrics.</p>
         </div>
       </div>
+
+      {isHr && <MyPunchStation />}
 
       {/* Top Statistics Grid — 6 Spacious Metrics */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-6">

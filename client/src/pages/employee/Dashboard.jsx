@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, Navigate } from 'react-router-dom';
 import { Clock, CalendarDays, Megaphone } from 'lucide-react';
 import { AttendanceWidget } from '../../features/attendance/AttendanceWidget.jsx';
 import { WorkingHoursCard } from '../../features/attendance/WorkingHoursCard.jsx';
@@ -59,6 +59,7 @@ function PunchStation() {
 export function Dashboard() {
   const { user } = useAuth();
   const employee = user?.employee;
+  const isSuperAdmin = user?.role === 'SUPER_ADMIN';
 
   const [tasks, setTasks] = useState([]);
   const [tasksLoading, setTasksLoading] = useState(true);
@@ -66,6 +67,7 @@ export function Dashboard() {
   const [announcementsLoading, setAnnouncementsLoading] = useState(true);
 
   useEffect(() => {
+    if (isSuperAdmin) return; // administrative-only — never fetch/show the employee punch-station dashboard
     taskService
       .getMyTasks()
       .then(setTasks)
@@ -76,7 +78,13 @@ export function Dashboard() {
       .then(setAnnouncements)
       .catch(() => {})
       .finally(() => setAnnouncementsLoading(false));
-  }, []);
+  }, [isSuperAdmin]);
+
+  // Super Admin never sees the employee punch-station dashboard, even via
+  // direct navigation (their sidebar never links here).
+  if (isSuperAdmin) {
+    return <Navigate to="/admin" replace />;
+  }
 
   return (
     <div className="flex flex-col space-y-8 pb-8">

@@ -9,6 +9,31 @@ export const ROLE_VALUES = Object.values(ROLES);
 // Roles that can manage employees, departments, settings, and view org-wide data.
 export const BACK_OFFICE_ROLES = [ROLES.SUPER_ADMIN, ROLES.ADMIN];
 
+// Fine-grained capabilities layered on top of a role. A user's effective
+// permission set is (role defaults) UNION (this user's explicit `permissions`
+// array) — see utils/permissions.js. This is how "Creator" is modeled: an
+// EMPLOYEE with an explicit CONTENT_CALENDAR_MANAGE grant, not a new base role.
+export const PERMISSIONS = Object.freeze({
+  CONTENT_CALENDAR_VIEW: 'CONTENT_CALENDAR_VIEW',
+  CONTENT_CALENDAR_MANAGE: 'CONTENT_CALENDAR_MANAGE',
+});
+
+export const PERMISSION_VALUES = Object.values(PERMISSIONS);
+
+// Permissions every user of a given role has automatically, before any
+// explicit per-user grants are layered on top.
+export const ROLE_DEFAULT_PERMISSIONS = Object.freeze({
+  [ROLES.SUPER_ADMIN]: [PERMISSIONS.CONTENT_CALENDAR_VIEW, PERMISSIONS.CONTENT_CALENDAR_MANAGE],
+  [ROLES.ADMIN]: [PERMISSIONS.CONTENT_CALENDAR_VIEW],
+  [ROLES.EMPLOYEE]: [PERMISSIONS.CONTENT_CALENDAR_VIEW],
+});
+
+export const CONTENT_CALENDAR_STATUS = Object.freeze({
+  REMAINING: 'REMAINING',
+  ONGOING: 'ONGOING',
+  COMPLETED: 'COMPLETED',
+});
+
 export const USER_STATUS = Object.freeze({
   PENDING_APPROVAL: 'PENDING_APPROVAL',
   ACTIVE: 'ACTIVE',
@@ -87,6 +112,7 @@ export const ANNOUNCEMENT_AUDIENCE = Object.freeze({
 export const NOTIFICATION_TYPE = Object.freeze({
   TASK_ASSIGNED: 'TASK_ASSIGNED',
   TASK_STATUS_CHANGED: 'TASK_STATUS_CHANGED',
+  CONTENT_CALENDAR_ASSIGNED: 'CONTENT_CALENDAR_ASSIGNED',
   LEAVE_SUBMITTED: 'LEAVE_SUBMITTED',
   LEAVE_APPROVED: 'LEAVE_APPROVED',
   LEAVE_REJECTED: 'LEAVE_REJECTED',

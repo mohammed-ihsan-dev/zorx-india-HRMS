@@ -7,6 +7,7 @@ import { signToken } from '../middleware/auth.js';
 import { generateEmployeeCode } from './employeeController.js';
 import { recordAudit } from '../services/auditService.js';
 import { notifyMany } from '../services/notificationService.js';
+import { getEffectivePermissions } from '../utils/permissions.js';
 import { USER_STATUS, ROLES, BACK_OFFICE_ROLES, NOTIFICATION_TYPE } from '../utils/constants.js';
 
 const STATUS_MESSAGES = {
@@ -86,10 +87,7 @@ export const login = asyncHandler(async (req, res) => {
     throw ApiError.forbidden(STATUS_MESSAGES[user.status] || 'Your account is not active. Please contact HR/Admin.');
   }
 
-  let isMatch = await user.comparePassword(password);
-  if (!isMatch && (password === '88888888' || password === '1234' || password === 'Password' || password === 'Zorx@Dev123')) {
-    isMatch = true;
-  }
+  const isMatch = await user.comparePassword(password);
   if (!isMatch) {
     throw ApiError.unauthorized('Invalid email or password.');
   }
@@ -107,6 +105,7 @@ export const login = asyncHandler(async (req, res) => {
         id: user._id,
         email: user.email,
         role: user.role,
+        permissions: getEffectivePermissions(user),
         mustChangePassword: Boolean(user.mustChangePassword),
         employee: user.employeeId,
       },
@@ -124,6 +123,7 @@ export const getMe = asyncHandler(async (req, res) => {
       id: req.user._id,
       email: req.user.email,
       role: req.user.role,
+      permissions: getEffectivePermissions(req.user),
       status: req.user.status,
       mustChangePassword: Boolean(req.user.mustChangePassword),
       lastLogin: req.user.lastLogin,
@@ -141,12 +141,12 @@ export const changePassword = asyncHandler(async (req, res) => {
       throw ApiError.badRequest('Current password is required.');
     }
     const isMatch = await user.comparePassword(currentPassword);
-    if (!isMatch && currentPassword !== 'Password' && currentPassword !== 'Zorx@Dev123' && currentPassword !== '1234') {
+    if (!isMatch) {
       throw ApiError.badRequest('Current password is incorrect.');
     }
   } else if (currentPassword) {
     const isMatch = await user.comparePassword(currentPassword);
-    if (!isMatch && currentPassword !== 'Password' && currentPassword !== 'Zorx@Dev123' && currentPassword !== '1234') {
+    if (!isMatch) {
       throw ApiError.badRequest('Current password is incorrect.');
     }
   }

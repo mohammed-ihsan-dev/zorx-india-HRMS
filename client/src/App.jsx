@@ -24,6 +24,8 @@ const Tasks = lazy(() => import('./pages/employee/Tasks.jsx').then((m) => ({ def
 const Notifications = lazy(() => import('./pages/employee/Notifications.jsx').then((m) => ({ default: m.Notifications })));
 const Announcements = lazy(() => import('./pages/employee/Announcements.jsx').then((m) => ({ default: m.Announcements })));
 const SettingsPage = lazy(() => import('./pages/employee/SettingsPage.jsx').then((m) => ({ default: m.SettingsPage })));
+// One shared implementation, mounted at two paths (see the component's own docblock).
+const ContentCalendar = lazy(() => import('./pages/ContentCalendar.jsx').then((m) => ({ default: m.ContentCalendar })));
 
 const AdminDashboard = lazy(() => import('./pages/admin/Dashboard.jsx').then((m) => ({ default: m.AdminDashboard })));
 const Employees = lazy(() => import('./pages/admin/Employees.jsx').then((m) => ({ default: m.Employees })));
@@ -58,6 +60,7 @@ export default function App() {
             <Route path="/attendance" element={<Attendance />} />
             <Route path="/leave" element={<Leave />} />
             <Route path="/tasks" element={<Tasks />} />
+            <Route path="/content-calendar" element={<ContentCalendar />} />
             <Route path="/notifications" element={<Notifications />} />
             <Route path="/announcements" element={<Announcements />} />
             <Route path="/settings" element={<SettingsPage />} />
@@ -71,6 +74,7 @@ export default function App() {
               <Route path="/admin/attendance" element={<AdminAttendance />} />
               <Route path="/admin/leaves" element={<AdminLeaves />} />
               <Route path="/admin/tasks" element={<AdminTasks />} />
+              <Route path="/admin/content-calendar" element={<ContentCalendar />} />
 
               <Route element={<RoleRoute roles={BACK_OFFICE_ROLES} />}>
                 <Route path="/admin/departments" element={<Departments />} />

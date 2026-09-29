@@ -4,6 +4,7 @@ import { asyncHandler } from '../utils/asyncHandler.js';
 import { sendSuccess } from '../utils/ApiResponse.js';
 import { ApiError } from '../utils/ApiError.js';
 import * as attendanceService from '../services/attendanceService.js';
+import { ROLES } from '../utils/constants.js';
 
 function requireEmployee(req) {
   const employeeId = req.user.employeeId?._id;
@@ -13,25 +14,37 @@ function requireEmployee(req) {
   return employeeId;
 }
 
+// Super Admin is an administrative/monitoring role, not an attendance-punching
+// employee — enforced server-side since frontend hiding of the buttons is not security.
+function rejectSuperAdmin(req) {
+  if (req.user.role === ROLES.SUPER_ADMIN) {
+    throw ApiError.forbidden('Super Admin accounts do not record attendance.');
+  }
+}
+
 export const checkIn = asyncHandler(async (req, res) => {
+  rejectSuperAdmin(req);
   const employeeId = requireEmployee(req);
   const attendance = await attendanceService.performCheckIn(employeeId, req.body);
   sendSuccess(res, { message: 'Checked in successfully.', data: attendance });
 });
 
 export const checkOut = asyncHandler(async (req, res) => {
+  rejectSuperAdmin(req);
   const employeeId = requireEmployee(req);
   const attendance = await attendanceService.performCheckOut(employeeId, req.body);
   sendSuccess(res, { message: 'Checked out successfully.', data: attendance });
 });
 
 export const startBreak = asyncHandler(async (req, res) => {
+  rejectSuperAdmin(req);
   const employeeId = requireEmployee(req);
   const attendance = await attendanceService.performStartBreak(employeeId, req.body.type);
   sendSuccess(res, { message: 'Break started.', data: attendance });
 });
 
 export const endBreak = asyncHandler(async (req, res) => {
+  rejectSuperAdmin(req);
   const employeeId = requireEmployee(req);
   const attendance = await attendanceService.performEndBreak(employeeId);
   sendSuccess(res, { message: 'Break ended.', data: attendance });
