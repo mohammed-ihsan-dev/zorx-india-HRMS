@@ -136,6 +136,7 @@ describe('Content Calendar — SUPER_ADMIN full access', () => {
         assignedEmployee: employee._id.toString(),
         work: 'Instagram reel',
         deadline: '2026-10-05',
+        outputDate: '2026-10-06',
       });
     expect(createRes.status).toBe(201);
     const itemId = createRes.body.data._id;
@@ -166,6 +167,7 @@ describe('Content Calendar — SUPER_ADMIN full access', () => {
         assignedEmployee: employee._id.toString(),
         work: 'Reel',
         deadline: '2026-10-05',
+        outputDate: '2026-10-06',
         assignedBy: otherUser._id.toString(), // attempted spoof
       });
 
@@ -187,7 +189,7 @@ describe('Content Calendar — HR view-only', () => {
     const seedRes = await request(app)
       .post('/api/content-calendar')
       .set('Authorization', `Bearer ${creatorToken}`)
-      .send({ client: 'Acme', date: '2026-10-01', assignedEmployee: assignee._id.toString(), work: 'Post', deadline: '2026-10-05' });
+      .send({ client: 'Acme', date: '2026-10-01', assignedEmployee: assignee._id.toString(), work: 'Post', deadline: '2026-10-05', outputDate: '2026-10-06' });
     const itemId = seedRes.body.data._id;
 
     const viewRes = await request(app).get('/api/content-calendar').set('Authorization', `Bearer ${hrToken}`);
@@ -196,7 +198,7 @@ describe('Content Calendar — HR view-only', () => {
     const createRes = await request(app)
       .post('/api/content-calendar')
       .set('Authorization', `Bearer ${hrToken}`)
-      .send({ client: 'Acme', date: '2026-10-01', assignedEmployee: assignee._id.toString(), work: 'Post', deadline: '2026-10-05' });
+      .send({ client: 'Acme', date: '2026-10-01', assignedEmployee: assignee._id.toString(), work: 'Post', deadline: '2026-10-05', outputDate: '2026-10-06' });
     expect(createRes.status).toBe(403);
 
     const editRes = await request(app)
@@ -229,7 +231,7 @@ describe('Content Calendar — Creator (EMPLOYEE + CONTENT_CALENDAR_MANAGE)', ()
     const createRes = await request(app)
       .post('/api/content-calendar')
       .set('Authorization', `Bearer ${token}`)
-      .send({ client: 'Acme', date: '2026-10-01', assignedEmployee: assignee._id.toString(), work: 'Post', deadline: '2026-10-05' });
+      .send({ client: 'Acme', date: '2026-10-01', assignedEmployee: assignee._id.toString(), work: 'Post', deadline: '2026-10-05', outputDate: '2026-10-06' });
     expect(createRes.status).toBe(201);
     const itemId = createRes.body.data._id;
 
@@ -270,7 +272,7 @@ describe('Content Calendar — plain EMPLOYEE view-only', () => {
     const seedRes = await request(app)
       .post('/api/content-calendar')
       .set('Authorization', `Bearer ${creatorToken}`)
-      .send({ client: 'Acme', date: '2026-10-01', assignedEmployee: assignee._id.toString(), work: 'Post', deadline: '2026-10-05' });
+      .send({ client: 'Acme', date: '2026-10-01', assignedEmployee: assignee._id.toString(), work: 'Post', deadline: '2026-10-05', outputDate: '2026-10-06' });
     const itemId = seedRes.body.data._id;
 
     // Check in / check out like a normal employee.
@@ -286,7 +288,7 @@ describe('Content Calendar — plain EMPLOYEE view-only', () => {
     const createRes = await request(app)
       .post('/api/content-calendar')
       .set('Authorization', `Bearer ${employeeToken}`)
-      .send({ client: 'Acme', date: '2026-10-01', assignedEmployee: assignee._id.toString(), work: 'Post', deadline: '2026-10-05' });
+      .send({ client: 'Acme', date: '2026-10-01', assignedEmployee: assignee._id.toString(), work: 'Post', deadline: '2026-10-05', outputDate: '2026-10-06' });
     expect(createRes.status).toBe(403);
 
     const editRes = await request(app)
@@ -314,7 +316,7 @@ describe('Content Calendar notifications', () => {
     const res = await request(app)
       .post('/api/content-calendar')
       .set('Authorization', `Bearer ${token}`)
-      .send({ client: 'Acme', date: '2026-10-01', assignedEmployee: assignee._id.toString(), work: 'Reel edit', deadline: '2026-10-05' });
+      .send({ client: 'Acme', date: '2026-10-01', assignedEmployee: assignee._id.toString(), work: 'Reel edit', deadline: '2026-10-05', outputDate: '2026-10-06' });
     expect(res.status).toBe(201);
 
     const notifications = await Notification.find({ userId: assigneeUser._id });
@@ -332,7 +334,7 @@ describe('Content Calendar notifications', () => {
     await request(app)
       .post('/api/content-calendar')
       .set('Authorization', `Bearer ${token}`)
-      .send({ client: 'Acme', date: '2026-10-01', assignedEmployee: creatorEmployee._id.toString(), work: 'Self task', deadline: '2026-10-05' });
+      .send({ client: 'Acme', date: '2026-10-01', assignedEmployee: creatorEmployee._id.toString(), work: 'Self task', deadline: '2026-10-05', outputDate: '2026-10-06' });
 
     const notifications = await Notification.find({ userId: creator._id });
     expect(notifications).toHaveLength(0);
@@ -353,6 +355,7 @@ describe('Content Calendar validation', () => {
         assignedEmployee: '000000000000000000000000',
         work: 'Reel',
         deadline: '2026-10-05',
+        outputDate: '2026-10-06',
       });
     expect(res.status).toBe(400);
   });
@@ -404,6 +407,7 @@ describe('Content Calendar search and assignable employees', () => {
         assignedEmployee: shamilaEmp._id.toString(),
         work: 'YouTube Video',
         deadline: '2026-10-05',
+        outputDate: '2026-10-06',
       });
 
     // Create item 2: assigned to John, client: Zenith Corp, work: Instagram Campaign
@@ -416,6 +420,7 @@ describe('Content Calendar search and assignable employees', () => {
         assignedEmployee: johnEmp._id.toString(),
         work: 'Instagram Campaign',
         deadline: '2026-10-06',
+        outputDate: '2026-10-07',
       });
 
     // Search A: Employee name "shamila" (case-insensitive)

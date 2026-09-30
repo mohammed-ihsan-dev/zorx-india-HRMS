@@ -29,6 +29,7 @@ import { ContentCalendarDetailsModal } from '../features/contentCalendar/Content
 import * as contentCalendarService from '../services/contentCalendarService.js';
 import * as clientService from '../services/clientService.js';
 import { formatDate } from '../utils/formatters.js';
+import { buildMonthGrid, dayNumber, utcYMD, WEEKDAY_LABELS } from '../utils/calendarDate.js';
 import { useAuth } from '../hooks/useAuth.js';
 import { hasPermission } from '../utils/permissions.js';
 import { PERMISSIONS } from '../utils/constants.js';
@@ -245,8 +246,13 @@ export function ContentCalendar() {
         );
       },
     },
-    { key: 'date', header: 'Date', render: (r) => formatDate(r.date) },
+    { key: 'date', header: 'Assignment Date', render: (r) => formatDate(r.date) },
     { key: 'deadline', header: 'Deadline', render: (r) => formatDate(r.deadline) },
+    {
+      key: 'outputDate',
+      header: 'Output Date',
+      render: (r) => (r.outputDate ? formatDate(r.outputDate) : <span className="text-slate-400 font-normal">Not set</span>),
+    },
     { key: 'priority', header: 'Priority', render: (r) => <PriorityBadge priority={r.priority} /> },
     { key: 'workStatus', header: 'Status', render: (r) => <StatusBadge status={r.workStatus} /> },
     {
@@ -258,7 +264,7 @@ export function ContentCalendar() {
             type="button"
             onClick={() => setDetailsItem(r)}
             className="p-1.5 text-slate-500 hover:text-brand-700 hover:bg-slate-100 rounded-lg transition-colors"
-            title="View Work Details (11 Fields)"
+            title="View Work Details (12 Fields)"
             aria-label="View Details"
           >
             <Eye size={16} />
@@ -290,46 +296,40 @@ export function ContentCalendar() {
     },
   ];
 
-  // Calendar helpers
-  const calendarDays = useMemo(() => {
-    const year = currentMonth.getFullYear();
-    const month = currentMonth.getMonth();
-    const firstDayOfMonth = new Date(year, month, 1);
-    const lastDayOfMonth = new Date(year, month + 1, 0);
+  // Calendar helpers.
+  //
+  // ROOT CAUSE of the old date-shift bug: the grid cells were built with
+  // `new Date(year, month, d)` (local-timezone midnight), then keyed with
+  // `.toISOString().slice(0, 10)` (UTC). In any timezone ahead of UTC (e.g.
+  // Asia/Kolkata, UTC+5:30), that conversion silently rolls a cell's date
+  // backward by one calendar day, while an item's own date — parsed from a
+  // plain "YYYY-MM-DD" input as UTC midnight — keeps its correct UTC day. The
+  // two keys then disagree by exactly one day, every time, in that timezone.
+  //
+  // Fix: never construct a real Date for a grid cell at all, and never read a
+  // business date back out through local getters. `buildMonthGrid`/`dayNumber`
+  // (the same utility the Leave Calendar already uses correctly) work purely
+  // with integer Y/M/D — no timezone conversion step exists to go wrong.
+  const weeks = useMemo(() => buildMonthGrid(currentMonth.getFullYear(), currentMonth.getMonth()), [currentMonth]);
 
-    const startingDayOfWeek = firstDayOfMonth.getDay(); // 0 = Sunday
-    const daysInMonth = lastDayOfMonth.getDate();
-
-    const days = [];
-    // Previous month padding
-    const prevMonthLastDay = new Date(year, month, 0).getDate();
-    for (let i = startingDayOfWeek - 1; i >= 0; i--) {
-      days.push({ date: new Date(year, month - 1, prevMonthLastDay - i), isCurrentMonth: false });
-    }
-    // Current month days
-    for (let d = 1; d <= daysInMonth; d++) {
-      days.push({ date: new Date(year, month, d), isCurrentMonth: true });
-    }
-    // Next month padding
-    const totalGrid = days.length > 35 ? 42 : 35;
-    const remainingGrid = totalGrid - days.length;
-    for (let i = 1; i <= remainingGrid; i++) {
-      days.push({ date: new Date(year, month + 1, i), isCurrentMonth: false });
-    }
-    return days;
-  }, [currentMonth]);
-
-  const itemsByDateString = useMemo(() => {
-    const map = {};
+  // The calendar is driven by outputDate ONLY — never the assignment `date`
+  // or `deadline`. Legacy items created before outputDate existed have none;
+  // they correctly cannot appear on the calendar (they still show in List/Board).
+  const itemsByDayNumber = useMemo(() => {
+    const map = new Map();
     items.forEach((item) => {
-      if (item.date) {
-        const dKey = new Date(item.date).toISOString().slice(0, 10);
-        if (!map[dKey]) map[dKey] = [];
-        map[dKey].push(item);
-      }
+      if (!item.outputDate) return;
+      const { y, m, d } = utcYMD(item.outputDate);
+      const key = dayNumber(y, m, d);
+      if (!map.has(key)) map.set(key, []);
+      map.get(key).push(item);
     });
     return map;
   }, [items]);
+
+  const today = new Date();
+  const todayNum = dayNumber(today.getFullYear(), today.getMonth(), today.getDate());
+  const itemsWithoutOutputDate = items.filter((i) => !i.outputDate).length;
 
   return (
     <div className="space-y-5">
@@ -712,77 +712,83 @@ export function ContentCalendar() {
               </div>
             </div>
 
+            {/* Calendar shows Output Date only — legacy items created before this
+                field existed have none and are intentionally never placed here. */}
+            {itemsWithoutOutputDate > 0 && (
+              <p className="text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                {itemsWithoutOutputDate} item{itemsWithoutOutputDate === 1 ? '' : 's'} on this page have no Output Date set and
+                won&apos;t appear on the calendar — set one from the List view to place them.
+              </p>
+            )}
+
             {/* Grid Header Days */}
             <div className="grid grid-cols-7 gap-1 text-center font-bold text-xs text-slate-500 uppercase tracking-wider py-1">
-              <span>Sun</span>
-              <span>Mon</span>
-              <span>Tue</span>
-              <span>Wed</span>
-              <span>Thu</span>
-              <span>Fri</span>
-              <span>Sat</span>
+              {WEEKDAY_LABELS.map((label) => (
+                <span key={label}>{label}</span>
+              ))}
             </div>
 
-            {/* Grid Cells */}
-            <div className="grid grid-cols-7 gap-1.5">
-              {calendarDays.map((dObj, idx) => {
-                const dateStr = dObj.date.toISOString().slice(0, 10);
-                const dayItems = itemsByDateString[dateStr] || [];
-                const isToday = new Date().toISOString().slice(0, 10) === dateStr;
+            {/* Grid Cells — built purely from integer Y/M/D (buildMonthGrid), with
+                no Date object ever constructed for a cell, so there is no local/UTC
+                conversion step left that could shift a day. */}
+            <div className="space-y-1.5">
+              {weeks.map((week, wi) => (
+                <div key={wi} className="grid grid-cols-7 gap-1.5">
+                  {week.map((cell, di) => {
+                    if (!cell) {
+                      return <div key={di} className="min-h-[100px] sm:min-h-[110px] rounded-xl bg-slate-50/60 border border-slate-100" />;
+                    }
+                    const cellNum = dayNumber(cell.year, cell.month, cell.day);
+                    const isToday = cellNum === todayNum;
+                    const dayItems = itemsByDayNumber.get(cellNum) || [];
 
-                return (
-                  <div
-                    key={idx}
-                    className={`min-h-[100px] sm:min-h-[110px] p-1.5 rounded-xl border transition-all ${
-                      dObj.isCurrentMonth
-                        ? isToday
-                          ? 'bg-brand-50/40 border-brand-300'
-                          : 'bg-white border-slate-200/80'
-                        : 'bg-slate-50/60 border-slate-100 text-slate-400'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between mb-1 px-1">
-                      <span
-                        className={`text-xs font-extrabold ${
-                          isToday
-                            ? 'w-5 h-5 rounded-full bg-brand-600 text-white flex items-center justify-center'
-                            : dObj.isCurrentMonth
-                            ? 'text-slate-700'
-                            : 'text-slate-400'
+                    return (
+                      <div
+                        key={di}
+                        className={`min-h-[100px] sm:min-h-[110px] p-1.5 rounded-xl border transition-all ${
+                          isToday ? 'bg-brand-50/40 border-brand-300' : 'bg-white border-slate-200/80'
                         }`}
                       >
-                        {dObj.date.getDate()}
-                      </span>
-                      {dayItems.length > 0 && (
-                        <span className="text-[10px] font-bold text-slate-400">{dayItems.length}</span>
-                      )}
-                    </div>
-
-                    <div className="space-y-1 max-h-[80px] overflow-y-auto pr-0.5">
-                      {dayItems.map((item) => {
-                        const clientName = typeof item.clientId === 'object' ? item.clientId?.name : item.client;
-                        return (
-                          <button
-                            key={item._id}
-                            type="button"
-                            onClick={() => setDetailsItem(item)}
-                            className="w-full text-left p-1 rounded-md bg-slate-100 hover:bg-brand-100 text-slate-800 hover:text-brand-900 text-[11px] font-medium truncate border border-slate-200/60 block transition-colors"
+                        <div className="flex items-center justify-between mb-1 px-1">
+                          <span
+                            className={`text-xs font-extrabold ${
+                              isToday
+                                ? 'w-5 h-5 rounded-full bg-brand-600 text-white flex items-center justify-center'
+                                : 'text-slate-700'
+                            }`}
                           >
-                            <span className="font-semibold text-slate-900 mr-1">{clientName}:</span>
-                            {item.work}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                );
-              })}
+                            {cell.day}
+                          </span>
+                          {dayItems.length > 0 && <span className="text-[10px] font-bold text-slate-400">{dayItems.length}</span>}
+                        </div>
+
+                        <div className="space-y-1 max-h-[80px] overflow-y-auto pr-0.5">
+                          {dayItems.map((item) => {
+                            const clientName = typeof item.clientId === 'object' ? item.clientId?.name : item.client;
+                            return (
+                              <button
+                                key={item._id}
+                                type="button"
+                                onClick={() => setDetailsItem(item)}
+                                className="w-full text-left p-1 rounded-md bg-slate-100 hover:bg-brand-100 text-slate-800 hover:text-brand-900 text-[11px] font-medium truncate border border-slate-200/60 block transition-colors"
+                              >
+                                <span className="font-semibold text-slate-900 mr-1">{clientName}:</span>
+                                {item.work}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ))}
             </div>
           </div>
         )}
       </Card>
 
-      {/* 11 Mandatory Fields View Details Modal */}
+      {/* 12 Fields View Details Modal */}
       <ContentCalendarDetailsModal
         open={Boolean(detailsItem)}
         onClose={() => setDetailsItem(null)}

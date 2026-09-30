@@ -34,7 +34,7 @@ export function ContentCalendarDetailsModal({ open, onClose, item, canManage, on
           </div>
         </div>
 
-        {/* 11 Mandatory Fields Grid */}
+        {/* 12 Fields Grid — three distinct business dates (Assignment/Deadline/Output), never merged */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* 1. Client */}
           <div className="p-3.5 bg-white border border-slate-200/70 rounded-xl space-y-1">
@@ -44,10 +44,10 @@ export function ContentCalendarDetailsModal({ open, onClose, item, canManage, on
             <p className="text-sm font-semibold text-slate-900">{clientName || '—'}</p>
           </div>
 
-          {/* 2. Date */}
+          {/* 2. Assignment Date */}
           <div className="p-3.5 bg-white border border-slate-200/70 rounded-xl space-y-1">
             <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-              <Calendar size={13} className="text-brand-600" /> 2. Date
+              <Calendar size={13} className="text-brand-600" /> 2. Assignment Date
             </span>
             <p className="text-sm font-medium text-slate-800">{formatDate(item.date)}</p>
           </div>
@@ -82,12 +82,22 @@ export function ContentCalendarDetailsModal({ open, onClose, item, canManage, on
           {/* 6. Deadline */}
           <div className="p-3.5 bg-white border border-slate-200/70 rounded-xl space-y-1">
             <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-              <Clock size={13} className="text-rose-500" /> 7. Deadline
+              <Clock size={13} className="text-rose-500" /> 6. Deadline
             </span>
             <p className="text-sm font-semibold text-slate-900">{formatDate(item.deadline)}</p>
           </div>
 
-          {/* 7. Priority */}
+          {/* 7. Output Date */}
+          <div className="p-3.5 bg-white border border-slate-200/70 rounded-xl space-y-1">
+            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+              <Calendar size={13} className="text-emerald-600" /> 7. Output Date
+            </span>
+            <p className="text-sm font-semibold text-slate-900">
+              {item.outputDate ? formatDate(item.outputDate) : <span className="text-slate-400 font-normal">Not set</span>}
+            </p>
+          </div>
+
+          {/* 8. Priority */}
           <div className="p-3.5 bg-white border border-slate-200/70 rounded-xl space-y-1">
             <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
               <AlertCircle size={13} className="text-brand-600" /> 8. Priority
@@ -97,7 +107,7 @@ export function ContentCalendarDetailsModal({ open, onClose, item, canManage, on
             </div>
           </div>
 
-          {/* 8. Work Status */}
+          {/* 9. Work Status */}
           <div className="p-3.5 bg-white border border-slate-200/70 rounded-xl space-y-1">
             <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
               <CheckCircle2 size={13} className="text-brand-600" /> 9. Work Status
@@ -110,26 +120,26 @@ export function ContentCalendarDetailsModal({ open, onClose, item, canManage, on
 
         {/* Detailed Remarks & Feedback */}
         <div className="space-y-3 pt-1">
-          {/* 6. Assignment Remark */}
+          {/* 10. Assignment Remark */}
           <div className="p-3.5 bg-slate-50/70 border border-slate-200/70 rounded-xl space-y-1">
             <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
-              <MessageSquare size={13} className="text-slate-500" /> 6. Assignment Remark
+              <MessageSquare size={13} className="text-slate-500" /> 10. Assignment Remark
             </span>
             <p className="text-sm text-slate-700 whitespace-pre-wrap">{item.assignmentRemark || 'No assignment remarks provided.'}</p>
           </div>
 
-          {/* 10. Completion Remark */}
+          {/* 11. Completion Remark */}
           <div className="p-3.5 bg-emerald-50/50 border border-emerald-100 rounded-xl space-y-1">
             <span className="text-xs font-semibold text-emerald-700 uppercase tracking-wider flex items-center gap-1.5">
-              <CheckCircle2 size={13} className="text-emerald-600" /> 10. Completion Remark
+              <CheckCircle2 size={13} className="text-emerald-600" /> 11. Completion Remark
             </span>
             <p className="text-sm text-slate-700 whitespace-pre-wrap">{item.completionRemark || 'No completion remarks provided.'}</p>
           </div>
 
-          {/* 11. Client Feedback */}
+          {/* 12. Client Feedback */}
           <div className="p-3.5 bg-amber-50/50 border border-amber-100 rounded-xl space-y-1">
             <span className="text-xs font-semibold text-amber-700 uppercase tracking-wider flex items-center gap-1.5">
-              <MessageSquare size={13} className="text-amber-600" /> 11. Client Feedback
+              <MessageSquare size={13} className="text-amber-600" /> 12. Client Feedback
             </span>
             <p className="text-sm text-slate-700 whitespace-pre-wrap">{item.clientFeedback || 'No client feedback recorded.'}</p>
           </div>

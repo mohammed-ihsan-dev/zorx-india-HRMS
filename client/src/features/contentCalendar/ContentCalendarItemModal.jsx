@@ -11,11 +11,12 @@ import { getErrorMessage } from '../../services/apiClient.js';
 const EMPTY_FORM = {
   clientId: '',
   client: '',
-  date: '',
+  date: '', // Assignment Date
   assignedEmployee: '',
   work: '',
   assignmentRemark: '',
   deadline: '',
+  outputDate: '', // when the finished work is scheduled to go out to the client
   priority: 'MEDIUM',
   workStatus: 'REMAINING',
   completionRemark: '',
@@ -57,6 +58,9 @@ export function ContentCalendarItemModal({ open, onClose, item, employees = [], 
         work: item.work || '',
         assignmentRemark: item.assignmentRemark || '',
         deadline: toDateInput(item.deadline),
+        // Legacy items created before this field existed intentionally stay
+        // blank here rather than being guessed from another date.
+        outputDate: toDateInput(item.outputDate),
         priority: item.priority || 'MEDIUM',
         workStatus: item.workStatus || 'REMAINING',
         completionRemark: item.completionRemark || '',
@@ -68,6 +72,7 @@ export function ContentCalendarItemModal({ open, onClose, item, employees = [], 
         ...EMPTY_FORM,
         date: todayStr,
         deadline: todayStr,
+        // Output Date is a deliberate scheduling decision, never defaulted.
       });
     }
     setError('');
@@ -124,6 +129,10 @@ export function ContentCalendarItemModal({ open, onClose, item, employees = [], 
     }
     if (!form.assignedEmployee) {
       setError('Please select an assigned employee.');
+      return;
+    }
+    if (!form.outputDate) {
+      setError('Please set the Output Date — when this work is scheduled to go out to the client.');
       return;
     }
     setError('');
@@ -227,9 +236,32 @@ export function ContentCalendarItemModal({ open, onClose, item, employees = [], 
         <Textarea label="Work Description" rows={2} value={form.work} onChange={handleChange('work')} placeholder="Describe the content work to be done…" required />
         <Textarea label="Assignment Remark" rows={2} value={form.assignmentRemark} onChange={handleChange('assignmentRemark')} placeholder="Initial instructions or remarks…" />
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <Input label="Date" type="date" value={form.date} onChange={handleChange('date')} required />
-          <Input label="Deadline" type="date" value={form.deadline} onChange={handleChange('deadline')} required />
+        {/* Three distinct business dates — never merge or auto-copy between them. */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <Input
+            label="Assignment Date"
+            type="date"
+            value={form.date}
+            onChange={handleChange('date')}
+            hint="Date the work is assigned to the employee."
+            required
+          />
+          <Input
+            label="Deadline"
+            type="date"
+            value={form.deadline}
+            onChange={handleChange('deadline')}
+            hint="Date by which the employee must submit the completed work."
+            required
+          />
+          <Input
+            label="Output Date"
+            type="date"
+            value={form.outputDate}
+            onChange={handleChange('outputDate')}
+            hint="Date the completed work is scheduled to go out to the client. Drives the Calendar view."
+            required
+          />
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
