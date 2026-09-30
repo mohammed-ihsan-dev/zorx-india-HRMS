@@ -13,6 +13,7 @@ import {
   ChevronRight,
   Clock,
   User,
+  Users,
   Building2,
   Filter as FilterIcon,
   RotateCcw,
@@ -32,7 +33,7 @@ import { formatDate } from '../utils/formatters.js';
 import { buildMonthGrid, dayNumber, utcYMD, WEEKDAY_LABELS } from '../utils/calendarDate.js';
 import { useAuth } from '../hooks/useAuth.js';
 import { hasPermission } from '../utils/permissions.js';
-import { PERMISSIONS } from '../utils/constants.js';
+import { PERMISSIONS, BACK_OFFICE_ROLES } from '../utils/constants.js';
 import { useToast } from '../hooks/useToast.js';
 import { getErrorMessage } from '../services/apiClient.js';
 
@@ -41,11 +42,27 @@ export function ContentCalendar() {
   const { user } = useAuth();
   const canManage = hasPermission(user, PERMISSIONS.CONTENT_CALENDAR_MANAGE);
 
+  // Resolved from the authenticated session's Employee link — never from
+  // name/email — so "My Calendar" can never be spoofed or broken by a rename.
+  const currentEmployeeId = user?.employee?._id ? String(user.employee._id) : '';
+  const currentEmployeeName = user?.employee ? `${user.employee.firstName || ''} ${user.employee.lastName || ''}`.trim() : 'your';
+  // Management roles already see the full, unfiltered Content Calendar by
+  // default today — that existing behavior is preserved as-is. Only base
+  // EMPLOYEE-role users (including Creators, who are EMPLOYEE + a permission
+  // grant, not a separate role) get the new default-to-own-work scope.
+  const isBackOffice = BACK_OFFICE_ROLES.includes(user?.role);
+
   const [items, setItems] = useState([]);
   const [employees, setEmployees] = useState([]);
   const [clients, setClients] = useState([]);
   const [loadingEmployees, setLoadingEmployees] = useState(true);
   const [meta, setMeta] = useState({ page: 1, pages: 1, total: 0 });
+
+  // Single source of truth for the view scope — 'mine' | 'all'. Never
+  // persisted (no existing Content Calendar filter is URL/storage-persisted
+  // either), so a refresh or fresh navigation always lands back on the safe
+  // default rather than silently keeping a previous "all" choice.
+  const [viewMode, setViewMode] = useState(isBackOffice ? 'all' : 'mine');
 
   // Search & Filter state
   const [searchQuery, setSearchQuery] = useState('');
@@ -113,6 +130,13 @@ export function ContentCalendar() {
       .finally(() => setLoadingEmployees(false));
   }, []);
 
+  // "My Calendar" locks the scope to the current employee; "Full Calendar"
+  // hands control back to the existing free-form Employee filter. This is
+  // the ONLY thing that differs — the same `assignedEmployee` query param
+  // and the same backend filtering/pagination the Employee filter already
+  // used, so nothing about the API contract or RBAC changes.
+  const effectiveAssignedEmployee = viewMode === 'mine' ? currentEmployeeId || undefined : selectedEmployee || undefined;
+
   // Main data load from backend with backend-powered search & filter combinations
   const load = () => {
     setLoading(true);
@@ -120,7 +144,7 @@ export function ContentCalendar() {
       .listContentCalendarItems({
         search: debouncedSearch.trim() || undefined,
         clientId: selectedClient || undefined,
-        assignedEmployee: selectedEmployee || undefined,
+        assignedEmployee: effectiveAssignedEmployee,
         page,
         limit: 50,
       })
@@ -132,7 +156,7 @@ export function ContentCalendar() {
       .finally(() => setLoading(false));
   };
 
-  useEffect(load, [debouncedSearch, selectedClient, selectedEmployee, page]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(load, [debouncedSearch, selectedClient, selectedEmployee, viewMode, page]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const clearAllFilters = () => {
     setSearchQuery('');
@@ -142,9 +166,17 @@ export function ContentCalendar() {
     setPage(1);
   };
 
-  const isFilterActive = Boolean(selectedClient || selectedEmployee);
+  const changeViewMode = (mode) => {
+    setViewMode(mode);
+    setPage(1);
+  };
+
+  // The implicit "mine" scope is the default, not a filter the user applied —
+  // only count the Employee filter as "active" when it's actually usable
+  // (Full Calendar mode).
+  const isFilterActive = Boolean(selectedClient || (viewMode === 'all' && selectedEmployee));
   const activeClientObj = clients.find((c) => String(c._id) === selectedClient);
-  const activeEmpObj = employees.find((e) => String(e._id) === selectedEmployee);
+  const activeEmpObj = viewMode === 'all' ? employees.find((e) => String(e._id) === selectedEmployee) : null;
 
   // Quick Status change from Board or Details Modal
   const handleStatusChange = async (item, newStatus) => {
@@ -342,12 +374,48 @@ export function ContentCalendar() {
               ? 'ClickUp-inspired workspace to manage client content schedules, deliverables, and assignments.'
               : 'Workspace to view client content schedules, work details, and status updates.'}
           </p>
+          {/* Subtle scope indicator — never a large visual element. */}
+          {!isBackOffice && (
+            <p className="text-xs text-slate-400 mt-1">
+              {viewMode === 'mine' ? `Showing ${currentEmployeeName}'s assigned work` : 'Showing all permitted Content Calendar'}
+            </p>
+          )}
         </div>
-        {canManage && (
-          <Button icon={Plus} onClick={() => setModalItem(null)}>
-            Add Work
-          </Button>
-        )}
+
+        <div className="flex items-center gap-3 shrink-0">
+          {/* My Calendar / View Full Calendar — only shown to base employees;
+              management roles already saw the full calendar by default. */}
+          {!isBackOffice && (
+            <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200/60">
+              <button
+                type="button"
+                onClick={() => changeViewMode('mine')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
+                  viewMode === 'mine' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
+                }`}
+              >
+                <User size={13} />
+                <span>My Calendar</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => changeViewMode('all')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
+                  viewMode === 'all' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
+                }`}
+              >
+                <Users size={13} />
+                <span>View Full Calendar</span>
+              </button>
+            </div>
+          )}
+
+          {canManage && (
+            <Button icon={Plus} onClick={() => setModalItem(null)}>
+              Add Work
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Main Workspace Card */}
@@ -440,25 +508,30 @@ export function ContentCalendar() {
                       </select>
                     </div>
 
-                    {/* Employee Filter (Loaded from Employee Database) */}
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-bold text-slate-700 block">Employee</label>
-                      <select
-                        value={selectedEmployee}
-                        onChange={(e) => {
-                          setSelectedEmployee(e.target.value);
-                          setPage(1);
-                        }}
-                        className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:bg-white focus:border-brand-500 outline-none"
-                      >
-                        <option value="">All Employees</option>
-                        {employees.map((e) => (
-                          <option key={String(e._id)} value={String(e._id)}>
-                            {`${e.firstName || ''} ${e.lastName || ''}`.trim()}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
+                    {/* Employee Filter — only usable in Full Calendar mode. In My
+                        Calendar mode the scope is already locked to the current
+                        employee, so showing a second, competing employee picker
+                        here would be ambiguous rather than useful. */}
+                    {viewMode === 'all' && (
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-bold text-slate-700 block">Employee</label>
+                        <select
+                          value={selectedEmployee}
+                          onChange={(e) => {
+                            setSelectedEmployee(e.target.value);
+                            setPage(1);
+                          }}
+                          className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:bg-white focus:border-brand-500 outline-none"
+                        >
+                          <option value="">All Employees</option>
+                          {employees.map((e) => (
+                            <option key={String(e._id)} value={String(e._id)}>
+                              {`${e.firstName || ''} ${e.lastName || ''}`.trim()}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
 
                     {/* Clear Filters Footer */}
                     <div className="pt-2 border-t border-slate-100 flex justify-end">
