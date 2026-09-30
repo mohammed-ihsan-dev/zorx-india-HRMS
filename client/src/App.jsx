@@ -69,6 +69,7 @@ export default function App() {
           <Route element={<RoleRoute roles={MANAGEMENT_ROLES} />}>
             <Route element={<AdminLayout />}>
               <Route path="/admin" element={<AdminDashboard />} />
+              <Route path="/admin/profile" element={<Profile />} />
               <Route path="/admin/employees" element={<Employees />} />
               <Route path="/admin/employees/:id" element={<EmployeeDetail />} />
               <Route path="/admin/attendance" element={<AdminAttendance />} />

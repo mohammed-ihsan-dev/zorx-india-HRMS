@@ -324,18 +324,57 @@ export const rejectUserAccount = asyncHandler(async (req, res) => {
 });
 
 export const getMyProfile = asyncHandler(async (req, res) => {
-  const employee = await Employee.findById(req.user.employeeId?._id)
-    .populate('departmentId', 'name')
-    .populate('managerId', 'firstName lastName');
-  if (!employee) throw ApiError.notFound('Employee profile not found.');
+  let employee = null;
+  const empId = req.user.employeeId?._id || req.user.employeeId;
+  if (empId) {
+    employee = await Employee.findById(empId)
+      .populate('departmentId', 'name')
+      .populate('managerId', 'firstName lastName');
+  }
+  if (!employee) {
+    employee = await Employee.findOne({ $or: [{ userId: req.user._id }, { email: req.user.email }] })
+      .populate('departmentId', 'name')
+      .populate('managerId', 'firstName lastName');
+  }
+
+  if (!employee) {
+    const nameParts = (req.user.name || '').trim().split(/\s+/);
+    const firstName = nameParts[0] || req.user.email.split('@')[0];
+    const lastName = nameParts.slice(1).join(' ') || '.';
+    employee = {
+      _id: req.user._id,
+      userId: req.user._id,
+      firstName,
+      lastName,
+      email: req.user.email,
+      role: req.user.role,
+      status: req.user.status,
+      employeeCode: 'N/A',
+      designation: req.user.role === 'SUPER_ADMIN' ? 'Super Administrator' : req.user.role === 'ADMIN' ? 'Administrator' : req.user.role,
+      departmentId: null,
+      employmentType: 'FULL_TIME',
+      joiningDate: req.user.createdAt,
+    };
+  }
+
   sendSuccess(res, { data: employee });
 });
 
 export const updateMyProfile = asyncHandler(async (req, res) => {
-  const employee = await Employee.findByIdAndUpdate(req.user.employeeId?._id, req.body, {
-    new: true,
-    runValidators: true,
-  });
+  const empId = req.user.employeeId?._id || req.user.employeeId;
+  let employee = null;
+  if (empId) {
+    employee = await Employee.findByIdAndUpdate(empId, req.body, {
+      new: true,
+      runValidators: true,
+    });
+  }
+  if (!employee) {
+    employee = await Employee.findOneAndUpdate({ $or: [{ userId: req.user._id }, { email: req.user.email }] }, req.body, {
+      new: true,
+      runValidators: true,
+    });
+  }
   if (!employee) throw ApiError.notFound('Employee profile not found.');
   sendSuccess(res, { message: 'Profile updated successfully.', data: employee });
 });

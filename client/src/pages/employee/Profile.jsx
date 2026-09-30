@@ -13,6 +13,8 @@ import { useToast } from '../../hooks/useToast.js';
 import { getErrorMessage } from '../../services/apiClient.js';
 import { useAuth } from '../../hooks/useAuth.js';
 
+import { MANAGEMENT_ROLES } from '../../utils/constants.js';
+
 const TABS = [
   { key: 'personal', label: 'Personal Information', icon: User },
   { key: 'documents', label: 'Documents', icon: FileText },
@@ -26,6 +28,9 @@ export function Profile() {
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('personal');
+
+  const isManagement = user?.role && MANAGEMENT_ROLES.includes(user.role);
+  const homePath = isManagement ? '/admin' : '/';
 
   useEffect(() => {
     employeeService
@@ -46,7 +51,7 @@ export function Profile() {
           <p className="text-base text-slate-500 mt-1">View and manage your personal information</p>
         </div>
         <div className="flex items-center gap-1.5 text-sm font-medium text-slate-400">
-          <Link to="/" className="hover:text-brand-700">
+          <Link to={homePath} className="hover:text-brand-700">
             Home
           </Link>
           <ChevronRight size={14} />

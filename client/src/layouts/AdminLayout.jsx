@@ -12,6 +12,7 @@ export function AdminLayout() {
 
   const navItems = useMemo(() => getAdminNavItemsForRole(user?.role), [user?.role]);
   const title = useMemo(() => {
+    if (location.pathname === '/admin/profile') return 'My Profile';
     const match = navItems.find((item) => (item.end ? location.pathname === item.to : location.pathname.startsWith(item.to)));
     return match?.label || 'ZORX INDIA';
   }, [navItems, location.pathname]);
@@ -20,7 +21,7 @@ export function AdminLayout() {
     <div className="h-screen w-full flex overflow-hidden bg-slate-50">
       <Sidebar items={navItems} open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       <div className="flex-1 min-w-0 flex flex-col h-full overflow-hidden">
-        <Topbar onMenuClick={() => setSidebarOpen(true)} title={title} profilePath="/admin/employees" />
+        <Topbar onMenuClick={() => setSidebarOpen(true)} title={title} profilePath="/admin/profile" />
         <main className="flex-1 overflow-y-auto p-4 lg:p-6 w-full">
           <div className="max-w-7xl mx-auto">
             <Outlet />
