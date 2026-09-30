@@ -1,25 +1,31 @@
 import { useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { LogIn, ShieldCheck } from 'lucide-react';
+import { LogIn, ShieldCheck, Eye, EyeOff } from 'lucide-react';
 import { Button } from '../../components/Button.jsx';
 import { Input } from '../../components/Input.jsx';
 import { ZorxLogo } from '../../components/ZorxLogo.jsx';
 import { useAuth } from '../../hooks/useAuth.js';
 import { getErrorMessage } from '../../services/apiClient.js';
-import { BACK_OFFICE_ROLES } from '../../utils/constants.js';
+import { BACK_OFFICE_ROLES, APP_VERSION } from '../../utils/constants.js';
 
 export function Login() {
   const { login } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [form, setForm] = useState({ email: '', password: '' });
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   const expired = searchParams.get('expired') === '1';
 
+  // Validation requirement: password length >= 8
+  const isPasswordValid = form.password.length >= 8;
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!isPasswordValid) return; // Form submission safety check
+
     setError('');
     setSubmitting(true);
     try {
@@ -62,7 +68,7 @@ export function Login() {
 
         <div className="relative pt-6 border-t border-white/10 flex items-center justify-between text-sm text-brand-300">
           <span>© {new Date().getFullYear()} ZORX INDIA. All rights reserved.</span>
-          <span className="font-medium text-brand-200">v1.0.0</span>
+          <span className="font-medium text-brand-200">{APP_VERSION}</span>
         </div>
       </div>
 
@@ -94,16 +100,28 @@ export function Login() {
             />
             <Input
               label="Password"
-              type="password"
+              type={showPassword ? 'text' : 'password'}
               autoComplete="current-password"
               placeholder="••••••••"
               value={form.password}
               onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
+              hint={form.password.length > 0 && form.password.length < 8 ? 'Password must be at least 8 characters.' : undefined}
               error={error}
               required
+              rightElement={
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((prev) => !prev)}
+                  className="text-slate-400 hover:text-slate-600 focus:outline-none focus:text-brand-600 p-1 rounded-md transition-colors"
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                >
+                  {showPassword ? <EyeOff size={19} /> : <Eye size={19} />}
+                </button>
+              }
             />
             <Button
               type="submit"
+              disabled={!isPasswordValid || submitting}
               className="w-full text-base sm:text-lg py-3.5 min-h-[50px] font-bold shadow-md"
               size="lg"
               icon={LogIn}

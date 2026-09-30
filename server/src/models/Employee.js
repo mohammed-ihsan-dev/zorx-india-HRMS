@@ -6,7 +6,7 @@ const employeeSchema = new mongoose.Schema(
     userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     employeeCode: { type: String, default: '', trim: true },
     firstName: { type: String, required: true, trim: true },
-    lastName: { type: String, required: true, trim: true },
+    lastName: { type: String, default: '', trim: true },
     profileImage: { type: String, default: '' },
     phone: { type: String, default: '' },
     departmentId: { type: mongoose.Schema.Types.ObjectId, ref: 'Department', default: null },
@@ -34,7 +34,7 @@ employeeSchema.index({ departmentId: 1 });
 employeeSchema.index({ managerId: 1 });
 
 employeeSchema.virtual('fullName').get(function fullName() {
-  return `${this.firstName} ${this.lastName}`;
+  return `${this.firstName} ${this.lastName || ''}`.trim();
 });
 
 employeeSchema.virtual('avatarUrl').get(function avatarUrl() {

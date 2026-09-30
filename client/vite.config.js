@@ -10,7 +10,7 @@ export default defineConfig({
       // mid check-in — the app decides when to apply the update (see main.jsx).
       registerType: 'prompt',
       injectRegister: null,
-      includeAssets: ['favicon.svg', 'icons/*.png'],
+      includeAssets: ['favicon.ico', 'favicon.png', 'favicon.svg', 'icons/*.png'],
       manifest: {
         name: 'ZORX INDIA HRMS',
         short_name: 'ZORX HRMS',

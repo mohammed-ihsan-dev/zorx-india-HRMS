@@ -126,7 +126,7 @@ export function CreateEmployeeModal({ open, onClose, departments, onCreated }) {
 
         <div className="grid grid-cols-2 gap-3">
           <Input label="First Name" value={form.firstName} onChange={handleChange('firstName')} required />
-          <Input label="Last Name" value={form.lastName} onChange={handleChange('lastName')} required />
+          <Input label="Last Name" value={form.lastName} onChange={handleChange('lastName')} />
         </div>
 
         <div className="grid grid-cols-2 gap-3">

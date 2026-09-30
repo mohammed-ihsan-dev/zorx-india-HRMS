@@ -14,6 +14,7 @@ import auditLogRoutes from './auditLogRoutes.js';
 import editRequestRoutes from './editRequestRoutes.js';
 import documentRoutes from './documentRoutes.js';
 import contentCalendarRoutes from './contentCalendarRoutes.js';
+import clientRoutes from './clientRoutes.js';
 
 const router = Router();
 
@@ -32,5 +33,6 @@ router.use('/audit-logs', auditLogRoutes);
 router.use('/edit-requests', editRequestRoutes);
 router.use('/documents', documentRoutes);
 router.use('/content-calendar', contentCalendarRoutes);
+router.use('/clients', clientRoutes);
 
 export default router;

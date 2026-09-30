@@ -1,3 +1,5 @@
+export const APP_VERSION = 'v2.0.0';
+
 export const ROLES = Object.freeze({
   SUPER_ADMIN: 'SUPER_ADMIN',
   ADMIN: 'ADMIN',

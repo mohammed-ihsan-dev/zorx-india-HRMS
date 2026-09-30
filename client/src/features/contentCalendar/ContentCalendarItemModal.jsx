@@ -1,12 +1,15 @@
 import { useEffect, useState } from 'react';
+import { Plus } from 'lucide-react';
 import { Modal } from '../../components/Modal.jsx';
 import { Button } from '../../components/Button.jsx';
 import { Input, Select, Textarea } from '../../components/Input.jsx';
 import * as contentCalendarService from '../../services/contentCalendarService.js';
+import * as clientService from '../../services/clientService.js';
 import { useToast } from '../../hooks/useToast.js';
 import { getErrorMessage } from '../../services/apiClient.js';
 
 const EMPTY_FORM = {
+  clientId: '',
   client: '',
   date: '',
   assignedEmployee: '',
@@ -23,18 +26,32 @@ function toDateInput(value) {
   return value ? new Date(value).toISOString().slice(0, 10) : '';
 }
 
-export function ContentCalendarItemModal({ open, onClose, item, employees = [], loadingEmployees = false, onSaved }) {
+function getTodayInputString() {
+  const d = new Date();
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+export function ContentCalendarItemModal({ open, onClose, item, employees = [], loadingEmployees = false, clients = [], onSaved, onClientCreated }) {
   const toast = useToast();
   const isEdit = Boolean(item);
   const [form, setForm] = useState(EMPTY_FORM);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [isAddingNewClient, setIsAddingNewClient] = useState(false);
+  const [newClientName, setNewClientName] = useState('');
 
   useEffect(() => {
     if (item) {
       const empId = typeof item.assignedEmployee === 'object' ? item.assignedEmployee?._id : item.assignedEmployee;
+      const cId = typeof item.clientId === 'object' ? item.clientId?._id : item.clientId;
+      const cName = typeof item.clientId === 'object' ? item.clientId?.name : item.client;
+
       setForm({
-        client: item.client || '',
+        clientId: cId ? String(cId) : '',
+        client: cName || '',
         date: toDateInput(item.date),
         assignedEmployee: empId ? String(empId) : '',
         work: item.work || '',
@@ -46,14 +63,51 @@ export function ContentCalendarItemModal({ open, onClose, item, employees = [], 
         clientFeedback: item.clientFeedback || '',
       });
     } else {
-      setForm(EMPTY_FORM);
+      const todayStr = getTodayInputString();
+      setForm({
+        ...EMPTY_FORM,
+        date: todayStr,
+        deadline: todayStr,
+      });
     }
     setError('');
+    setIsAddingNewClient(false);
+    setNewClientName('');
   }, [item, open]);
 
   const handleChange = (field) => (e) => setForm((f) => ({ ...f, [field]: e.target.value }));
 
-  // Ensure current assigned employee on edit is included in dropdown list even if not in active array
+  const handleClientSelectChange = (e) => {
+    const val = e.target.value;
+    if (val === '__ADD_NEW__') {
+      setIsAddingNewClient(true);
+      setForm((f) => ({ ...f, clientId: '', client: '' }));
+    } else {
+      setIsAddingNewClient(false);
+      const selectedObj = clients.find((c) => String(c._id) === val);
+      setForm((f) => ({
+        ...f,
+        clientId: val,
+        client: selectedObj ? selectedObj.name : '',
+      }));
+    }
+  };
+
+  const handleCreateNewClient = async () => {
+    if (!newClientName.trim()) return;
+    try {
+      const created = await clientService.createClient({ name: newClientName.trim() });
+      toast.success(`Client "${created.name}" added to Client Master.`);
+      if (onClientCreated) await onClientCreated();
+      setForm((f) => ({ ...f, clientId: String(created._id), client: created.name }));
+      setIsAddingNewClient(false);
+      setNewClientName('');
+    } catch (err) {
+      toast.error(getErrorMessage(err, 'Failed to create client.'));
+    }
+  };
+
+  // Ensure current assigned employee on edit is included in dropdown list even if inactive
   const currentAssignedEmp = typeof item?.assignedEmployee === 'object' ? item.assignedEmployee : null;
   const currentEmpId = currentAssignedEmp?._id ? String(currentAssignedEmp._id) : (form.assignedEmployee || '');
 
@@ -64,6 +118,10 @@ export function ContentCalendarItemModal({ open, onClose, item, employees = [], 
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!form.clientId && !form.client && !isAddingNewClient) {
+      setError('Please select a client from Client Master.');
+      return;
+    }
     if (!form.assignedEmployee) {
       setError('Please select an assigned employee.');
       return;
@@ -71,11 +129,19 @@ export function ContentCalendarItemModal({ open, onClose, item, employees = [], 
     setError('');
     setSubmitting(true);
     try {
+      let payload = { ...form };
+      if (isAddingNewClient && newClientName.trim()) {
+        const created = await clientService.createClient({ name: newClientName.trim() });
+        payload.clientId = created._id;
+        payload.client = created.name;
+        if (onClientCreated) await onClientCreated();
+      }
+
       if (isEdit) {
-        await contentCalendarService.updateContentCalendarItem(item._id, form);
+        await contentCalendarService.updateContentCalendarItem(item._id, payload);
         toast.success('Content calendar item updated.');
       } else {
-        await contentCalendarService.createContentCalendarItem(form);
+        await contentCalendarService.createContentCalendarItem(payload);
         toast.success('Content calendar item created.');
       }
       onSaved();
@@ -92,12 +158,67 @@ export function ContentCalendarItemModal({ open, onClose, item, employees = [], 
         {error && <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3.5 py-2.5">{error}</p>}
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <Input label="Client" value={form.client} onChange={handleChange('client')} placeholder="e.g. Acme Corp" required />
+          {/* Client Selector (Client Master) */}
+          <div>
+            {!isAddingNewClient ? (
+              <div className="space-y-1">
+                <div className="flex items-center justify-between">
+                  <label className="block text-sm font-semibold text-slate-700">
+                    Client <span className="text-red-500">*</span>
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setIsAddingNewClient(true)}
+                    className="text-xs font-bold text-brand-700 hover:text-brand-900 flex items-center gap-1"
+                  >
+                    <Plus size={12} /> New Client
+                  </button>
+                </div>
+                <Select value={form.clientId} onChange={handleClientSelectChange} required>
+                  <option value="">Select Client…</option>
+                  {clients.map((c) => (
+                    <option key={String(c._id)} value={String(c._id)}>
+                      {c.name}
+                    </option>
+                  ))}
+                  <option value="__ADD_NEW__">+ Add New Client Master record…</option>
+                </Select>
+              </div>
+            ) : (
+              <div className="space-y-1">
+                <div className="flex items-center justify-between">
+                  <label className="block text-sm font-semibold text-slate-700">
+                    New Client Name <span className="text-red-500">*</span>
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setIsAddingNewClient(false)}
+                    className="text-xs font-bold text-slate-500 hover:text-slate-700"
+                  >
+                    Cancel
+                  </button>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Input
+                    placeholder="Enter new client name"
+                    value={newClientName}
+                    onChange={(e) => setNewClientName(e.target.value)}
+                    required
+                  />
+                  <Button type="button" size="sm" onClick={handleCreateNewClient}>
+                    Add
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Employee Selector */}
           <Select label="Assigned Employee" value={form.assignedEmployee} onChange={handleChange('assignedEmployee')} required>
-            <option value="">{loadingEmployees ? 'Loading employees…' : 'Select an employee…'}</option>
+            <option value="">{loadingEmployees ? 'Loading employees…' : 'Select Employee…'}</option>
             {availableEmployees.map((e) => (
               <option key={String(e._id)} value={String(e._id)}>
-                {e.firstName} {e.lastName} {e.employeeCode ? `(${e.employeeCode})` : ''}
+                {`${e.firstName || ''} ${e.lastName || ''}`.trim()} {e.employeeCode ? `(${e.employeeCode})` : ''}
               </option>
             ))}
           </Select>

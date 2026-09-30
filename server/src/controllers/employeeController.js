@@ -151,12 +151,29 @@ export const getEmployeeById = asyncHandler(async (req, res) => {
 });
 
 export const updateEmployee = asyncHandler(async (req, res) => {
-  if (req.body.employeeCode !== undefined) {
-    if (isUnassignedCode(req.body.employeeCode)) {
-      req.body.employeeCode = '';
+  const { email, ...employeeUpdates } = req.body;
+
+  const targetEmployee = await Employee.findById(req.params.id);
+  if (!targetEmployee) throw ApiError.notFound('Employee not found.');
+
+  if (email) {
+    const normalizedEmail = email.toLowerCase().trim();
+    const existingUser = await User.findOne({
+      email: normalizedEmail,
+      _id: { $ne: targetEmployee.userId },
+    });
+    if (existingUser) {
+      throw ApiError.conflict('A user with this email address already exists.');
+    }
+    await User.findByIdAndUpdate(targetEmployee.userId, { email: normalizedEmail });
+  }
+
+  if (employeeUpdates.employeeCode !== undefined) {
+    if (isUnassignedCode(employeeUpdates.employeeCode)) {
+      employeeUpdates.employeeCode = '';
     } else {
-      const code = String(req.body.employeeCode).trim();
-      req.body.employeeCode = code;
+      const code = String(employeeUpdates.employeeCode).trim();
+      employeeUpdates.employeeCode = code;
       const existing = await Employee.findOne({
         employeeCode: code,
         _id: { $ne: req.params.id },
@@ -167,10 +184,10 @@ export const updateEmployee = asyncHandler(async (req, res) => {
     }
   }
 
-  const employee = await Employee.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true })
+  const employee = await Employee.findByIdAndUpdate(req.params.id, employeeUpdates, { new: true, runValidators: true })
     .populate('departmentId', 'name')
-    .populate('managerId', 'firstName lastName');
-  if (!employee) throw ApiError.notFound('Employee not found.');
+    .populate('managerId', 'firstName lastName')
+    .populate('userId', 'email status role');
 
   await recordAudit({
     actorId: req.user._id,

@@ -239,7 +239,7 @@ export function Employees() {
                     <div>
                       <Link to={`/admin/employees/${emp._id}`}>
                         <h4 className="text-lg sm:text-xl font-extrabold text-slate-900 group-hover:text-brand-800 transition-colors leading-snug">
-                          {emp.firstName} {emp.lastName}
+                          {`${emp.firstName} ${emp.lastName || ''}`.trim()}
                         </h4>
                       </Link>
                       <p className="text-sm font-semibold text-brand-800 mt-0.5">

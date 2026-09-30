@@ -8,17 +8,13 @@ export function BasicInfoCard({ profile, email }) {
     <Card>
       <CardHeader title="Basic Information" subtitle="Managed by HR/Admin" action={<UserCog size={20} className="text-brand-700" />} />
       <dl className="divide-y divide-slate-100">
-        <InfoRow label="Full Name" value={`${profile.firstName} ${profile.lastName}`} />
+        <InfoRow label="Full Name" value={`${profile.firstName} ${profile.lastName || ''}`.trim()} />
         <InfoRow label="Employee ID" value={profile.employeeCode} />
         <InfoRow label="Email" value={email} />
         <InfoRow label="Department" value={profile.departmentId?.name} />
         <InfoRow label="Designation" value={profile.designation} />
         <InfoRow label="Employment Type" value={profile.employmentType ? titleCase(profile.employmentType) : null} />
         <InfoRow label="Joining Date" value={formatDate(profile.joiningDate)} />
-        <InfoRow
-          label="Reporting Manager"
-          value={profile.managerId ? `${profile.managerId.firstName} ${profile.managerId.lastName}` : null}
-        />
       </dl>
     </Card>
   );

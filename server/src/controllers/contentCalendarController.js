@@ -1,4 +1,5 @@
 import { ContentCalendarItem } from '../models/ContentCalendarItem.js';
+import { Client } from '../models/Client.js';
 import { Employee } from '../models/Employee.js';
 import { User } from '../models/User.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
@@ -9,6 +10,7 @@ import { recordAudit } from '../services/auditService.js';
 import { NOTIFICATION_TYPE } from '../utils/constants.js';
 
 const POPULATE_FIELDS = [
+  { path: 'clientId', select: 'name status' },
   { path: 'assignedEmployee', select: 'firstName lastName employeeCode profileImage designation' },
   {
     path: 'assignedBy',
@@ -20,11 +22,12 @@ const POPULATE_FIELDS = [
 async function notifyAssignee(item, actorUserId) {
   const assigneeUser = await User.findOne({ employeeId: item.assignedEmployee });
   if (!assigneeUser || assigneeUser._id.equals(actorUserId)) return; // don't notify yourself
+  const clientName = item.clientId?.name || item.client || 'Client';
   await notify({
     userId: assigneeUser._id,
     type: NOTIFICATION_TYPE.CONTENT_CALENDAR_ASSIGNED,
     title: 'New content work assigned',
-    message: `New content work assigned to you: "${item.work}" for ${item.client}.`,
+    message: `New content work assigned to you: "${item.work}" for ${clientName}.`,
     link: '/content-calendar',
     metadata: { contentCalendarItemId: item._id.toString() },
   });
@@ -45,13 +48,32 @@ export const listAssignableEmployees = asyncHandler(async (req, res) => {
 });
 
 export const createItem = asyncHandler(async (req, res) => {
-  const employee = await Employee.findById(req.body.assignedEmployee);
+  let { clientId, client, assignedEmployee, ...rest } = req.body;
+
+  let clientRecord = null;
+  if (clientId) {
+    clientRecord = await Client.findById(clientId);
+    if (!clientRecord) throw ApiError.badRequest('Selected client not found in Client Master.');
+  } else if (client && client.trim()) {
+    const trimmedName = client.trim();
+    clientRecord = await Client.findOne({ name: new RegExp(`^${trimmedName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') });
+    if (!clientRecord) {
+      clientRecord = await Client.create({ name: trimmedName });
+    }
+  } else {
+    throw ApiError.badRequest('Client selection or name is required.');
+  }
+
+  const employee = await Employee.findById(assignedEmployee);
   if (!employee) {
     throw ApiError.badRequest('Assigned employee not found.');
   }
 
   const item = await ContentCalendarItem.create({
-    ...req.body,
+    ...rest,
+    clientId: clientRecord._id,
+    client: clientRecord.name,
+    assignedEmployee,
     assignedBy: req.user._id, // never taken from the client
   });
   await item.populate(POPULATE_FIELDS);
@@ -63,16 +85,17 @@ export const createItem = asyncHandler(async (req, res) => {
     action: 'CONTENT_CALENDAR_ITEM_CREATED',
     targetType: 'ContentCalendarItem',
     targetId: item._id,
-    description: `Assigned content work "${item.work}" (${item.client}) to ${employee.firstName} ${employee.lastName}`,
+    description: `Assigned content work "${item.work}" (${clientRecord.name}) to ${employee.firstName} ${employee.lastName}`,
   });
 
   sendSuccess(res, { statusCode: 201, message: 'Content calendar item created successfully.', data: item });
 });
 
 export const listItems = asyncHandler(async (req, res) => {
-  const { assignedEmployee, workStatus, priority, from, to, page = 1, limit = 50, search } = req.query;
+  const { clientId, assignedEmployee, workStatus, priority, from, to, page = 1, limit = 50, search } = req.query;
 
   const filter = {};
+  if (clientId) filter.clientId = clientId;
   if (assignedEmployee) filter.assignedEmployee = assignedEmployee;
   if (workStatus) filter.workStatus = workStatus;
   if (priority) filter.priority = priority;
@@ -86,27 +109,32 @@ export const listItems = asyncHandler(async (req, res) => {
     const queryStr = search.trim();
     const safeRegex = new RegExp(queryStr.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
 
-    const matchingEmployees = await Employee.find({
-      $or: [
-        { firstName: safeRegex },
-        { lastName: safeRegex },
-        {
-          $expr: {
-            $regexMatch: {
-              input: { $concat: ['$firstName', ' ', '$lastName'] },
-              regex: queryStr,
-              options: 'i',
+    const [matchingEmployees, matchingClients] = await Promise.all([
+      Employee.find({
+        $or: [
+          { firstName: safeRegex },
+          { lastName: safeRegex },
+          {
+            $expr: {
+              $regexMatch: {
+                input: { $concat: ['$firstName', ' ', '$lastName'] },
+                regex: queryStr,
+                options: 'i',
+              },
             },
           },
-        },
-      ],
-    }).select('_id');
+        ],
+      }).select('_id'),
+      Client.find({ name: safeRegex }).select('_id'),
+    ]);
 
     const matchingEmpIds = matchingEmployees.map((e) => e._id);
+    const matchingClientIds = matchingClients.map((c) => c._id);
 
     filter.$or = [
-      { client: safeRegex },
       { work: safeRegex },
+      { client: safeRegex },
+      { clientId: { $in: matchingClientIds } },
       { assignedEmployee: { $in: matchingEmpIds } },
     ];
   }
@@ -137,10 +165,25 @@ export const getItemById = asyncHandler(async (req, res) => {
 
 export const updateItem = asyncHandler(async (req, res) => {
   // assignedBy is never client-mutable, regardless of what the body contains.
-  const { assignedBy: _ignored, ...updates } = req.body;
+  const { assignedBy: _ignored, clientId, client, ...updates } = req.body;
 
   const existing = await ContentCalendarItem.findById(req.params.id);
   if (!existing) throw ApiError.notFound('Content calendar item not found.');
+
+  if (clientId) {
+    const clientRecord = await Client.findById(clientId);
+    if (!clientRecord) throw ApiError.badRequest('Selected client not found in Client Master.');
+    updates.clientId = clientRecord._id;
+    updates.client = clientRecord.name;
+  } else if (client && client.trim()) {
+    const trimmedName = client.trim();
+    let clientRecord = await Client.findOne({ name: new RegExp(`^${trimmedName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') });
+    if (!clientRecord) {
+      clientRecord = await Client.create({ name: trimmedName });
+    }
+    updates.clientId = clientRecord._id;
+    updates.client = clientRecord.name;
+  }
 
   if (updates.assignedEmployee) {
     const employee = await Employee.findById(updates.assignedEmployee);
@@ -162,7 +205,7 @@ export const updateItem = asyncHandler(async (req, res) => {
     action: 'CONTENT_CALENDAR_ITEM_UPDATED',
     targetType: 'ContentCalendarItem',
     targetId: item._id,
-    description: `Updated content work "${item.work}" (${item.client})`,
+    description: `Updated content work "${item.work}" (${item.clientId?.name || item.client})`,
   });
 
   sendSuccess(res, { message: 'Content calendar item updated successfully.', data: item });
@@ -177,7 +220,7 @@ export const deleteItem = asyncHandler(async (req, res) => {
     action: 'CONTENT_CALENDAR_ITEM_DELETED',
     targetType: 'ContentCalendarItem',
     targetId: item._id,
-    description: `Deleted content work "${item.work}" (${item.client})`,
+    description: `Deleted content work "${item.work}" (${item.clientId?.name || item.client})`,
   });
 
   sendSuccess(res, { message: 'Content calendar item deleted successfully.' });

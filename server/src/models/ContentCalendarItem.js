@@ -3,7 +3,8 @@ import { TASK_PRIORITY, CONTENT_CALENDAR_STATUS } from '../utils/constants.js';
 
 const contentCalendarItemSchema = new mongoose.Schema(
   {
-    client: { type: String, required: true, trim: true },
+    clientId: { type: mongoose.Schema.Types.ObjectId, ref: 'Client', required: true },
+    client: { type: String, default: '', trim: true },
     date: { type: Date, required: true },
     assignedEmployee: { type: mongoose.Schema.Types.ObjectId, ref: 'Employee', required: true },
     work: { type: String, required: true, trim: true },
@@ -20,6 +21,7 @@ const contentCalendarItemSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+contentCalendarItemSchema.index({ clientId: 1 });
 contentCalendarItemSchema.index({ assignedEmployee: 1, workStatus: 1 });
 contentCalendarItemSchema.index({ date: 1 });
 contentCalendarItemSchema.index({ deadline: 1 });

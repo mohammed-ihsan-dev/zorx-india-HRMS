@@ -6,7 +6,7 @@ export const createEmployeeSchema = z.object({
   password: z.string().min(8),
   role: z.enum(ROLE_VALUES).default('EMPLOYEE'),
   firstName: z.string().min(1),
-  lastName: z.string().min(1),
+  lastName: z.string().optional().default(''),
   phone: z.string().optional().default(''),
   departmentId: z.string().nullable().optional(),
   designation: z.string().optional().default(''),
@@ -24,9 +24,10 @@ export const createEmployeeSchema = z.object({
 });
 
 export const updateEmployeeSchema = z.object({
+  email: z.string().email().optional(),
   employeeCode: z.string().optional(),
   firstName: z.string().min(1).optional(),
-  lastName: z.string().min(1).optional(),
+  lastName: z.string().optional(),
   phone: z.string().optional(),
   departmentId: z.string().nullable().optional(),
   designation: z.string().optional(),

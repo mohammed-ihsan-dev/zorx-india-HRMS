@@ -1,4 +1,4 @@
-import { Building2, Briefcase, CalendarDays, UserCircle2 } from 'lucide-react';
+import { Building2, Briefcase, CalendarDays } from 'lucide-react';
 import { Card } from '../../components/Card.jsx';
 import { Badge } from '../../components/Badge.jsx';
 import { Avatar } from '../../components/Avatar.jsx';
@@ -26,7 +26,7 @@ export function ProfileSummaryCard({ profile }) {
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2.5">
             <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-              {profile.firstName} {profile.lastName}
+              {`${profile.firstName} ${profile.lastName || ''}`.trim()}
             </h2>
             <Badge color={profile.status === 'ACTIVE' ? 'green' : 'slate'}>{profile.status}</Badge>
           </div>
@@ -48,10 +48,6 @@ export function ProfileSummaryCard({ profile }) {
             <span className="flex items-center gap-1.5">
               <CalendarDays size={16} className="text-brand-700" />
               Joined {formatDate(profile.joiningDate)}
-            </span>
-            <span className="flex items-center gap-1.5">
-              <UserCircle2 size={16} className="text-brand-700" />
-              {profile.managerId ? `${profile.managerId.firstName} ${profile.managerId.lastName}` : notProvidedBadge}
             </span>
           </div>
         </div>

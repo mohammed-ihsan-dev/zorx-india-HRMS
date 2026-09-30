@@ -20,6 +20,7 @@ export function EditEmployeeModal({ open, onClose, employee, departments, onUpda
 
   const [form, setForm] = useState({
     employeeCode: '',
+    email: '',
     firstName: '',
     lastName: '',
     designation: '',
@@ -38,6 +39,7 @@ export function EditEmployeeModal({ open, onClose, employee, departments, onUpda
     if (employee) {
       setForm({
         employeeCode: employee.employeeCode || '',
+        email: employee.userId?.email || employee.email || '',
         firstName: employee.firstName || '',
         lastName: employee.lastName || '',
         designation: employee.designation || '',
@@ -97,6 +99,7 @@ export function EditEmployeeModal({ open, onClose, employee, departments, onUpda
     try {
       const payload = {
         employeeCode: form.employeeCode.trim(),
+        email: form.email.trim(),
         firstName: form.firstName.trim(),
         lastName: form.lastName.trim(),
         designation: form.designation.trim(),
@@ -183,10 +186,11 @@ export function EditEmployeeModal({ open, onClose, employee, departments, onUpda
               <Input value={form.employeeCode} onChange={handleChange('employeeCode')} placeholder="Not Provided" />
             </div>
             <Input label="First Name" value={form.firstName} onChange={handleChange('firstName')} required />
-            <Input label="Last Name" value={form.lastName} onChange={handleChange('lastName')} required />
+            <Input label="Last Name" value={form.lastName} onChange={handleChange('lastName')} />
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <Input label="Email Address" type="email" value={form.email} onChange={handleChange('email')} placeholder="you@company.com" required />
             <div>
               <div className="flex items-center justify-between mb-1">
                 <span className="text-sm font-semibold text-slate-700">Designation</span>

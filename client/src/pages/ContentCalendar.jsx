@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useRef } from 'react';
 import {
   Plus,
   CalendarDays,
@@ -14,6 +14,8 @@ import {
   Clock,
   User,
   Building2,
+  Filter as FilterIcon,
+  RotateCcw,
 } from 'lucide-react';
 import { Card } from '../components/Card.jsx';
 import { Table } from '../components/Table.jsx';
@@ -25,6 +27,7 @@ import { ConfirmDialog } from '../components/ConfirmDialog.jsx';
 import { ContentCalendarItemModal } from '../features/contentCalendar/ContentCalendarItemModal.jsx';
 import { ContentCalendarDetailsModal } from '../features/contentCalendar/ContentCalendarDetailsModal.jsx';
 import * as contentCalendarService from '../services/contentCalendarService.js';
+import * as clientService from '../services/clientService.js';
 import { formatDate } from '../utils/formatters.js';
 import { useAuth } from '../hooks/useAuth.js';
 import { hasPermission } from '../utils/permissions.js';
@@ -39,10 +42,18 @@ export function ContentCalendar() {
 
   const [items, setItems] = useState([]);
   const [employees, setEmployees] = useState([]);
+  const [clients, setClients] = useState([]);
   const [loadingEmployees, setLoadingEmployees] = useState(true);
   const [meta, setMeta] = useState({ page: 1, pages: 1, total: 0 });
+
+  // Search & Filter state
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [selectedClient, setSelectedClient] = useState('');
+  const [selectedEmployee, setSelectedEmployee] = useState('');
+  const [filterOpen, setFilterOpen] = useState(false);
+  const filterRef = useRef(null);
+
   const [activeView, setActiveView] = useState('list'); // 'calendar' | 'list' | 'board'
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
@@ -56,7 +67,18 @@ export function ContentCalendar() {
   // Calendar month state
   const [currentMonth, setCurrentMonth] = useState(new Date());
 
-  // Debounce search query input (300ms)
+  // Close filter popover on click outside
+  useEffect(() => {
+    function handleClickOutside(e) {
+      if (filterRef.current && !filterRef.current.contains(e.target)) {
+        setFilterOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Debounce search input (300ms)
   useEffect(() => {
     const handler = setTimeout(() => {
       setDebouncedSearch(searchQuery);
@@ -65,22 +87,39 @@ export function ContentCalendar() {
     return () => clearTimeout(handler);
   }, [searchQuery]);
 
-  // Load assignable employees for dropdown using the new assignable endpoint
+  // Load Client Master collection
+  const loadClients = async () => {
+    try {
+      const data = await clientService.listClients();
+      setClients(data);
+    } catch (err) {
+      // quiet fail or toast error
+    }
+  };
+
+  // Load assignable employees & clients on mount
   useEffect(() => {
     setLoadingEmployees(true);
-    contentCalendarService
-      .getAssignableEmployees()
-      .then((data) => setEmployees(data))
+    Promise.all([
+      contentCalendarService.getAssignableEmployees(),
+      clientService.listClients(),
+    ])
+      .then(([empData, clientData]) => {
+        setEmployees(empData);
+        setClients(clientData);
+      })
       .catch(() => {})
       .finally(() => setLoadingEmployees(false));
   }, []);
 
-  // Main data load from backend with backend-powered search
+  // Main data load from backend with backend-powered search & filter combinations
   const load = () => {
     setLoading(true);
     contentCalendarService
       .listContentCalendarItems({
         search: debouncedSearch.trim() || undefined,
+        clientId: selectedClient || undefined,
+        assignedEmployee: selectedEmployee || undefined,
         page,
         limit: 50,
       })
@@ -92,7 +131,19 @@ export function ContentCalendar() {
       .finally(() => setLoading(false));
   };
 
-  useEffect(load, [debouncedSearch, page]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(load, [debouncedSearch, selectedClient, selectedEmployee, page]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const clearAllFilters = () => {
+    setSearchQuery('');
+    setDebouncedSearch('');
+    setSelectedClient('');
+    setSelectedEmployee('');
+    setPage(1);
+  };
+
+  const isFilterActive = Boolean(selectedClient || selectedEmployee);
+  const activeClientObj = clients.find((c) => String(c._id) === selectedClient);
+  const activeEmpObj = employees.find((e) => String(e._id) === selectedEmployee);
 
   // Quick Status change from Board or Details Modal
   const handleStatusChange = async (item, newStatus) => {
@@ -125,12 +176,26 @@ export function ContentCalendar() {
     }
   };
 
-  // Group items by status for Board View
+  // Group items by status for Board View (Completed limited to latest 5 records)
   const boardData = useMemo(() => {
     const remaining = items.filter((i) => i.workStatus === 'REMAINING');
     const ongoing = items.filter((i) => i.workStatus === 'ONGOING');
-    const completed = items.filter((i) => i.workStatus === 'COMPLETED');
-    return { REMAINING: remaining, ONGOING: ongoing, COMPLETED: completed };
+    const allCompleted = items.filter((i) => i.workStatus === 'COMPLETED');
+
+    const sortedCompleted = [...allCompleted].sort((a, b) => {
+      const timeA = new Date(a.updatedAt || a.date || a.createdAt || 0).getTime();
+      const timeB = new Date(b.updatedAt || b.date || b.createdAt || 0).getTime();
+      return timeB - timeA;
+    });
+
+    const latest5Completed = sortedCompleted.slice(0, 5);
+
+    return {
+      REMAINING: remaining,
+      ONGOING: ongoing,
+      COMPLETED: latest5Completed,
+      totalCompletedCount: allCompleted.length,
+    };
   }, [items]);
 
   // Columns definition for List View
@@ -138,15 +203,18 @@ export function ContentCalendar() {
     {
       key: 'client',
       header: 'Client',
-      render: (r) => (
-        <button
-          type="button"
-          onClick={() => setDetailsItem(r)}
-          className="font-semibold text-slate-900 hover:text-brand-700 text-left transition-colors"
-        >
-          {r.client}
-        </button>
-      ),
+      render: (r) => {
+        const name = typeof r.clientId === 'object' ? r.clientId?.name : r.client;
+        return (
+          <button
+            type="button"
+            onClick={() => setDetailsItem(r)}
+            className="font-semibold text-slate-900 hover:text-brand-700 text-left transition-colors"
+          >
+            {name || '—'}
+          </button>
+        );
+      },
     },
     {
       key: 'work',
@@ -155,7 +223,7 @@ export function ContentCalendar() {
         <button
           type="button"
           onClick={() => setDetailsItem(r)}
-          className="max-w-[260px] truncate block text-left text-slate-700 hover:text-brand-700 transition-colors"
+          className="max-w-[260px] truncate block text-left text-slate-700 hover:text-brand-700 transition-colors font-medium"
         >
           {r.work}
         </button>
@@ -172,7 +240,7 @@ export function ContentCalendar() {
             <div className="w-6 h-6 rounded-full bg-brand-100 text-brand-700 flex items-center justify-center text-xs font-bold shrink-0">
               {emp?.firstName ? emp.firstName[0].toUpperCase() : 'U'}
             </div>
-            <span className="text-slate-800 text-sm">{name}</span>
+            <span className="text-slate-800 text-sm font-medium">{name}</span>
           </div>
         );
       },
@@ -190,7 +258,7 @@ export function ContentCalendar() {
             type="button"
             onClick={() => setDetailsItem(r)}
             className="p-1.5 text-slate-500 hover:text-brand-700 hover:bg-slate-100 rounded-lg transition-colors"
-            title="View Details (All 11 Fields)"
+            title="View Work Details (11 Fields)"
             aria-label="View Details"
           >
             <Eye size={16} />
@@ -242,7 +310,7 @@ export function ContentCalendar() {
     for (let d = 1; d <= daysInMonth; d++) {
       days.push({ date: new Date(year, month, d), isCurrentMonth: true });
     }
-    // Next month padding to reach 35 or 42 grid cells
+    // Next month padding
     const totalGrid = days.length > 35 ? 42 : 35;
     const remainingGrid = totalGrid - days.length;
     for (let i = 1; i <= remainingGrid; i++) {
@@ -284,70 +352,214 @@ export function ContentCalendar() {
 
       {/* Main Workspace Card */}
       <Card padded={false} className="p-4 sm:p-6 border border-slate-200/80 shadow-sm">
-        {/* Top Control Bar: Single Primary Search & View Switcher */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-5 border-b border-slate-100 pb-4">
-          {/* Primary Search Bar */}
-          <div className="relative flex-1 max-w-md">
-            <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
-              <Search size={17} />
+        {/* ClickUp-Inspired Toolbar: Search, Filter Popover & View Switcher */}
+        <div className="space-y-3 mb-5 border-b border-slate-100 pb-4">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+            {/* Search + Filter Controls */}
+            <div className="flex items-center gap-2 flex-1 max-w-xl">
+              {/* Primary Backend Search Input */}
+              <div className="relative flex-1">
+                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                  <Search size={16} />
+                </div>
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search employee, client or work..."
+                  className="w-full pl-10 pr-9 py-2 bg-slate-50 hover:bg-slate-100/80 focus:bg-white border border-slate-200 focus:border-brand-500 rounded-xl text-sm text-slate-800 placeholder-slate-400 transition-all outline-none focus:ring-2 focus:ring-brand-500/20"
+                />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchQuery('')}
+                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600"
+                  >
+                    <X size={14} />
+                  </button>
+                )}
+              </div>
+
+              {/* Filter Button & Popover */}
+              <div className="relative" ref={filterRef}>
+                <button
+                  type="button"
+                  onClick={() => setFilterOpen((prev) => !prev)}
+                  className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl border text-sm font-semibold transition-all ${
+                    isFilterActive
+                      ? 'bg-brand-50 border-brand-300 text-brand-800 shadow-xs'
+                      : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
+                  }`}
+                >
+                  <FilterIcon size={15} className={isFilterActive ? 'text-brand-700' : 'text-slate-500'} />
+                  <span>Filter</span>
+                  {isFilterActive && (
+                    <span className="w-2 h-2 rounded-full bg-brand-600 animate-pulse" />
+                  )}
+                </button>
+
+                {/* Filter Popover Panel */}
+                {filterOpen && (
+                  <div className="absolute left-0 sm:right-0 sm:left-auto mt-2 w-72 bg-white rounded-2xl border border-slate-200 shadow-xl p-4 z-30 space-y-4">
+                    <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
+                      <span className="text-xs font-extrabold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+                        <FilterIcon size={13} /> Filter
+                      </span>
+                      {isFilterActive && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedClient('');
+                            setSelectedEmployee('');
+                            setPage(1);
+                          }}
+                          className="text-xs font-bold text-brand-700 hover:underline"
+                        >
+                          Clear
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Client Filter (Loaded from Client Master) */}
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-bold text-slate-700 block">Client</label>
+                      <select
+                        value={selectedClient}
+                        onChange={(e) => {
+                          setSelectedClient(e.target.value);
+                          setPage(1);
+                        }}
+                        className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:bg-white focus:border-brand-500 outline-none"
+                      >
+                        <option value="">All Clients</option>
+                        {clients.map((c) => (
+                          <option key={String(c._id)} value={String(c._id)}>
+                            {c.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Employee Filter (Loaded from Employee Database) */}
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-bold text-slate-700 block">Employee</label>
+                      <select
+                        value={selectedEmployee}
+                        onChange={(e) => {
+                          setSelectedEmployee(e.target.value);
+                          setPage(1);
+                        }}
+                        className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:bg-white focus:border-brand-500 outline-none"
+                      >
+                        <option value="">All Employees</option>
+                        {employees.map((e) => (
+                          <option key={String(e._id)} value={String(e._id)}>
+                            {`${e.firstName || ''} ${e.lastName || ''}`.trim()}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Clear Filters Footer */}
+                    <div className="pt-2 border-t border-slate-100 flex justify-end">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedClient('');
+                          setSelectedEmployee('');
+                          setPage(1);
+                          setFilterOpen(false);
+                        }}
+                        className="w-full py-1.5 text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
+                      >
+                        Clear Filters
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="🔍 Search employee, client or work..."
-              className="w-full pl-10 pr-9 py-2 bg-slate-50 hover:bg-slate-100/80 focus:bg-white border border-slate-200 focus:border-brand-500 rounded-xl text-sm text-slate-800 placeholder-slate-400 transition-all outline-none focus:ring-2 focus:ring-brand-500/20"
-            />
-            {searchQuery && (
+
+            {/* View Switcher Tabs (Calendar | List | Board) */}
+            <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl self-start md:self-auto shrink-0 border border-slate-200/60">
               <button
                 type="button"
-                onClick={() => setSearchQuery('')}
-                className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600"
+                onClick={() => setActiveView('calendar')}
+                className={`flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold rounded-lg transition-all ${
+                  activeView === 'calendar'
+                    ? 'bg-white text-slate-900 shadow-sm'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
+                }`}
               >
-                <X size={15} />
+                <CalendarDays size={14} />
+                <span>Calendar</span>
               </button>
-            )}
+              <button
+                type="button"
+                onClick={() => setActiveView('list')}
+                className={`flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold rounded-lg transition-all ${
+                  activeView === 'list'
+                    ? 'bg-white text-slate-900 shadow-sm'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
+                }`}
+              >
+                <LayoutList size={14} />
+                <span>List</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveView('board')}
+                className={`flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold rounded-lg transition-all ${
+                  activeView === 'board'
+                    ? 'bg-white text-slate-900 shadow-sm'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
+                }`}
+              >
+                <Kanban size={14} />
+                <span>Board</span>
+              </button>
+            </div>
           </div>
 
-          {/* View Switcher Tabs (Calendar | List | Board) */}
-          <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl self-start md:self-auto shrink-0 border border-slate-200/60">
-            <button
-              type="button"
-              onClick={() => setActiveView('calendar')}
-              className={`flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold rounded-lg transition-all ${
-                activeView === 'calendar'
-                  ? 'bg-white text-slate-900 shadow-sm'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
-              }`}
-            >
-              <CalendarDays size={14} />
-              <span>Calendar</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveView('list')}
-              className={`flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold rounded-lg transition-all ${
-                activeView === 'list'
-                  ? 'bg-white text-slate-900 shadow-sm'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
-              }`}
-            >
-              <LayoutList size={14} />
-              <span>List</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveView('board')}
-              className={`flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold rounded-lg transition-all ${
-                activeView === 'board'
-                  ? 'bg-white text-slate-900 shadow-sm'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
-              }`}
-            >
-              <Kanban size={14} />
-              <span>Board</span>
-            </button>
-          </div>
+          {/* Active Filter Badges */}
+          {(debouncedSearch || selectedClient || selectedEmployee) && (
+            <div className="flex flex-wrap items-center gap-2 pt-1">
+              {debouncedSearch && (
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-200">
+                  Search: &quot;{debouncedSearch}&quot;
+                  <button type="button" onClick={() => setSearchQuery('')} className="hover:text-rose-600 ml-0.5">
+                    <X size={12} />
+                  </button>
+                </span>
+              )}
+
+              {activeClientObj && (
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-brand-50 text-brand-800 border border-brand-200">
+                  Client: {activeClientObj.name}
+                  <button type="button" onClick={() => setSelectedClient('')} className="hover:text-rose-600 ml-0.5">
+                    <X size={12} />
+                  </button>
+                </span>
+              )}
+
+              {activeEmpObj && (
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-brand-50 text-brand-800 border border-brand-200">
+                  Employee: {`${activeEmpObj.firstName || ''} ${activeEmpObj.lastName || ''}`.trim()}
+                  <button type="button" onClick={() => setSelectedEmployee('')} className="hover:text-rose-600 ml-0.5">
+                    <X size={12} />
+                  </button>
+                </span>
+              )}
+
+              <button
+                type="button"
+                onClick={clearAllFilters}
+                className="text-xs font-bold text-slate-500 hover:text-rose-600 flex items-center gap-1 ml-1"
+              >
+                <RotateCcw size={12} /> Clear All
+              </button>
+            </div>
+          )}
         </div>
 
         {/* View 1: LIST VIEW */}
@@ -360,9 +572,11 @@ export function ContentCalendar() {
               emptyState={
                 <EmptyState
                   icon={CalendarDays}
-                  title={debouncedSearch ? 'No matching work found.' : 'No content calendar items found'}
+                  title={debouncedSearch || isFilterActive ? 'No matching work found.' : 'No content calendar items found'}
                   description={
-                    debouncedSearch ? `No records matched "${debouncedSearch}". Try a different search term.` : 'Create a new content work entry to get started.'
+                    debouncedSearch || isFilterActive
+                      ? 'No records matched your search/filter criteria. Try clearing filters.'
+                      : 'Create a new content work entry to get started.'
                   }
                 />
               }
@@ -373,72 +587,86 @@ export function ContentCalendar() {
           </div>
         )}
 
-        {/* View 2: BOARD VIEW (KANBAN) */}
+        {/* View 2: BOARD VIEW (KANBAN WITH INNER SCROLLING & LATEST 5 COMPLETED LIMIT) */}
         {activeView === 'board' && (
-          <div>
+          <div className="flex-1 flex flex-col min-h-0">
             {loading ? (
-              <div className="py-12 text-center text-slate-400">Loading board...</div>
+              <div className="py-12 text-center text-slate-400 font-semibold">Loading board...</div>
             ) : items.length === 0 ? (
               <EmptyState
                 icon={Kanban}
-                title={debouncedSearch ? 'No matching work found.' : 'No content calendar items found'}
+                title={debouncedSearch || isFilterActive ? 'No matching work found.' : 'No content calendar items found'}
                 description={
-                  debouncedSearch ? `No records matched "${debouncedSearch}".` : 'Create a new content work entry to populate the board.'
+                  debouncedSearch || isFilterActive ? 'No records matched your criteria.' : 'Create a new content work entry to populate the board.'
                 }
               />
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-5 h-[calc(100vh-270px)] min-h-[500px]">
                 {[
                   { key: 'REMAINING', label: 'Upcoming', color: 'border-t-slate-400 bg-slate-50/50' },
                   { key: 'ONGOING', label: 'Ongoing', color: 'border-t-blue-500 bg-blue-50/20' },
                   { key: 'COMPLETED', label: 'Completed', color: 'border-t-emerald-500 bg-emerald-50/20' },
                 ].map((col) => {
                   const colItems = boardData[col.key] || [];
+                  const isCompletedCol = col.key === 'COMPLETED';
+                  const totalCompleted = boardData.totalCompletedCount || 0;
+
                   return (
-                    <div key={col.key} className={`rounded-xl border border-slate-200 p-3.5 border-t-4 ${col.color}`}>
-                      <div className="flex items-center justify-between mb-3 px-1">
-                        <span className="font-bold text-slate-800 text-sm">{col.label}</span>
-                        <span className="px-2 py-0.5 text-xs font-bold bg-white border border-slate-200 rounded-full text-slate-600">
-                          {colItems.length}
+                    <div key={col.key} className={`flex flex-col h-full rounded-2xl border border-slate-200 p-4 border-t-4 ${col.color} bg-white shadow-xs overflow-hidden`}>
+                      {/* Fixed Column Header */}
+                      <div className="flex items-center justify-between pb-3 border-b border-slate-100 shrink-0">
+                        <div className="flex items-center gap-2">
+                          <span className="font-extrabold text-slate-900 text-sm tracking-tight">{col.label}</span>
+                          {isCompletedCol && totalCompleted > 5 && (
+                            <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200/80">
+                              Latest 5 of {totalCompleted}
+                            </span>
+                          )}
+                        </div>
+                        <span className="px-2.5 py-0.5 text-xs font-black bg-slate-100 border border-slate-200 rounded-full text-slate-700">
+                          {isCompletedCol ? (totalCompleted > 5 ? `5 / ${totalCompleted}` : colItems.length) : colItems.length}
                         </span>
                       </div>
 
-                      <div className="space-y-3 min-h-[160px]">
-                        {colItems.map((item) => (
-                          <div
-                            key={item._id}
-                            onClick={() => setDetailsItem(item)}
-                            className="p-3.5 bg-white border border-slate-200/90 hover:border-brand-500 rounded-xl shadow-xs hover:shadow-md transition-all cursor-pointer space-y-2.5 group"
-                          >
-                            <div className="flex items-start justify-between gap-2">
-                              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider flex items-center gap-1">
-                                <Building2 size={12} className="text-slate-400" />
-                                {item.client}
-                              </span>
-                              <PriorityBadge priority={item.priority} />
-                            </div>
-
-                            <h4 className="font-semibold text-slate-900 text-sm group-hover:text-brand-700 transition-colors line-clamp-2">
-                              {item.work}
-                            </h4>
-
-                            <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-xs text-slate-500">
-                              <div className="flex items-center gap-1.5">
-                                <User size={13} className="text-slate-400" />
-                                <span className="truncate max-w-[110px]">
-                                  {item.assignedEmployee?.firstName ? `${item.assignedEmployee.firstName} ${item.assignedEmployee.lastName}` : 'Unassigned'}
+                      {/* Inner Column Scroll Container */}
+                      <div className="flex-1 overflow-y-auto pr-1.5 space-y-3 mt-3 scrollbar-thin">
+                        {colItems.map((item) => {
+                          const clientName = typeof item.clientId === 'object' ? item.clientId?.name : item.client;
+                          return (
+                            <div
+                              key={item._id}
+                              onClick={() => setDetailsItem(item)}
+                              className="p-3.5 bg-white border border-slate-200/90 hover:border-brand-500 rounded-xl shadow-xs hover:shadow-md transition-all cursor-pointer space-y-2.5 group"
+                            >
+                              <div className="flex items-start justify-between gap-2">
+                                <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                                  {clientName || 'Client'}
                                 </span>
+                                <PriorityBadge priority={item.priority} />
                               </div>
-                              <div className="flex items-center gap-1">
-                                <Clock size={12} className="text-rose-400" />
-                                <span>{formatDate(item.deadline)}</span>
+
+                              <h4 className="font-semibold text-slate-900 text-sm group-hover:text-brand-700 transition-colors line-clamp-2">
+                                {item.work}
+                              </h4>
+
+                              <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-xs text-slate-500">
+                                <div className="flex items-center gap-1.5">
+                                  <User size={13} className="text-slate-400" />
+                                  <span className="truncate max-w-[110px]">
+                                    {item.assignedEmployee?.firstName ? `${item.assignedEmployee.firstName} ${item.assignedEmployee.lastName || ''}`.trim() : 'Unassigned'}
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-1">
+                                  <Clock size={12} className="text-rose-400" />
+                                  <span>{formatDate(item.deadline)}</span>
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        ))}
+                          );
+                        })}
 
                         {colItems.length === 0 && (
-                          <div className="h-28 border-2 border-dashed border-slate-200 rounded-xl flex items-center justify-center text-xs text-slate-400">
+                          <div className="h-32 border-2 border-dashed border-slate-200 rounded-xl flex items-center justify-center text-xs text-slate-400 font-medium">
                             No {col.label.toLowerCase()} work
                           </div>
                         )}
@@ -531,17 +759,20 @@ export function ContentCalendar() {
                     </div>
 
                     <div className="space-y-1 max-h-[80px] overflow-y-auto pr-0.5">
-                      {dayItems.map((item) => (
-                        <button
-                          key={item._id}
-                          type="button"
-                          onClick={() => setDetailsItem(item)}
-                          className="w-full text-left p-1 rounded-md bg-slate-100 hover:bg-brand-100 text-slate-800 hover:text-brand-900 text-[11px] font-medium truncate border border-slate-200/60 block transition-colors"
-                        >
-                          <span className="font-semibold text-slate-900 mr-1">{item.client}:</span>
-                          {item.work}
-                        </button>
-                      ))}
+                      {dayItems.map((item) => {
+                        const clientName = typeof item.clientId === 'object' ? item.clientId?.name : item.client;
+                        return (
+                          <button
+                            key={item._id}
+                            type="button"
+                            onClick={() => setDetailsItem(item)}
+                            className="w-full text-left p-1 rounded-md bg-slate-100 hover:bg-brand-100 text-slate-800 hover:text-brand-900 text-[11px] font-medium truncate border border-slate-200/60 block transition-colors"
+                          >
+                            <span className="font-semibold text-slate-900 mr-1">{clientName}:</span>
+                            {item.work}
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
                 );
@@ -569,11 +800,14 @@ export function ContentCalendar() {
             open={modalItem !== undefined}
             item={modalItem}
             employees={employees}
+            clients={clients}
             loadingEmployees={loadingEmployees}
             onClose={() => setModalItem(undefined)}
+            onClientCreated={loadClients}
             onSaved={() => {
               setModalItem(undefined);
               load();
+              loadClients();
             }}
           />
 
@@ -583,7 +817,7 @@ export function ContentCalendar() {
             onConfirm={handleDelete}
             loading={submitting}
             title="Delete this content calendar item?"
-            description={`This will permanently delete the "${deleteTarget?.work}" entry for ${deleteTarget?.client}.`}
+            description={`This will permanently delete the "${deleteTarget?.work}" entry.`}
             confirmLabel="Delete"
             variant="danger"
           />

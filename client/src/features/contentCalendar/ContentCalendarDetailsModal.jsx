@@ -1,4 +1,4 @@
-import { User, Calendar, Clock, AlertCircle, MessageSquare, CheckCircle2, Building2, UserCheck, Edit3, Trash2, Tag } from 'lucide-react';
+import { User, Calendar, Clock, AlertCircle, MessageSquare, CheckCircle2, UserCheck, Edit3, Trash2, Tag } from 'lucide-react';
 import { Modal } from '../../components/Modal.jsx';
 import { Button } from '../../components/Button.jsx';
 import { StatusBadge, PriorityBadge } from '../../components/StatusBadge.jsx';
@@ -6,6 +6,8 @@ import { formatDate } from '../../utils/formatters.js';
 
 export function ContentCalendarDetailsModal({ open, onClose, item, canManage, onEdit, onDelete, onStatusChange }) {
   if (!item) return null;
+
+  const clientName = typeof item.clientId === 'object' ? item.clientId?.name : item.client || 'Client Work';
 
   const assignedEmpName = item.assignedEmployee
     ? `${item.assignedEmployee.firstName || ''} ${item.assignedEmployee.lastName || ''}`.trim()
@@ -21,9 +23,8 @@ export function ContentCalendarDetailsModal({ open, onClose, item, canManage, on
         {/* Header Section */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-50 border border-slate-200/80 rounded-xl p-4">
           <div>
-            <div className="flex items-center gap-2 text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">
-              <Building2 size={14} className="text-slate-400" />
-              <span>{item.client || 'Client Work'}</span>
+            <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">
+              <span>{clientName}</span>
             </div>
             <h3 className="text-xl font-extrabold text-slate-900 leading-tight">{item.work}</h3>
           </div>
@@ -37,10 +38,10 @@ export function ContentCalendarDetailsModal({ open, onClose, item, canManage, on
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* 1. Client */}
           <div className="p-3.5 bg-white border border-slate-200/70 rounded-xl space-y-1">
-            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-              <Building2 size={13} className="text-brand-600" /> 1. Client
+            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block">
+              1. Client
             </span>
-            <p className="text-sm font-semibold text-slate-900">{item.client || '—'}</p>
+            <p className="text-sm font-semibold text-slate-900">{clientName || '—'}</p>
           </div>
 
           {/* 2. Date */}

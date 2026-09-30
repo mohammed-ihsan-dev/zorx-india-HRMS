@@ -2,7 +2,8 @@ import { z } from 'zod';
 import { TASK_PRIORITY, CONTENT_CALENDAR_STATUS } from '../utils/constants.js';
 
 export const createContentCalendarItemSchema = z.object({
-  client: z.string().min(1, 'Client is required.'),
+  clientId: z.string().optional(),
+  client: z.string().optional(),
   date: z.coerce.date(),
   assignedEmployee: z.string().min(1, 'An assigned employee is required.'),
   work: z.string().min(1, 'Work description is required.'),
@@ -12,10 +13,14 @@ export const createContentCalendarItemSchema = z.object({
   workStatus: z.enum(Object.values(CONTENT_CALENDAR_STATUS)).default('REMAINING'),
   completionRemark: z.string().optional().default(''),
   clientFeedback: z.string().optional().default(''),
+}).refine((data) => Boolean(data.clientId || data.client), {
+  message: 'Client selection or name is required.',
+  path: ['clientId'],
 });
 
 export const updateContentCalendarItemSchema = z.object({
-  client: z.string().min(1).optional(),
+  clientId: z.string().optional(),
+  client: z.string().optional(),
   date: z.coerce.date().optional(),
   assignedEmployee: z.string().min(1).optional(),
   work: z.string().min(1).optional(),

@@ -116,7 +116,7 @@ export function EmployeeDetail() {
           </div>
           <div className="flex-1 min-w-[200px]">
             <h2 className="text-xl font-extrabold text-slate-900">
-              {employee.firstName} {employee.lastName}
+              {`${employee.firstName} ${employee.lastName || ''}`.trim()}
             </h2>
             <p className="text-sm font-semibold text-brand-800 mt-0.5">
               {employee.designation || 'No designation'} · {employee.userId?.email || ''} · Code: {isNotProvided(employee.employeeCode) ? 'Not Provided' : employee.employeeCode} · {employee.departmentId?.name || 'Unassigned'}
@@ -137,7 +137,7 @@ export function EmployeeDetail() {
         <Card padded={false} className="p-5">
           <CardHeader title="Work & Personal Information" />
           <dl className="space-y-3 text-sm">
-            <Row label="Full Name" value={`${employee.firstName} ${employee.lastName}`} />
+            <Row label="Full Name" value={`${employee.firstName} ${employee.lastName || ''}`.trim()} />
             <Row label="Email Address" value={employee.userId?.email || '—'} />
             <Row label="Designation" value={employee.designation || '—'} />
             <Row label="Department" value={employee.departmentId?.name || '—'} />
@@ -145,7 +145,6 @@ export function EmployeeDetail() {
             <Row label="Date of Birth" value={employee.dateOfBirth ? formatDate(employee.dateOfBirth) : '—'} />
             <Row label="Joining Date" value={formatDate(employee.joiningDate)} />
             <Row label="Employment Type" value={employee.employmentType ? titleCase(employee.employmentType) : '—'} />
-            <Row label="Manager" value={employee.managerId ? `${employee.managerId.firstName} ${employee.managerId.lastName}` : '—'} />
             <Row label="Address" value={employee.address || '—'} />
             <Row
               label="Emergency Contact"
