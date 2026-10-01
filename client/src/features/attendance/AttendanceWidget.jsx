@@ -1,14 +1,27 @@
-import { useState } from 'react';
-import { MapPin, CheckCircle2, LoaderCircle, AlertTriangle, Radio, Clock, Coffee, LogOut, Play } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { MapPin, CheckCircle2, LoaderCircle, AlertTriangle, Radio, Clock, Coffee, LogOut, Play, RotateCcw } from 'lucide-react';
 import { Card } from '../../components/Card.jsx';
 import { ConfirmDialog } from '../../components/ConfirmDialog.jsx';
 import { StatusBadge } from '../../components/StatusBadge.jsx';
 import { formatTime } from '../../utils/formatters.js';
 import { ATTENDANCE_UI_STATE } from './useTodayAttendance.js';
 import { LOCATION_STATUS } from '../../hooks/useGeolocation.js';
+import { useAuth } from '../../hooks/useAuth.js';
+import { useToast } from '../../hooks/useToast.js';
+import {
+  isGandhiJayantiToday,
+  hasCelebratedThisSession,
+  markCelebratedThisSession,
+  resetCelebratedThisSession,
+  triggerGandhiCelebration,
+} from '../gandhiJayanti/gandhiJayantiConfig.js';
 
 export function AttendanceWidget({ data }) {
+  const { user } = useAuth();
+  const toast = useToast();
+  const isTestUser = import.meta.env.DEV && Boolean(user?.isVirtualTestUser);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [resetting, setResetting] = useState(false);
   const {
     loading,
     submitting,
@@ -22,6 +35,47 @@ export function AttendanceWidget({ data }) {
     endBreak,
     breakCountdownStr,
   } = data;
+
+  // Gandhi Jayanti celebration trigger — observes genuine check-in success and
+  // triggers the shared celebration. Never touches the attendance logic itself.
+  const checkInAttemptedRef = useRef(false);
+  const hadCheckInRef = useRef(Boolean(record?.checkIn));
+
+  const handleCheckInClick = () => {
+    checkInAttemptedRef.current = true;
+    checkIn(); // existing, unmodified check-in action
+  };
+
+  const handleResetCheckIn = async () => {
+    if (!isTestUser) return;
+    try {
+      setResetting(true);
+      await data.resetVirtualAttendance?.();
+      hadCheckInRef.current = false;
+      checkInAttemptedRef.current = false;
+      resetCelebratedThisSession();
+      toast.success('Test check-in reset. Ready to test check-in again.');
+    } catch {
+      toast.error('Failed to reset test check-in.');
+    } finally {
+      setResetting(false);
+    }
+  };
+
+  useEffect(() => {
+    const hasCheckInNow = Boolean(record?.checkIn);
+    // Only a genuine transition from "no check-in" to "has check-in" that was
+    // directly preceded by a click on the Check-In button counts as success —
+    // never the initial fetch on mount/refresh revealing an already-checked-in record.
+    if (checkInAttemptedRef.current && !hadCheckInRef.current && hasCheckInNow) {
+      if (isGandhiJayantiToday() && !hasCelebratedThisSession()) {
+        markCelebratedThisSession();
+        triggerGandhiCelebration();
+      }
+    }
+    checkInAttemptedRef.current = false;
+    hadCheckInRef.current = hasCheckInNow;
+  }, [record]);
 
   if (loading) {
     return <Card className="h-full min-h-[360px] animate-pulse bg-slate-100" />;
@@ -115,7 +169,7 @@ export function AttendanceWidget({ data }) {
           <button
             type="button"
             disabled={submitting}
-            onClick={checkIn}
+            onClick={handleCheckInClick}
             className="w-32 h-32 sm:w-36 sm:h-36 rounded-full bg-gradient-to-br from-brand-800 via-brand-900 to-brand-950 text-white font-extrabold shadow-xl shadow-brand-950/30 hover:scale-105 active:scale-95 transition-all duration-200 flex flex-col items-center justify-center gap-1.5 cursor-pointer ring-4 ring-brand-100 hover:ring-brand-200 disabled:opacity-50 disabled:pointer-events-none"
           >
             {submitting ? (
@@ -201,6 +255,26 @@ export function AttendanceWidget({ data }) {
           </div>
         )}
       </div>
+
+      {/* VIRTUAL TEST CONTROLS — Available only in development mode for the virtual test account */}
+      {isTestUser && (
+        <div className="mt-4 pt-3 border-t border-dashed border-amber-300/80 bg-amber-50/70 rounded-2xl p-3 flex flex-col items-center gap-1.5 shadow-2xs">
+          <span className="text-[10px] sm:text-xs font-black uppercase tracking-wider text-amber-900 flex items-center gap-1">
+            <span>⚠️</span> Virtual Test Controls
+          </span>
+          <button
+            type="button"
+            id="reset-checkin-test-btn"
+            disabled={submitting || resetting}
+            onClick={handleResetCheckIn}
+            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold bg-amber-600 hover:bg-amber-700 active:scale-95 text-white transition-all shadow-xs cursor-pointer disabled:opacity-50"
+            title="Reset simulated check-in and Gandhi celebration test flag to test the flow again"
+          >
+            {resetting ? <LoaderCircle size={14} className="animate-spin" /> : <RotateCcw size={14} />}
+            <span>Reset Check-in (Test)</span>
+          </button>
+        </div>
+      )}
 
       {/* Confirmation Modal before Check Out */}
       <ConfirmDialog

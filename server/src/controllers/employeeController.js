@@ -324,6 +324,13 @@ export const rejectUserAccount = asyncHandler(async (req, res) => {
 });
 
 export const getMyProfile = asyncHandler(async (req, res) => {
+  // Virtual test account — req.user.employeeId is already the complete,
+  // in-memory virtual profile (see utils/virtualTestUser.js); never queried
+  // from MongoDB, since no such Employee document exists.
+  if (req.user.isVirtualTestUser) {
+    return sendSuccess(res, { data: req.user.employeeId });
+  }
+
   let employee = null;
   const empId = req.user.employeeId?._id || req.user.employeeId;
   if (empId) {
@@ -361,6 +368,17 @@ export const getMyProfile = asyncHandler(async (req, res) => {
 });
 
 export const updateMyProfile = asyncHandler(async (req, res) => {
+  // Virtual test account — simulate a successful save without writing to
+  // MongoDB. Merge the submitted fields onto the in-memory virtual profile
+  // shape so the UI reflects the edit for the rest of this session, exactly
+  // like a real save would, with nothing persisted.
+  if (req.user.isVirtualTestUser) {
+    return sendSuccess(res, {
+      message: 'Profile updated successfully. (Virtual test account — not saved.)',
+      data: { ...req.user.employeeId, ...req.body },
+    });
+  }
+
   const empId = req.user.employeeId?._id || req.user.employeeId;
   let employee = null;
   if (empId) {

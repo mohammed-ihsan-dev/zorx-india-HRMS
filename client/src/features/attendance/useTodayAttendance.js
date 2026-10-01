@@ -186,6 +186,16 @@ export function useTodayAttendance() {
     }
   }, [toast]);
 
+  const resetVirtualAttendance = useCallback(async () => {
+    try {
+      await attendanceService.resetVirtualAttendance();
+    } catch {
+      // ignore
+    }
+    setRecord(null);
+    setLastVerification(null);
+  }, []);
+
   return {
     loading,
     submitting,
@@ -214,6 +224,7 @@ export function useTodayAttendance() {
     checkOut: () => punch('out'),
     startBreak,
     endBreak,
+    resetVirtualAttendance,
     refresh,
     LOCATION_STATUS,
   };

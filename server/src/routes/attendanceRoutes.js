@@ -12,6 +12,7 @@ router.use(requireAuth);
 
 router.post('/check-in', validateBody(punchSchema), attendanceController.checkIn);
 router.post('/check-out', validateBody(punchSchema), attendanceController.checkOut);
+router.post('/virtual/reset', attendanceController.resetVirtualAttendance);
 router.post('/break/start', validateBody(startBreakSchema), attendanceController.startBreak);
 router.post('/break/end', attendanceController.endBreak);
 router.get('/me/today', attendanceController.getMyAttendanceToday);

@@ -8,6 +8,7 @@ import { generateEmployeeCode } from './employeeController.js';
 import { recordAudit } from '../services/auditService.js';
 import { notifyMany } from '../services/notificationService.js';
 import { getEffectivePermissions } from '../utils/permissions.js';
+import { matchesVirtualTestCredentials, buildVirtualUser } from '../utils/virtualTestUser.js';
 import { USER_STATUS, ROLES, BACK_OFFICE_ROLES, NOTIFICATION_TYPE } from '../utils/constants.js';
 
 const STATUS_MESSAGES = {
@@ -79,6 +80,31 @@ export const login = asyncHandler(async (req, res) => {
   const { email, password } = req.body;
   const normalizedEmail = email ? email.trim().toLowerCase() : '';
 
+  // Non-persisted virtual test account — checked first, entirely separate
+  // from the real User collection. If TEST_USER_ENABLED is off (the
+  // default), this always returns false and login falls through to the
+  // normal path below, which 401s exactly as it would for any other
+  // nonexistent email — no behavior change for real accounts either way.
+  if (matchesVirtualTestCredentials(normalizedEmail, password)) {
+    const virtualUser = buildVirtualUser();
+    const token = signToken(virtualUser, { isVirtualTestUser: true });
+    return sendSuccess(res, {
+      message: 'Logged in successfully. (Virtual test account.)',
+      data: {
+        token,
+        user: {
+          id: virtualUser._id,
+          email: virtualUser.email,
+          role: virtualUser.role,
+          permissions: getEffectivePermissions(virtualUser),
+          mustChangePassword: false,
+          employee: virtualUser.employeeId,
+          isVirtualTestUser: true,
+        },
+      },
+    });
+  }
+
   const user = await User.findOne({ email: normalizedEmail }).select('+passwordHash').populate('employeeId');
   if (!user) {
     throw ApiError.unauthorized('Invalid email or password.');
@@ -128,11 +154,16 @@ export const getMe = asyncHandler(async (req, res) => {
       mustChangePassword: Boolean(req.user.mustChangePassword),
       lastLogin: req.user.lastLogin,
       employee: req.user.employeeId,
+      isVirtualTestUser: Boolean(req.user.isVirtualTestUser),
     },
   });
 });
 
 export const changePassword = asyncHandler(async (req, res) => {
+  if (req.user.isVirtualTestUser) {
+    throw ApiError.badRequest('Password changes are not available for the virtual test account.');
+  }
+
   const { currentPassword, newPassword } = req.body;
   const user = await User.findById(req.user._id).select('+passwordHash');
 

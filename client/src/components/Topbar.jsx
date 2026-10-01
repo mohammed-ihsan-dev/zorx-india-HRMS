@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Menu, ChevronDown, LogOut, User, KeyRound } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Dropdown, DropdownItem } from './Dropdown.jsx';
@@ -8,12 +8,41 @@ import { ChangePasswordModal } from '../features/auth/ChangePasswordModal.jsx';
 import { ZorxLogo } from './ZorxLogo.jsx';
 import { useAuth } from '../hooks/useAuth.js';
 import { ROLE_LABELS } from '../utils/constants.js';
+import {
+  GANDHI_JAYANTI_IMAGE_SRC,
+  shouldShowGandhiNavbarIcon,
+  triggerGandhiCelebration,
+} from '../features/gandhiJayanti/gandhiJayantiConfig.js';
+import { GandhiJayantiCelebration } from '../features/gandhiJayanti/GandhiJayantiCelebration.jsx';
 
 export function Topbar({ onMenuClick, title, profilePath }) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const employee = user?.employee;
   const [passwordModalOpen, setPasswordModalOpen] = useState(false);
+  const [showGandhiIcon, setShowGandhiIcon] = useState(shouldShowGandhiNavbarIcon);
+  const [celebrating, setCelebrating] = useState(false);
+  const [celebrationKey, setCelebrationKey] = useState(0);
+
+  useEffect(() => {
+    const handleCelebrated = () => setShowGandhiIcon(shouldShowGandhiNavbarIcon());
+    const handleReset = () => {
+      setShowGandhiIcon(false);
+      setCelebrating(false);
+    };
+    const handlePlay = () => {
+      setCelebrating(true);
+      setCelebrationKey((prev) => prev + 1);
+    };
+    window.addEventListener('gandhi-jayanti-celebrated', handleCelebrated);
+    window.addEventListener('gandhi-jayanti-reset', handleReset);
+    window.addEventListener('gandhi-jayanti-play', handlePlay);
+    return () => {
+      window.removeEventListener('gandhi-jayanti-celebrated', handleCelebrated);
+      window.removeEventListener('gandhi-jayanti-reset', handleReset);
+      window.removeEventListener('gandhi-jayanti-play', handlePlay);
+    };
+  }, []);
 
   const handleLogout = async () => {
     await logout();
@@ -36,7 +65,7 @@ export function Topbar({ onMenuClick, title, profilePath }) {
         <h1 className="text-sm sm:text-2xl font-extrabold text-slate-900 truncate tracking-tight">{title}</h1>
       </div>
 
-      <div className="flex items-center gap-3 sm:gap-4 shrink-0">
+      <div className="flex items-center gap-2.5 sm:gap-4 shrink-0">
         <NotificationBell />
 
         <Dropdown
@@ -76,8 +105,34 @@ export function Topbar({ onMenuClick, title, profilePath }) {
             <LogOut size={18} /> Logout
           </DropdownItem>
         </Dropdown>
+
+        {/* All-Day Gandhi Icon & Replay Button (October 2 after check-in celebration) */}
+        {showGandhiIcon && (
+          <div className="flex items-center pl-2 sm:pl-3 border-l border-slate-200 shrink-0 select-none animate-fade-in">
+            <button
+              type="button"
+              onClick={triggerGandhiCelebration}
+              aria-label="Replay Gandhi Jayanti celebration"
+              title="Happy Gandhi Jayanti — Replay celebration"
+              className="relative flex items-center justify-center rounded-full p-0.5 group cursor-pointer transition-transform duration-200 hover:scale-105 active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2"
+            >
+              <img
+                src={GANDHI_JAYANTI_IMAGE_SRC}
+                alt=""
+                aria-hidden="true"
+                className="w-7 h-7 sm:w-8 sm:h-8 rounded-full object-cover ring-2 ring-amber-400/80 shadow-xs group-hover:brightness-105 group-hover:ring-amber-400 transition-all duration-200"
+              />
+              <span className="sr-only">Replay Gandhi Jayanti celebration</span>
+            </button>
+          </div>
+        )}
       </div>
       <ChangePasswordModal open={passwordModalOpen} onClose={() => setPasswordModalOpen(false)} />
+      <GandhiJayantiCelebration
+        key={celebrationKey}
+        open={celebrating}
+        onDismiss={() => setCelebrating(false)}
+      />
     </header>
   );
 }

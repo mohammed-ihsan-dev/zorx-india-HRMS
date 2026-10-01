@@ -4,6 +4,7 @@ import { requireAuth } from '../middleware/auth.js';
 import { requireRole } from '../middleware/rbac.js';
 import { documentUpload } from '../services/fileStorageService.js';
 import { ApiError } from '../utils/ApiError.js';
+import { blockVirtualUserWrite } from '../utils/virtualTestUser.js';
 import { BACK_OFFICE_ROLES } from '../utils/constants.js';
 
 const router = Router();
@@ -21,7 +22,7 @@ function handleUpload(req, res, next) {
   });
 }
 
-router.post('/', handleUpload, documentController.uploadDocument);
+router.post('/', blockVirtualUserWrite, handleUpload, documentController.uploadDocument);
 router.get('/me', documentController.listMyDocuments);
 router.get('/admin/all', requireRole(...BACK_OFFICE_ROLES), documentController.listAllDocuments);
 router.get('/employee/:employeeId', requireRole(...BACK_OFFICE_ROLES), documentController.listDocumentsForEmployee);

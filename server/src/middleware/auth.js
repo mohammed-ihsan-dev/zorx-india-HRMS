@@ -4,9 +4,10 @@ import { ApiError } from '../utils/ApiError.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { User } from '../models/User.js';
 import { USER_STATUS } from '../utils/constants.js';
+import { isVirtualTestUserEnabled, buildVirtualUser, VIRTUAL_USER_ID } from '../utils/virtualTestUser.js';
 
-export function signToken(user) {
-  return jwt.sign({ sub: user._id.toString(), role: user.role }, env.jwtSecret, {
+export function signToken(user, extraClaims = {}) {
+  return jwt.sign({ sub: user._id.toString(), role: user.role, ...extraClaims }, env.jwtSecret, {
     expiresIn: env.jwtExpiresIn,
   });
 }
@@ -36,6 +37,17 @@ export const requireAuth = asyncHandler(async (req, res, next) => {
       throw ApiError.unauthorized('Your session has expired. Please log in again.');
     }
     throw ApiError.unauthorized('Your session is invalid. Please log in again.');
+  }
+
+  // Virtual test sessions never touch the real User collection — re-checked
+  // on every request (not just at login), so disabling TEST_USER_ENABLED
+  // immediately invalidates any already-issued virtual token too.
+  if (payload.isVirtualTestUser) {
+    if (!isVirtualTestUserEnabled() || payload.sub !== VIRTUAL_USER_ID.toString()) {
+      throw ApiError.unauthorized('Your session is invalid. Please log in again.');
+    }
+    req.user = buildVirtualUser();
+    return next();
   }
 
   const user = await User.findById(payload.sub).populate('employeeId');

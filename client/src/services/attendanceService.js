@@ -10,6 +10,11 @@ export async function checkOut(coords) {
   return data.data;
 }
 
+export async function resetVirtualAttendance() {
+  const { data } = await apiClient.post('/attendance/virtual/reset');
+  return data.data;
+}
+
 export async function startBreak(type) {
   const { data } = await apiClient.post('/attendance/break/start', { type });
   return data.data;

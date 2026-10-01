@@ -4,13 +4,14 @@ import { requireAuth } from '../middleware/auth.js';
 import { requireRole } from '../middleware/rbac.js';
 import { validateBody } from '../middleware/validate.js';
 import { createEditRequestSchema, reviewEditRequestSchema } from '../validators/editRequestValidators.js';
+import { blockVirtualUserWrite } from '../utils/virtualTestUser.js';
 import { BACK_OFFICE_ROLES } from '../utils/constants.js';
 
 const router = Router();
 
 router.use(requireAuth);
 
-router.post('/', validateBody(createEditRequestSchema), editRequestController.createEditRequest);
+router.post('/', blockVirtualUserWrite, validateBody(createEditRequestSchema), editRequestController.createEditRequest);
 router.get('/me', editRequestController.getMyEditRequests);
 router.patch('/:id/cancel', editRequestController.cancelEditRequest);
 

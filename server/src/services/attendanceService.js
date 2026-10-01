@@ -117,7 +117,7 @@ export function calculateOvertime(totalWorkingMinutes, officeSettings) {
   return overtime > 0 ? Math.round(overtime) : 0;
 }
 
-function deriveStatus(lateMinutes, totalWorkingMinutes, officeSettings) {
+export function deriveStatus(lateMinutes, totalWorkingMinutes, officeSettings) {
   if (totalWorkingMinutes > 0 && totalWorkingMinutes < officeSettings.halfDayThresholdMinutes) {
     return ATTENDANCE_STATUS.HALF_DAY;
   }

@@ -51,6 +51,16 @@ export const env = {
   breakDurationMinutes: Number(process.env.BREAK_DURATION_MINUTES) || 60,
   lateThresholdMinutes: Number(process.env.LATE_THRESHOLD_MINUTES) || 15,
   halfDayThresholdMinutes: Number(process.env.HALF_DAY_THRESHOLD_MINUTES) || 240,
+
+  // Non-persisted virtual test account — see utils/virtualTestUser.js. Defaults
+  // to fully disabled; must be explicitly opted into, and in production an
+  // additional explicit flag is required on top of that.
+  testUser: {
+    enabled: process.env.TEST_USER_ENABLED === 'true',
+    email: process.env.TEST_USER_EMAIL || '',
+    password: process.env.TEST_USER_PASSWORD || '',
+    allowInProduction: process.env.ALLOW_VIRTUAL_TEST_USER === 'true',
+  },
 };
 
 export const isTest = env.nodeEnv === 'test';

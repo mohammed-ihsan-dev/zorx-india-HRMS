@@ -15,6 +15,7 @@ import {
 } from '../services/leaveService.js';
 import { notify } from '../services/notificationService.js';
 import { recordAudit } from '../services/auditService.js';
+import { VIRTUAL_EMPLOYEE_ID, getVirtualLeaveBalance } from '../utils/virtualTestUser.js';
 import { LEAVE_TYPE, LEAVE_STATUS, NOTIFICATION_TYPE, BACK_OFFICE_ROLES } from '../utils/constants.js';
 
 function requireEmployee(req) {
@@ -28,6 +29,35 @@ function requireEmployee(req) {
 export const createLeave = asyncHandler(async (req, res) => {
   const employeeId = requireEmployee(req);
   const { leaveType, startDate, endDate, reason, supportingDocumentId } = req.body;
+
+  // Virtual test account — simulate a submission without touching Leave,
+  // LeaveBalance, notifications, or audit logs. calculateLeaveDays is the
+  // same real pure function real submissions use, so the day-count and
+  // date-order validation behave identically; nothing else here persists.
+  if (req.user.isVirtualTestUser) {
+    const days = calculateLeaveDays(startDate, endDate);
+    const simulatedLeave = {
+      _id: 'virtual-leave-request',
+      employeeId: VIRTUAL_EMPLOYEE_ID,
+      leaveType,
+      startDate: new Date(startDate),
+      endDate: new Date(endDate),
+      days,
+      reason,
+      supportingDocumentId: null,
+      status: LEAVE_STATUS.PENDING,
+      reviewedBy: null,
+      reviewedAt: null,
+      reviewNote: '',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    return sendSuccess(res, {
+      statusCode: 201,
+      message: 'Leave request submitted successfully. (Virtual test account — not saved.)',
+      data: simulatedLeave,
+    });
+  }
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -83,6 +113,13 @@ export const createLeave = asyncHandler(async (req, res) => {
 });
 
 export const getMyLeaves = asyncHandler(async (req, res) => {
+  if (req.user.isVirtualTestUser) {
+    // No real leave history exists for this account — intentionally empty,
+    // never fabricated. getOrCreateLeaveBalance is deliberately NOT called
+    // here, since it would create a real LeaveBalance document otherwise.
+    return sendSuccess(res, { data: { leaves: [], balance: getVirtualLeaveBalance() } });
+  }
+
   const employeeId = requireEmployee(req);
   const leaves = await Leave.find({ employeeId })
     .populate('supportingDocumentId', 'documentType originalFileName mimeType')
