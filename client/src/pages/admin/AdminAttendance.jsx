@@ -10,6 +10,7 @@ import { Modal } from '../../components/Modal.jsx';
 import { Button } from '../../components/Button.jsx';
 import * as attendanceService from '../../services/attendanceService.js';
 import { formatDate, formatTime, formatMinutes, formatMeters, titleCase } from '../../utils/formatters.js';
+import { getTodayDateInputValue } from '../../utils/calendarDate.js';
 import { useToast } from '../../hooks/useToast.js';
 import { getErrorMessage } from '../../services/apiClient.js';
 
@@ -18,7 +19,10 @@ export function AdminAttendance() {
   const [records, setRecords] = useState([]);
   const [meta, setMeta] = useState({ page: 1, pages: 1, total: 0 });
   const [loading, setLoading] = useState(true);
-  const [filters, setFilters] = useState({ from: '', to: '', status: '' });
+  // Defaults to today so Admin/Super Admin land on today's attendance without
+  // having to pick a date first — computed fresh on every mount/refresh, never
+  // persisted, so it's always the current day (see getTodayDateInputValue).
+  const [filters, setFilters] = useState({ from: getTodayDateInputValue(), to: getTodayDateInputValue(), status: '' });
   const [page, setPage] = useState(1);
   const [breaksRecord, setBreaksRecord] = useState(null);
 

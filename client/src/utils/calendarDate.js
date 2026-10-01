@@ -51,6 +51,13 @@ export function toDateInputValue(year, month, day) {
   return `${year}-${mm}-${dd}`;
 }
 
+/** "YYYY-MM-DD" for today, in the viewer's own local calendar day — the single
+ * shared source for any page that needs to default a date input to "today". */
+export function getTodayDateInputValue() {
+  const now = new Date();
+  return toDateInputValue(now.getFullYear(), now.getMonth(), now.getDate());
+}
+
 /** Inclusive day count between two "YYYY-MM-DD" strings, using the same UTC-midnight logic as the backend. */
 export function countDaysInclusive(startValue, endValue) {
   if (!startValue || !endValue) return 0;
