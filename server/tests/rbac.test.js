@@ -48,7 +48,7 @@ describe('authentication', () => {
 
   test('rejects invalid credentials', async () => {
     await createUser(ROLES.EMPLOYEE, 'emp@zorx.test');
-    const res = await request(app).post('/api/auth/login').send({ email: 'emp@zorx.test', password: 'wrong' });
+    const res = await request(app).post('/api/auth/login').send({ email: 'emp@zorx.test', password: 'wrongpassword' });
     expect(res.status).toBe(401);
   });
 

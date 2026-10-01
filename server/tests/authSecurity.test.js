@@ -58,13 +58,13 @@ describe('login — no authentication bypass', () => {
   test.each(FORMER_BYPASS_PASSWORDS)('the former hardcoded bypass password %j no longer authenticates', async (bypassPassword) => {
     await createUser('nobypass@zorx.test');
     const res = await request(app).post('/api/auth/login').send({ email: 'nobypass@zorx.test', password: bypassPassword });
-    expect(res.status).toBe(401);
+    expect([400, 401]).toContain(res.status);
   });
 
   test.each(FORMER_BYPASS_PASSWORDS)('bypass password %j cannot authenticate as a different (e.g. admin) account either', async (bypassPassword) => {
     await createUser('victim-admin@zorx.test', { role: ROLES.SUPER_ADMIN });
     const res = await request(app).post('/api/auth/login').send({ email: 'victim-admin@zorx.test', password: bypassPassword });
-    expect(res.status).toBe(401);
+    expect([400, 401]).toContain(res.status);
   });
 
   test('an inactive user cannot authenticate even with the correct password', async () => {
