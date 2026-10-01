@@ -46,11 +46,18 @@ export function ContentCalendar() {
   // name/email — so "My Calendar" can never be spoofed or broken by a rename.
   const currentEmployeeId = user?.employee?._id ? String(user.employee._id) : '';
   const currentEmployeeName = user?.employee ? `${user.employee.firstName || ''} ${user.employee.lastName || ''}`.trim() : 'your';
-  // Management roles already see the full, unfiltered Content Calendar by
-  // default today — that existing behavior is preserved as-is. Only base
-  // EMPLOYEE-role users (including Creators, who are EMPLOYEE + a permission
-  // grant, not a separate role) get the new default-to-own-work scope.
+  // Back-office roles (SUPER_ADMIN/ADMIN) already saw the full, unfiltered
+  // Content Calendar by default before "My Calendar" existed — that's
+  // preserved as-is below, and they never get the toggle (unchanged).
   const isBackOffice = BACK_OFFICE_ROLES.includes(user?.role);
+
+  // A user whose job is to MANAGE Content Calendar work across employees
+  // (a "Creator" — EMPLOYEE role + the CONTENT_CALENDAR_MANAGE permission
+  // grant, not a separate role) must default to the full dataset too, or
+  // their own "My Calendar" is frequently empty (they're assigning work to
+  // others, not necessarily to themselves). Derived purely from the existing
+  // permission system — never from email, name, or a hard-coded ID list.
+  const defaultsToFullCalendar = isBackOffice || canManage;
 
   const [items, setItems] = useState([]);
   const [employees, setEmployees] = useState([]);
@@ -62,7 +69,7 @@ export function ContentCalendar() {
   // persisted (no existing Content Calendar filter is URL/storage-persisted
   // either), so a refresh or fresh navigation always lands back on the safe
   // default rather than silently keeping a previous "all" choice.
-  const [viewMode, setViewMode] = useState(isBackOffice ? 'all' : 'mine');
+  const [viewMode, setViewMode] = useState(defaultsToFullCalendar ? 'all' : 'mine');
 
   // Search & Filter state
   const [searchQuery, setSearchQuery] = useState('');
