@@ -171,15 +171,25 @@ export const getAdminDashboard = asyncHandler(async (req, res) => {
       .lean(),
   ]);
 
-  const present = todayAttendance.filter((a) => a.checkIn).length;
-  const currentlyWorking = todayAttendance.filter((a) => a.checkIn && !a.checkOut).length;
+  // PRESENT / LATE / HALF_DAY are mutually exclusive canonical statuses on a
+  // single attendance record (see attendanceService.deriveStatus) — never
+  // overlapping subtypes of one another, so each is counted independently
+  // rather than all being folded into one "checked in" bucket.
+  const attendedCount = todayAttendance.filter((a) => a.checkIn).length; // anyone with a valid record today, any status — used only for Absent below
+  const present = todayAttendance.filter((a) => a.status === ATTENDANCE_STATUS.PRESENT).length;
   const late = todayAttendance.filter((a) => a.status === ATTENDANCE_STATUS.LATE).length;
+  const halfDay = todayAttendance.filter((a) => a.status === ATTENDANCE_STATUS.HALF_DAY).length;
+  const currentlyWorking = todayAttendance.filter((a) => a.checkIn && !a.checkOut).length;
   const onLeaveToday = await Leave.countDocuments({
     status: LEAVE_STATUS.APPROVED,
     startDate: { $lte: today },
     endDate: { $gte: today },
   });
-  const absent = Math.max(0, totalEmployees - present - onLeaveToday);
+  // Expected-to-work population is today's active employee count (the same
+  // definition already used for `totalEmployees`) minus anyone with a valid
+  // attendance record today and minus anyone on approved leave today — an
+  // employee on approved leave is never also counted as absent.
+  const absent = Math.max(0, totalEmployees - attendedCount - onLeaveToday);
 
   const taskStatusMap = Object.fromEntries(taskStats.map((t) => [t._id, t.count]));
 
@@ -261,6 +271,8 @@ export const getAdminDashboard = asyncHandler(async (req, res) => {
       onLeave: onLeaveToday,
       absent,
       late,
+      halfDay,
+      attendanceDate: today.toISOString().slice(0, 10),
       pendingLeaves,
       taskStats: {
         todo: taskStatusMap[TASK_STATUS.TODO] || 0,

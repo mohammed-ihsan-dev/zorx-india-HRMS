@@ -234,6 +234,23 @@ export function AdminDashboard() {
         <StatCard key={`stat-cli-${range}-${data?.totalClients}`} label="Clients" value={data?.totalClients || 0} icon={Building2} tone="slate" />
       </div>
 
+      {/* Today's Attendance — always TODAY, independent of the "All Time" work
+          analytics filter above. Total Employees is shown once already (the
+          Employees card above); this section only adds what's missing. */}
+      <Card className="flex flex-col transition-all duration-300 hover:shadow-md">
+        <CardHeader
+          title="Today's Attendance"
+          subtitle={data?.attendanceDate ? `Workforce attendance for ${formatDate(data.attendanceDate)}` : 'Workforce attendance for today'}
+        />
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 p-6 pt-0">
+          <StatCard key={`stat-present-${data?.present}`} label="Present" value={data?.present ?? 0} icon={CheckCircle2} tone="green" />
+          <StatCard key={`stat-absent-${data?.absent}`} label="Absent" value={data?.absent ?? 0} icon={AlertTriangle} tone="red" />
+          <StatCard key={`stat-late-${data?.late}`} label="Late" value={data?.late ?? 0} icon={Clock3} tone="amber" />
+          <StatCard key={`stat-halfday-${data?.halfDay}`} label="Half Day" value={data?.halfDay ?? 0} icon={Clock} tone="blue" />
+          <StatCard key={`stat-leave-${data?.onLeave}`} label="Leave Taken" value={data?.onLeave ?? 0} icon={CalendarClock} tone="slate" />
+        </div>
+      </Card>
+
       {/* Row 2: Overall Work Progress & Work Status Distribution */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Overall Work Progress (Card 1) */}
