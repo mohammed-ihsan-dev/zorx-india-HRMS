@@ -79,11 +79,11 @@ export function resetCelebratedThisSession() {
 }
 
 /**
- * True if today is October 2 AND the user has completed a successful check-in
- * celebration during this session. Automatically turns false on October 3.
+ * True if today is October 2. Automatically turns false on October 3.
+ * Available to all authenticated users on October 2 regardless of check-in status.
  */
 export function shouldShowGandhiNavbarIcon() {
-  return isGandhiJayantiToday() && hasCelebratedThisSession();
+  return isGandhiJayantiToday();
 }
 
 /**

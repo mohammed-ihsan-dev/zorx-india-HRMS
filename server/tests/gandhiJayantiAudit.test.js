@@ -49,6 +49,26 @@ describe('Gandhi Jayanti Celebration & Date Logic Audit', () => {
     const oct3Local = new Date(2026, 9, 3, 0, 0, 0); // 00:00 local Oct 3
     expect(getLocalFormattedDate(oct3Local)).toBe('2026-10-03');
   });
+
+  test('navbar icon visibility is date-based and independent of check-in status across all roles', () => {
+    function shouldShowNavbarIcon(dateStr, isAuthenticated) {
+      return Boolean(isAuthenticated) && isGandhiJayantiDate(dateStr);
+    }
+
+    const roles = [ROLES.EMPLOYEE, ROLES.ADMIN, ROLES.SUPER_ADMIN];
+    for (const role of roles) {
+      // On Oct 2, authenticated user of any role sees icon regardless of checkIn status
+      expect(shouldShowNavbarIcon('2026-10-02', { role, hasCheckedIn: false })).toBe(true);
+      expect(shouldShowNavbarIcon('2026-10-02', { role, hasCheckedIn: true })).toBe(true);
+
+      // On Oct 1 and Oct 3, icon is hidden
+      expect(shouldShowNavbarIcon('2026-10-01', { role, hasCheckedIn: false })).toBe(false);
+      expect(shouldShowNavbarIcon('2026-10-03', { role, hasCheckedIn: false })).toBe(false);
+    }
+
+    // Unauthenticated user never sees icon
+    expect(shouldShowNavbarIcon('2026-10-02', null)).toBe(false);
+  });
 });
 
 describe('Gandhi Jayanti: Attendance Isolation & Database Safety', () => {

@@ -20,24 +20,51 @@ export function Topbar({ onMenuClick, title, profilePath }) {
   const navigate = useNavigate();
   const employee = user?.employee;
   const [passwordModalOpen, setPasswordModalOpen] = useState(false);
-  const [showGandhiIcon, setShowGandhiIcon] = useState(shouldShowGandhiNavbarIcon);
+  const [, setDateTick] = useState(0);
   const [celebrating, setCelebrating] = useState(false);
   const [celebrationKey, setCelebrationKey] = useState(0);
 
+  // Authenticated user + October 2 (evaluated live on every render / route change)
+  const showGandhiIcon = Boolean(user) && shouldShowGandhiNavbarIcon();
+
   useEffect(() => {
-    const handleCelebrated = () => setShowGandhiIcon(shouldShowGandhiNavbarIcon());
+    const syncDate = () => setDateTick((prev) => prev + 1);
+
+    // Sync on tab visibility / focus change (e.g. computer wakes up after midnight)
+    window.addEventListener('visibilitychange', syncDate);
+    window.addEventListener('focus', syncDate);
+
+    // Lightweight boundary timer: wake up precisely at next local midnight without polling
+    let midnightTimer;
+    const scheduleMidnight = () => {
+      const now = new Date();
+      const nextMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 0, 50);
+      const delay = Math.max(1000, nextMidnight.getTime() - now.getTime());
+      midnightTimer = setTimeout(() => {
+        syncDate();
+        scheduleMidnight();
+      }, delay);
+    };
+    scheduleMidnight();
+
+    const handleCelebrated = () => syncDate();
     const handleReset = () => {
-      setShowGandhiIcon(false);
       setCelebrating(false);
+      syncDate();
     };
     const handlePlay = () => {
       setCelebrating(true);
       setCelebrationKey((prev) => prev + 1);
     };
+
     window.addEventListener('gandhi-jayanti-celebrated', handleCelebrated);
     window.addEventListener('gandhi-jayanti-reset', handleReset);
     window.addEventListener('gandhi-jayanti-play', handlePlay);
+
     return () => {
+      clearTimeout(midnightTimer);
+      window.removeEventListener('visibilitychange', syncDate);
+      window.removeEventListener('focus', syncDate);
       window.removeEventListener('gandhi-jayanti-celebrated', handleCelebrated);
       window.removeEventListener('gandhi-jayanti-reset', handleReset);
       window.removeEventListener('gandhi-jayanti-play', handlePlay);
@@ -106,7 +133,7 @@ export function Topbar({ onMenuClick, title, profilePath }) {
           </DropdownItem>
         </Dropdown>
 
-        {/* All-Day Gandhi Icon & Replay Button (October 2 after check-in celebration) */}
+        {/* All-Day Gandhi Icon & Replay Button (October 2 for all authenticated users) */}
         {showGandhiIcon && (
           <div className="flex items-center pl-2 sm:pl-3 border-l border-slate-200 shrink-0 select-none animate-fade-in">
             <button
