@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import { LogIn, ShieldCheck, Eye, EyeOff } from 'lucide-react';
 import { Button } from '../../components/Button.jsx';
 import { Input } from '../../components/Input.jsx';
@@ -9,7 +9,7 @@ import { getErrorMessage } from '../../services/apiClient.js';
 import { BACK_OFFICE_ROLES, APP_VERSION } from '../../utils/constants.js';
 
 export function Login() {
-  const { login } = useAuth();
+  const { login, user, loading } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [form, setForm] = useState({ email: '', password: '' });
@@ -38,6 +38,11 @@ export function Login() {
       setSubmitting(false);
     }
   };
+
+  // Already signed in (e.g. another tab just logged in): go to this role's home.
+  if (!loading && user) {
+    return <Navigate to={BACK_OFFICE_ROLES.includes(user.role) ? '/admin' : '/'} replace />;
+  }
 
   return (
     <div className="min-h-screen flex bg-slate-50 font-sans">

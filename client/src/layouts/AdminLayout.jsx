@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import { Sidebar } from '../components/Sidebar.jsx';
 import { Topbar } from '../components/Topbar.jsx';
-import { getAdminNavItemsForRole } from '../routes/navConfig.js';
+import { getAdminNavItemsForRole, employeeNavItems } from '../routes/navConfig.js';
 import { useAuth } from '../hooks/useAuth.js';
 
 export function AdminLayout() {
@@ -13,7 +13,9 @@ export function AdminLayout() {
   const navItems = useMemo(() => getAdminNavItemsForRole(user?.role), [user?.role]);
   const title = useMemo(() => {
     if (location.pathname === '/admin/profile') return 'My Profile';
-    const match = navItems.find((item) => (item.end ? location.pathname === item.to : location.pathname.startsWith(item.to)));
+    const matches = (item) => (item.end ? location.pathname === item.to : location.pathname.startsWith(item.to));
+    // Also hosts a back-office user's own-request pages (Leave, WFH, …) — see RoleAwareLayout.
+    const match = navItems.find(matches) || employeeNavItems.find((item) => item.to !== '/' && matches(item));
     return match?.label || 'ZORX INDIA';
   }, [navItems, location.pathname]);
 

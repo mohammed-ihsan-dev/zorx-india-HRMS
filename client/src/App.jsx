@@ -2,7 +2,7 @@ import { lazy, Suspense } from 'react';
 import { Routes, Route } from 'react-router-dom';
 import { ProtectedRoute } from './routes/ProtectedRoute.jsx';
 import { RoleRoute } from './routes/RoleRoute.jsx';
-import { EmployeeLayout } from './layouts/EmployeeLayout.jsx';
+import { RoleAwareLayout } from './routes/RoleAwareLayout.jsx';
 import { AdminLayout } from './layouts/AdminLayout.jsx';
 import { Loader } from './components/Loader.jsx';
 import { Login } from './pages/auth/Login.jsx';
@@ -56,7 +56,7 @@ export default function App() {
 
         <Route element={<ProtectedRoute />}>
           <Route path="/change-password" element={<FirstLoginPasswordChange />} />
-          <Route element={<EmployeeLayout />}>
+          <Route element={<RoleAwareLayout />}>
             <Route path="/" element={<EmployeeDashboard />} />
             <Route path="/profile" element={<Profile />} />
             <Route path="/attendance" element={<Attendance />} />
