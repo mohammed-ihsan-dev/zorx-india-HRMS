@@ -17,6 +17,8 @@ import {
   Building2,
   Filter as FilterIcon,
   RotateCcw,
+  ChevronDown,
+  Loader2,
 } from 'lucide-react';
 import { Card } from '../components/Card.jsx';
 import { Table } from '../components/Table.jsx';
@@ -88,6 +90,7 @@ export function ContentCalendar() {
   const [detailsItem, setDetailsItem] = useState(null); // null = closed, object = view details
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+  const [updatingStatusId, setUpdatingStatusId] = useState(null);
 
   // Calendar month state
   const [currentMonth, setCurrentMonth] = useState(new Date());
@@ -185,11 +188,45 @@ export function ContentCalendar() {
   const activeClientObj = clients.find((c) => String(c._id) === selectedClient);
   const activeEmpObj = viewMode === 'all' ? employees.find((e) => String(e._id) === selectedEmployee) : null;
 
+  // Inline Status dropdown change for Total View table
+  const handleInlineStatusChange = async (item, newStatus) => {
+    if (item.workStatus === newStatus || updatingStatusId === item._id) return;
+
+    const previousStatus = item.workStatus;
+    setUpdatingStatusId(item._id);
+
+    // Optimistically update the item in the list
+    setItems((prev) =>
+      prev.map((i) => (i._id === item._id ? { ...i, workStatus: newStatus } : i))
+    );
+
+    try {
+      const updated = await contentCalendarService.updateContentCalendarItem(item._id, { workStatus: newStatus });
+      const statusLabel = newStatus === 'REMAINING' ? 'Upcoming' : newStatus === 'ONGOING' ? 'Ongoing' : 'Completed';
+      toast.success(`Status updated to ${statusLabel}`);
+      setItems((prev) =>
+        prev.map((i) => (i._id === item._id ? { ...i, ...updated, workStatus: updated.workStatus } : i))
+      );
+      if (detailsItem && detailsItem._id === item._id) {
+        setDetailsItem(updated);
+      }
+    } catch (err) {
+      // Revert optimistic update on error
+      setItems((prev) =>
+        prev.map((i) => (i._id === item._id ? { ...i, workStatus: previousStatus } : i))
+      );
+      toast.error(getErrorMessage(err, 'Failed to update status.'));
+    } finally {
+      setUpdatingStatusId(null);
+    }
+  };
+
   // Quick Status change from Board or Details Modal
   const handleStatusChange = async (item, newStatus) => {
     try {
       const updated = await contentCalendarService.updateContentCalendarItem(item._id, { workStatus: newStatus });
-      toast.success(`Status updated to ${newStatus}`);
+      const statusLabel = newStatus === 'REMAINING' ? 'Upcoming' : newStatus === 'ONGOING' ? 'Ongoing' : 'Completed';
+      toast.success(`Status updated to ${statusLabel}`);
       if (detailsItem && detailsItem._id === item._id) {
         setDetailsItem(updated);
       }
@@ -293,7 +330,42 @@ export function ContentCalendar() {
       render: (r) => (r.outputDate ? formatDate(r.outputDate) : <span className="text-slate-400 font-normal">Not set</span>),
     },
     { key: 'priority', header: 'Priority', render: (r) => <PriorityBadge priority={r.priority} /> },
-    { key: 'workStatus', header: 'Status', render: (r) => <StatusBadge status={r.workStatus} /> },
+    {
+      key: 'workStatus',
+      header: 'Status',
+      render: (r) => {
+        if (!canManage) {
+          return <StatusBadge status={r.workStatus} />;
+        }
+
+        const isUpdating = updatingStatusId === r._id;
+        const colorClass =
+          r.workStatus === 'COMPLETED'
+            ? 'bg-brand-100/90 text-brand-900 border-brand-300 hover:bg-brand-100'
+            : r.workStatus === 'ONGOING'
+              ? 'bg-sky-100/90 text-sky-900 border-sky-300 hover:bg-sky-100'
+              : 'bg-slate-100 text-slate-800 border-slate-300 hover:bg-slate-200/70';
+
+        return (
+          <div className="relative inline-flex items-center">
+            <select
+              value={r.workStatus}
+              disabled={isUpdating}
+              onChange={(e) => handleInlineStatusChange(r, e.target.value)}
+              className={`appearance-none cursor-pointer rounded-full border pl-3 pr-7 py-1 text-xs font-bold shadow-2xs transition-all outline-none focus:ring-2 focus:ring-brand-500/20 disabled:opacity-60 disabled:cursor-not-allowed ${colorClass}`}
+              aria-label={`Update status for ${r.work}`}
+            >
+              <option value="REMAINING" className="bg-white text-slate-800 font-medium">Upcoming</option>
+              <option value="ONGOING" className="bg-white text-slate-800 font-medium">Ongoing</option>
+              <option value="COMPLETED" className="bg-white text-slate-800 font-medium">Completed</option>
+            </select>
+            <div className="pointer-events-none absolute right-2 flex items-center text-current opacity-70">
+              {isUpdating ? <Loader2 size={12} className="animate-spin" /> : <ChevronDown size={12} strokeWidth={2.5} />}
+            </div>
+          </div>
+        );
+      },
+    },
     {
       key: 'actions',
       header: 'Actions',

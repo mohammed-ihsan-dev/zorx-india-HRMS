@@ -9,9 +9,10 @@ export const createContentCalendarItemSchema = z.object({
   work: z.string().min(1, 'Work description is required.'),
   assignmentRemark: z.string().optional().default(''),
   deadline: z.coerce.date(),
-  // Required for every new item — existing legacy records predating this
-  // field are handled separately (see ContentCalendarItem model comment).
-  outputDate: z.coerce.date({ required_error: 'Output Date is required.', invalid_type_error: 'Output Date must be a valid date.' }),
+  // Optional for new items — defaults to null if not provided, empty, or null.
+  outputDate: z
+    .preprocess((val) => (val === '' || val === null || val === undefined ? null : val), z.coerce.date().nullable().optional())
+    .default(null),
   priority: z.enum(Object.values(TASK_PRIORITY)).default('MEDIUM'),
   workStatus: z.enum(Object.values(CONTENT_CALENDAR_STATUS)).default('REMAINING'),
   completionRemark: z.string().optional().default(''),
@@ -29,9 +30,8 @@ export const updateContentCalendarItemSchema = z.object({
   work: z.string().min(1).optional(),
   assignmentRemark: z.string().optional(),
   deadline: z.coerce.date().optional(),
-  // Optional on update so editing a legacy pre-outputDate record (or any
-  // other field) never forces the caller to also supply an output date.
-  outputDate: z.coerce.date().optional(),
+  // Optional on update — omitting leaves existing untouched, while null or '' explicitly clears it.
+  outputDate: z.preprocess((val) => (val === '' || val === null ? null : val), z.coerce.date().nullable().optional()),
   priority: z.enum(Object.values(TASK_PRIORITY)).optional(),
   workStatus: z.enum(Object.values(CONTENT_CALENDAR_STATUS)).optional(),
   completionRemark: z.string().optional(),

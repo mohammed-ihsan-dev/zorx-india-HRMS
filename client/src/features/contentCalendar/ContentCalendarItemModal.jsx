@@ -131,14 +131,13 @@ export function ContentCalendarItemModal({ open, onClose, item, employees = [], 
       setError('Please select an assigned employee.');
       return;
     }
-    if (!form.outputDate) {
-      setError('Please set the Output Date — when this work is scheduled to go out to the client.');
-      return;
-    }
     setError('');
     setSubmitting(true);
     try {
-      let payload = { ...form };
+      let payload = {
+        ...form,
+        outputDate: form.outputDate ? form.outputDate : null,
+      };
       if (isAddingNewClient && newClientName.trim()) {
         const created = await clientService.createClient({ name: newClientName.trim() });
         payload.clientId = created._id;
@@ -259,8 +258,7 @@ export function ContentCalendarItemModal({ open, onClose, item, employees = [], 
             type="date"
             value={form.outputDate}
             onChange={handleChange('outputDate')}
-            hint="Date the completed work is scheduled to go out to the client. Drives the Calendar view."
-            required
+            hint="Date the completed work is scheduled to go out to the client (optional)."
           />
         </div>
 

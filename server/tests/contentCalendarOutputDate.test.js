@@ -43,7 +43,7 @@ beforeEach(async () => {
 });
 
 describe('Assignment Date, Deadline, and Output Date are three independent business dates', () => {
-  test('creating a new item without outputDate is rejected (400), not silently defaulted', async () => {
+  test('creating a new item without outputDate succeeds (201) with outputDate stored as null', async () => {
     const { user: creator } = await createUser(ROLES.EMPLOYEE, 'c1@zorx.test', [PERMISSIONS.CONTENT_CALENDAR_MANAGE]);
     const { employee } = await createUser(ROLES.EMPLOYEE, 'emp1@zorx.test');
     const token = await login(creator.email);
@@ -52,8 +52,32 @@ describe('Assignment Date, Deadline, and Output Date are three independent busin
       .post('/api/content-calendar')
       .set('Authorization', `Bearer ${token}`)
       .send({ client: 'Acme', date: '2026-09-30', deadline: '2026-10-01', assignedEmployee: employee._id.toString(), work: 'Reel' });
-    // No outputDate supplied at all.
-    expect(res.status).toBe(400);
+
+    expect(res.status).toBe(201);
+    expect(res.body.data.outputDate).toBeNull();
+    // Assignment Date and Deadline are distinct and never copied to Output Date
+    expect(new Date(res.body.data.date).toISOString().slice(0, 10)).toBe('2026-09-30');
+    expect(new Date(res.body.data.deadline).toISOString().slice(0, 10)).toBe('2026-10-01');
+  });
+
+  test('creating a new item with explicit outputDate null or empty string succeeds and stores null', async () => {
+    const { user: creator } = await createUser(ROLES.EMPLOYEE, 'c1b@zorx.test', [PERMISSIONS.CONTENT_CALENDAR_MANAGE]);
+    const { employee } = await createUser(ROLES.EMPLOYEE, 'emp1b@zorx.test');
+    const token = await login(creator.email);
+
+    const resNull = await request(app)
+      .post('/api/content-calendar')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ client: 'Acme', date: '2026-09-30', deadline: '2026-10-01', outputDate: null, assignedEmployee: employee._id.toString(), work: 'Reel Null' });
+    expect(resNull.status).toBe(201);
+    expect(resNull.body.data.outputDate).toBeNull();
+
+    const resEmpty = await request(app)
+      .post('/api/content-calendar')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ client: 'Acme', date: '2026-09-30', deadline: '2026-10-01', outputDate: '', assignedEmployee: employee._id.toString(), work: 'Reel Empty' });
+    expect(resEmpty.status).toBe(201);
+    expect(resEmpty.body.data.outputDate).toBeNull();
   });
 
   test('the three dates are stored as distinct values and never copied into one another', async () => {
@@ -214,5 +238,120 @@ describe('Legacy records (created before outputDate existed) are handled safely'
 
     expect(res.status).toBe(200);
     expect(new Date(res.body.data.outputDate).toISOString().slice(0, 10)).toBe('2026-02-01');
+  });
+
+  test('an existing record can have its outputDate cleared via update with null or empty string', async () => {
+    const { user: creator } = await createUser(ROLES.EMPLOYEE, 'clear-creator@zorx.test', [PERMISSIONS.CONTENT_CALENDAR_MANAGE]);
+    const { employee } = await createUser(ROLES.EMPLOYEE, 'clear-emp@zorx.test');
+    const token = await login(creator.email);
+
+    const createRes = await request(app)
+      .post('/api/content-calendar')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        client: 'Acme',
+        date: '2026-09-30',
+        deadline: '2026-10-01',
+        outputDate: '2026-10-02',
+        assignedEmployee: employee._id.toString(),
+        work: 'Work with output date',
+      });
+    expect(createRes.status).toBe(201);
+    const itemId = createRes.body.data._id;
+
+    // Clear with null
+    const clearNullRes = await request(app)
+      .patch(`/api/content-calendar/${itemId}`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({ outputDate: null });
+    expect(clearNullRes.status).toBe(200);
+    expect(clearNullRes.body.data.outputDate).toBeNull();
+
+    // Re-set date
+    await request(app)
+      .patch(`/api/content-calendar/${itemId}`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({ outputDate: '2026-10-15' });
+
+    // Clear with empty string
+    const clearEmptyRes = await request(app)
+      .patch(`/api/content-calendar/${itemId}`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({ outputDate: '' });
+    expect(clearEmptyRes.status).toBe(200);
+    expect(clearEmptyRes.body.data.outputDate).toBeNull();
+  });
+});
+
+describe('Status updates and RBAC authorization', () => {
+  test('authorized manager can update workStatus and only workStatus is modified', async () => {
+    const { user: creator } = await createUser(ROLES.EMPLOYEE, 'mgr-status@zorx.test', [PERMISSIONS.CONTENT_CALENDAR_MANAGE]);
+    const { employee } = await createUser(ROLES.EMPLOYEE, 'emp-status@zorx.test');
+    const token = await login(creator.email);
+
+    const createRes = await request(app)
+      .post('/api/content-calendar')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        client: 'Acme',
+        date: '2026-09-30',
+        deadline: '2026-10-01',
+        outputDate: '2026-10-05',
+        assignedEmployee: employee._id.toString(),
+        work: 'Social Media Reel',
+        workStatus: 'REMAINING',
+      });
+    expect(createRes.status).toBe(201);
+    const itemId = createRes.body.data._id;
+
+    // Upcoming -> Ongoing
+    const resOngoing = await request(app)
+      .patch(`/api/content-calendar/${itemId}`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({ workStatus: 'ONGOING' });
+
+    expect(resOngoing.status).toBe(200);
+    expect(resOngoing.body.data.workStatus).toBe('ONGOING');
+    // Verify other fields remain completely intact
+    expect(resOngoing.body.data.work).toBe('Social Media Reel');
+    expect(new Date(resOngoing.body.data.date).toISOString().slice(0, 10)).toBe('2026-09-30');
+    expect(new Date(resOngoing.body.data.deadline).toISOString().slice(0, 10)).toBe('2026-10-01');
+    expect(new Date(resOngoing.body.data.outputDate).toISOString().slice(0, 10)).toBe('2026-10-05');
+
+    // Ongoing -> Completed
+    const resCompleted = await request(app)
+      .patch(`/api/content-calendar/${itemId}`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({ workStatus: 'COMPLETED' });
+
+    expect(resCompleted.status).toBe(200);
+    expect(resCompleted.body.data.workStatus).toBe('COMPLETED');
+  });
+
+  test('unauthorized employee without CONTENT_CALENDAR_MANAGE permission cannot update status (403)', async () => {
+    const { user: creator } = await createUser(ROLES.EMPLOYEE, 'mgr-rbac@zorx.test', [PERMISSIONS.CONTENT_CALENDAR_MANAGE]);
+    const { user: regularUser, employee } = await createUser(ROLES.EMPLOYEE, 'reg-emp@zorx.test'); // default role: only VIEW
+    const creatorToken = await login(creator.email);
+    const regularToken = await login(regularUser.email);
+
+    const createRes = await request(app)
+      .post('/api/content-calendar')
+      .set('Authorization', `Bearer ${creatorToken}`)
+      .send({
+        client: 'Acme',
+        date: '2026-09-30',
+        deadline: '2026-10-01',
+        assignedEmployee: employee._id.toString(),
+        work: 'Restricted Item',
+        workStatus: 'REMAINING',
+      });
+    const itemId = createRes.body.data._id;
+
+    const resForbidden = await request(app)
+      .patch(`/api/content-calendar/${itemId}`)
+      .set('Authorization', `Bearer ${regularToken}`)
+      .send({ workStatus: 'ONGOING' });
+
+    expect(resForbidden.status).toBe(403);
   });
 });

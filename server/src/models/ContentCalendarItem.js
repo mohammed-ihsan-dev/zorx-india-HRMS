@@ -18,10 +18,8 @@ const contentCalendarItemSchema = new mongoose.Schema(
     // Deadline — when the employee must submit the completed work internally.
     deadline: { type: Date, required: true },
     // Output Date — when the finished work is scheduled to go out to the
-    // client. This is the ONLY date the calendar view positions items by.
-    // Not required at the schema level (existing records predate this field
-    // and must remain editable without being forced to backfill it); new
-    // items are required to supply it via the create validator instead.
+    // client. This is the date the calendar view positions items by.
+    // Optional at both schema and validator levels; stored as null if omitted.
     outputDate: { type: Date, default: null },
     priority: { type: String, enum: Object.values(TASK_PRIORITY), default: TASK_PRIORITY.MEDIUM },
     workStatus: { type: String, enum: Object.values(CONTENT_CALENDAR_STATUS), default: CONTENT_CALENDAR_STATUS.REMAINING },
