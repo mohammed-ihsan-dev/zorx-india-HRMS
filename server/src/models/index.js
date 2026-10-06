@@ -11,3 +11,4 @@ export { AuditLog } from './AuditLog.js';
 export { OfficeSettings } from './OfficeSettings.js';
 export { EditRequest } from './EditRequest.js';
 export { ProfileDocument } from './ProfileDocument.js';
+export { WorkFromHome } from './WorkFromHome.js';

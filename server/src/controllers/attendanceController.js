@@ -14,7 +14,7 @@ import {
   setVirtualAttendanceSnapshot,
   resetVirtualAttendanceSnapshot,
 } from '../utils/virtualTestUser.js';
-import { ROLES, ATTENDANCE_STATUS, BREAK_TYPE } from '../utils/constants.js';
+import { ROLES, ATTENDANCE_STATUS, ATTENDANCE_MODE, BREAK_TYPE } from '../utils/constants.js';
 
 function requireEmployee(req) {
   const employeeId = req.user.employeeId?._id;
@@ -217,11 +217,14 @@ export const getMyAttendanceHistory = asyncHandler(async (req, res) => {
 });
 
 export const listAttendance = asyncHandler(async (req, res) => {
-  const { employeeId, departmentId, from, to, status, page = 1, limit = 50 } = req.query;
+  const { employeeId, departmentId, from, to, status, mode, page = 1, limit = 50 } = req.query;
 
   const filter = {};
   if (employeeId) filter.employeeId = employeeId;
   if (status) filter.status = status;
+  // Records predating attendanceMode have no value and count as OFFICE.
+  if (mode === ATTENDANCE_MODE.WFH) filter.attendanceMode = ATTENDANCE_MODE.WFH;
+  if (mode === ATTENDANCE_MODE.OFFICE) filter.attendanceMode = { $ne: ATTENDANCE_MODE.WFH };
   if (from || to) {
     filter.date = {};
     if (from) filter.date.$gte = new Date(from);

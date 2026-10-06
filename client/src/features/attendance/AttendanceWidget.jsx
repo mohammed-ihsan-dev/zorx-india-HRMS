@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { MapPin, CheckCircle2, LoaderCircle, AlertTriangle, Radio, Clock, Coffee, LogOut, Play, RotateCcw } from 'lucide-react';
+import { MapPin, House, CheckCircle2, LoaderCircle, AlertTriangle, Radio, Clock, Coffee, LogOut, Play, RotateCcw } from 'lucide-react';
 import { Card } from '../../components/Card.jsx';
 import { ConfirmDialog } from '../../components/ConfirmDialog.jsx';
 import { StatusBadge } from '../../components/StatusBadge.jsx';
@@ -8,6 +8,7 @@ import { ATTENDANCE_UI_STATE } from './useTodayAttendance.js';
 import { LOCATION_STATUS } from '../../hooks/useGeolocation.js';
 import { useAuth } from '../../hooks/useAuth.js';
 import { useToast } from '../../hooks/useToast.js';
+import { WfhTodayBanner } from '../workFromHome/WfhTodayBanner.jsx';
 import {
   isGandhiJayantiToday,
   hasCelebratedThisSession,
@@ -34,7 +35,9 @@ export function AttendanceWidget({ data }) {
     startBreak,
     endBreak,
     breakCountdownStr,
+    locationFree,
   } = data;
+  const PunchIcon = locationFree ? House : MapPin;
 
   // Gandhi Jayanti celebration trigger — observes genuine check-in success and
   // triggers the shared celebration. Never touches the attendance logic itself.
@@ -125,11 +128,15 @@ export function AttendanceWidget({ data }) {
         <TimeStat label="Check Out" value={record?.checkOut ? formatTime(record.checkOut.timestamp) : null} accent="neutral" />
       </div>
 
+      <div className="empty:hidden mb-4">
+        <WfhTodayBanner record={record} />
+      </div>
+
       {/* Status Info Block */}
       <div className="mb-4">
         {uiState === ATTENDANCE_UI_STATE.NOT_CHECKED_IN && (
           <StateBlock
-            icon={MapPin}
+            icon={PunchIcon}
             iconTone="brand"
             title="Ready for Check-In"
             subtitle="Press the Check In button below to log your attendance."
@@ -176,7 +183,7 @@ export function AttendanceWidget({ data }) {
               <LoaderCircle size={32} className="animate-spin" />
             ) : (
               <>
-                <MapPin size={30} />
+                <PunchIcon size={30} />
                 <span className="text-base sm:text-lg tracking-wider uppercase">Check In</span>
               </>
             )}

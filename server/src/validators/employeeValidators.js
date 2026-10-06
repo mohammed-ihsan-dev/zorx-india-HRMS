@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { ROLE_VALUES, EMPLOYMENT_TYPE } from '../utils/constants.js';
+import { ROLE_VALUES, EMPLOYMENT_TYPE, WORK_MODE } from '../utils/constants.js';
 
 export const createEmployeeSchema = z.object({
   email: z.string().email(),
@@ -12,6 +12,7 @@ export const createEmployeeSchema = z.object({
   designation: z.string().optional().default(''),
   joiningDate: z.coerce.date(),
   employmentType: z.enum(Object.values(EMPLOYMENT_TYPE)).default('FULL_TIME'),
+  workMode: z.enum(Object.values(WORK_MODE)).default(WORK_MODE.OFFICE),
   managerId: z.string().nullable().optional(),
   address: z.string().optional().default(''),
   emergencyContact: z
@@ -34,6 +35,7 @@ export const updateEmployeeSchema = z.object({
   joiningDate: z.coerce.date().optional(),
   dateOfBirth: z.coerce.date().nullable().optional(),
   employmentType: z.enum(Object.values(EMPLOYMENT_TYPE)).optional(),
+  workMode: z.enum(Object.values(WORK_MODE)).optional(),
   managerId: z.string().nullable().optional(),
   address: z.string().optional(),
   emergencyContact: z

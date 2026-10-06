@@ -1,5 +1,5 @@
 import mongoose from 'mongoose';
-import { EMPLOYMENT_TYPE } from '../utils/constants.js';
+import { EMPLOYMENT_TYPE, WORK_MODE } from '../utils/constants.js';
 
 const employeeSchema = new mongoose.Schema(
   {
@@ -26,6 +26,8 @@ const employeeSchema = new mongoose.Schema(
       relation: { type: String, default: '' },
     },
     status: { type: String, enum: ['ACTIVE', 'INACTIVE'], default: 'ACTIVE' },
+    // Documents created before this field existed have no value and are OFFICE.
+    workMode: { type: String, enum: Object.values(WORK_MODE), default: WORK_MODE.OFFICE },
   },
   { timestamps: true }
 );

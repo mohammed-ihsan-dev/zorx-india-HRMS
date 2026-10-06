@@ -145,6 +145,7 @@ export function EmployeeDetail() {
             <Row label="Date of Birth" value={employee.dateOfBirth ? formatDate(employee.dateOfBirth) : '—'} />
             <Row label="Joining Date" value={formatDate(employee.joiningDate)} />
             <Row label="Employment Type" value={employee.employmentType ? titleCase(employee.employmentType) : '—'} />
+            <Row label="Work Mode" value={employee.workMode === 'WFH' ? '🏠 Work From Home' : 'Office'} />
             <Row label="Address" value={employee.address || '—'} />
             <Row
               label="Emergency Contact"

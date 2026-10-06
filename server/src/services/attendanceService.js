@@ -7,7 +7,8 @@ import {
   minutesSinceMidnight,
   parseTimeToMinutes,
 } from '../utils/dateUtils.js';
-import { ATTENDANCE_STATUS, BREAK_TYPE } from '../utils/constants.js';
+import { ATTENDANCE_STATUS, ATTENDANCE_MODE, BREAK_TYPE } from '../utils/constants.js';
+import { resolveWfhSource, WFH_SOURCE } from './wfhService.js';
 
 /**
  * Distance in meters between a device coordinate and the configured office.
@@ -40,6 +41,32 @@ export function validateLocation(coords, officeSettings) {
   }
 
   return distance;
+}
+
+const NO_LOCATION = Object.freeze({ latitude: null, longitude: null, distanceFromOffice: null });
+
+/**
+ * The only place WFH changes attendance behavior, decided from trusted server
+ * data only (never the request body):
+ * - permanent WFH (Employee.workMode): no location is used or stored at all;
+ * - APPROVED WFH request for this day: coordinates are still required and
+ *   recorded, only the office-radius check is skipped;
+ * - otherwise: exactly validateLocation, as before.
+ */
+async function resolvePunchLocation(employeeId, coords, officeSettings, dateKey) {
+  const source = await resolveWfhSource(employeeId, dateKey);
+  if (source === WFH_SOURCE.DEFAULT) {
+    return { isWfh: true, location: NO_LOCATION };
+  }
+  if (!source) {
+    const distanceFromOffice = validateLocation(coords, officeSettings);
+    return { isWfh: false, location: { latitude: coords.latitude, longitude: coords.longitude, distanceFromOffice } };
+  }
+  if (!coords || !isValidCoordinate(coords.latitude, coords.longitude)) {
+    throw ApiError.badRequest('Invalid location coordinates were received.');
+  }
+  const distanceFromOffice = calculateDistance(coords, officeSettings);
+  return { isWfh: true, location: { latitude: coords.latitude, longitude: coords.longitude, distanceFromOffice } };
 }
 
 export async function getTodayAttendance(employeeId, referenceDate = new Date()) {
@@ -126,10 +153,10 @@ export function deriveStatus(lateMinutes, totalWorkingMinutes, officeSettings) {
 
 export async function performCheckIn(employeeId, coords) {
   const officeSettings = await OfficeSettings.getSingleton();
-  const distance = validateLocation(coords, officeSettings);
-
   const now = new Date();
   const dateKey = getStartOfDayUTC(now, officeSettings.timezone);
+  const { isWfh, location } = await resolvePunchLocation(employeeId, coords, officeSettings, dateKey);
+  const attendanceMode = isWfh ? ATTENDANCE_MODE.WFH : ATTENDANCE_MODE.OFFICE;
 
   const existing = await Attendance.findOne({ employeeId, date: dateKey });
   canCheckIn(existing);
@@ -137,17 +164,13 @@ export async function performCheckIn(employeeId, coords) {
   const lateMinutes = calculateLateMinutes(now, officeSettings);
   const status = lateMinutes > 0 ? ATTENDANCE_STATUS.LATE : ATTENDANCE_STATUS.PRESENT;
 
-  const checkInPunch = {
-    timestamp: now,
-    latitude: coords.latitude,
-    longitude: coords.longitude,
-    distanceFromOffice: distance,
-  };
+  const checkInPunch = { timestamp: now, ...location };
 
   if (existing) {
     existing.checkIn = checkInPunch;
     existing.lateMinutes = lateMinutes;
     existing.status = status;
+    existing.attendanceMode = attendanceMode;
     await existing.save();
     return existing;
   }
@@ -158,15 +181,15 @@ export async function performCheckIn(employeeId, coords) {
     checkIn: checkInPunch,
     lateMinutes,
     status,
+    attendanceMode,
   });
 }
 
 export async function performCheckOut(employeeId, coords) {
   const officeSettings = await OfficeSettings.getSingleton();
-  const distance = validateLocation(coords, officeSettings);
-
   const now = new Date();
   const dateKey = getStartOfDayUTC(now, officeSettings.timezone);
+  const { location } = await resolvePunchLocation(employeeId, coords, officeSettings, dateKey);
 
   const existing = await Attendance.findOne({ employeeId, date: dateKey });
   canCheckOut(existing);
@@ -178,12 +201,7 @@ export async function performCheckOut(employeeId, coords) {
   const overtimeMinutes = calculateOvertime(totalWorkingMinutes, officeSettings);
   const status = deriveStatus(existing.lateMinutes, totalWorkingMinutes, officeSettings);
 
-  existing.checkOut = {
-    timestamp: now,
-    latitude: coords.latitude,
-    longitude: coords.longitude,
-    distanceFromOffice: distance,
-  };
+  existing.checkOut = { timestamp: now, ...location };
   existing.breakMinutes = breakMinutes;
   existing.extraBreakMinutes = Math.max(0, breakMinutes - officeSettings.breakDurationMinutes);
   existing.totalWorkingMinutes = totalWorkingMinutes;

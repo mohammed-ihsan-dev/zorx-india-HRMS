@@ -12,6 +12,7 @@ import {
   FileBarChart,
   ShieldCheck,
   CalendarDays,
+  House,
 } from 'lucide-react';
 import { ROLES } from '../utils/constants.js';
 
@@ -20,6 +21,7 @@ export const employeeNavItems = [
   { to: '/profile', label: 'My Profile', icon: User },
   { to: '/attendance', label: 'Attendance', icon: CalendarCheck },
   { to: '/leave', label: 'Leave', icon: CalendarClock },
+  { to: '/work-from-home', label: 'Work From Home', icon: House },
   { to: '/tasks', label: 'Tasks', icon: ListChecks },
   { to: '/content-calendar', label: 'Content Calendar', icon: CalendarDays },
   { to: '/notifications', label: 'Notifications', icon: Bell },
@@ -32,6 +34,7 @@ export const adminNavItems = [
   { to: '/admin/employees', label: 'Employees', icon: Users },
   { to: '/admin/attendance', label: 'Attendance', icon: CalendarCheck },
   { to: '/admin/leaves', label: 'Leave Requests', icon: CalendarClock },
+  { to: '/admin/work-from-home', label: 'Work From Home', icon: House },
   { to: '/admin/tasks', label: 'Tasks', icon: ListChecks },
   { to: '/admin/content-calendar', label: 'Content Calendar', icon: CalendarDays },
   { to: '/admin/departments', label: 'Departments', icon: Building2 },

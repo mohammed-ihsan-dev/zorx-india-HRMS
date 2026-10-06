@@ -26,6 +26,7 @@ export function EditEmployeeModal({ open, onClose, employee, departments, onUpda
     designation: '',
     departmentId: '',
     employmentType: 'FULL_TIME',
+    workMode: 'OFFICE',
     joiningDate: '',
     dateOfBirth: '',
     phone: '',
@@ -45,6 +46,7 @@ export function EditEmployeeModal({ open, onClose, employee, departments, onUpda
         designation: employee.designation || '',
         departmentId: employee.departmentId?._id || employee.departmentId || '',
         employmentType: employee.employmentType || 'FULL_TIME',
+        workMode: employee.workMode || 'OFFICE',
         joiningDate: employee.joiningDate ? new Date(employee.joiningDate).toISOString().split('T')[0] : '',
         dateOfBirth: employee.dateOfBirth ? new Date(employee.dateOfBirth).toISOString().split('T')[0] : '',
         phone: employee.phone || '',
@@ -105,6 +107,7 @@ export function EditEmployeeModal({ open, onClose, employee, departments, onUpda
         designation: form.designation.trim(),
         departmentId: form.departmentId || null,
         employmentType: form.employmentType,
+        workMode: form.workMode,
         joiningDate: form.joiningDate ? new Date(form.joiningDate) : undefined,
         dateOfBirth: form.dateOfBirth ? new Date(form.dateOfBirth) : null,
         phone: form.phone.trim(),
@@ -233,6 +236,16 @@ export function EditEmployeeModal({ open, onClose, employee, departments, onUpda
               <Input type="date" value={form.dateOfBirth} onChange={handleChange('dateOfBirth')} />
             </div>
           </div>
+
+          <Select
+            label="Work Mode"
+            value={form.workMode}
+            onChange={handleChange('workMode')}
+            hint="Work From Home employees can check in from anywhere and don't need WFH requests."
+          >
+            <option value="OFFICE">Office</option>
+            <option value="WFH">Work From Home (permanent)</option>
+          </Select>
         </div>
 
         <div className="space-y-3 pt-3 border-t border-slate-100">

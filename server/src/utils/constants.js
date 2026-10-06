@@ -61,6 +61,26 @@ export const ATTENDANCE_STATUS = Object.freeze({
   WEEKEND: 'WEEKEND',
 });
 
+// Where a day's attendance was worked from. Records created before this field
+// existed have no attendanceMode at all and are treated as OFFICE.
+export const ATTENDANCE_MODE = Object.freeze({
+  OFFICE: 'OFFICE',
+  WFH: 'WFH',
+});
+
+// An employee's standing work arrangement. WFH employees never need a WFH
+// request — every working day is treated as WFH for attendance.
+export const WORK_MODE = Object.freeze({
+  OFFICE: 'OFFICE',
+  WFH: 'WFH',
+});
+
+export const WFH_STATUS = Object.freeze({
+  PENDING: 'PENDING',
+  APPROVED: 'APPROVED',
+  REJECTED: 'REJECTED',
+});
+
 export const BREAK_TYPE = Object.freeze({
   TEA: 'TEA',
   WASHROOM: 'WASHROOM',
@@ -127,6 +147,9 @@ export const NOTIFICATION_TYPE = Object.freeze({
   EDIT_REQUEST_SUBMITTED: 'EDIT_REQUEST_SUBMITTED',
   EDIT_REQUEST_APPROVED: 'EDIT_REQUEST_APPROVED',
   EDIT_REQUEST_REJECTED: 'EDIT_REQUEST_REJECTED',
+  WFH_SUBMITTED: 'WFH_SUBMITTED',
+  WFH_APPROVED: 'WFH_APPROVED',
+  WFH_REJECTED: 'WFH_REJECTED',
 });
 
 // Profile fields an employee may request HR to change. Only PHONE, ADDRESS, and

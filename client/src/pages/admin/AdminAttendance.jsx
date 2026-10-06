@@ -22,7 +22,7 @@ export function AdminAttendance() {
   // Defaults to today so Admin/Super Admin land on today's attendance without
   // having to pick a date first — computed fresh on every mount/refresh, never
   // persisted, so it's always the current day (see getTodayDateInputValue).
-  const [filters, setFilters] = useState({ from: getTodayDateInputValue(), to: getTodayDateInputValue(), status: '' });
+  const [filters, setFilters] = useState({ from: getTodayDateInputValue(), to: getTodayDateInputValue(), status: '', mode: '' });
   const [page, setPage] = useState(1);
   const [breaksRecord, setBreaksRecord] = useState(null);
 
@@ -33,6 +33,7 @@ export function AdminAttendance() {
         from: filters.from || undefined,
         to: filters.to || undefined,
         status: filters.status || undefined,
+        mode: filters.mode || undefined,
         page,
       })
       .then((res) => {
@@ -85,6 +86,8 @@ export function AdminAttendance() {
         ),
     },
     { key: 'status', header: 'Status', render: (r) => <StatusBadge status={r.status} /> },
+    // Records predating attendanceMode have no value and were office attendance.
+    { key: 'mode', header: 'Mode', render: (r) => (r.attendanceMode === 'WFH' ? 'WFH' : 'Office') },
   ];
 
   return (
@@ -123,6 +126,18 @@ export function AdminAttendance() {
           <option value="HALF_DAY">Half Day</option>
           <option value="ABSENT">Absent</option>
           <option value="LEAVE">Leave</option>
+        </Select>
+        <Select
+          className="w-40"
+          value={filters.mode}
+          onChange={(e) => {
+            setPage(1);
+            setFilters((f) => ({ ...f, mode: e.target.value }));
+          }}
+        >
+          <option value="">All modes</option>
+          <option value="OFFICE">Office</option>
+          <option value="WFH">WFH</option>
         </Select>
       </div>
       <Table

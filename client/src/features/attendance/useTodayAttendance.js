@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useGeolocation, LOCATION_STATUS } from '../../hooks/useGeolocation.js';
 import { useToast } from '../../hooks/useToast.js';
 import * as attendanceService from '../../services/attendanceService.js';
+import * as wfhService from '../../services/wfhService.js';
 import { getErrorMessage } from '../../services/apiClient.js';
 import { parseTimeToMinutes, formatCountdownSeconds } from '../../utils/formatters.js';
 
@@ -29,12 +30,20 @@ export function useTodayAttendance() {
   const [officeSettings, setOfficeSettings] = useState(null);
   const [lastVerification, setLastVerification] = useState(null);
   const [tick, setTick] = useState(() => Date.now());
+  // Permanent-WFH employees punch without any location request. Display/flow
+  // hint only — the backend independently decides from the employee record.
+  // If this lookup fails, the normal location flow is used.
+  const [locationFree, setLocationFree] = useState(false);
 
   const refresh = useCallback(async () => {
     try {
-      const data = await attendanceService.getMyAttendanceToday();
+      const [data, wfhToday] = await Promise.all([
+        attendanceService.getMyAttendanceToday(),
+        wfhService.getMyWfhToday().catch(() => null),
+      ]);
       setRecord(data.attendance);
       setOfficeSettings(data.officeSettings);
+      setLocationFree(Boolean(wfhToday?.defaultWfh));
     } catch (err) {
       toast.error(getErrorMessage(err, 'Could not load attendance status.'));
     } finally {
@@ -136,7 +145,7 @@ export function useTodayAttendance() {
       setSubmitting(true);
       setLastVerification(null);
       try {
-        const coords = await geolocation.request();
+        const coords = locationFree ? {} : await geolocation.request();
         const result = kind === 'in' ? await attendanceService.checkIn(coords) : await attendanceService.checkOut(coords);
         const thisPunch = kind === 'in' ? result.checkIn : result.checkOut;
         setLastVerification({ distance: thisPunch.distanceFromOffice, radius: officeSettings?.attendanceRadius });
@@ -154,7 +163,7 @@ export function useTodayAttendance() {
         setSubmitting(false);
       }
     },
-    [geolocation, officeSettings, toast]
+    [geolocation, officeSettings, toast, locationFree]
   );
 
   const [breakSubmitting, setBreakSubmitting] = useState(false);
@@ -220,6 +229,7 @@ export function useTodayAttendance() {
     locationStatus,
     lastVerification,
     geolocation,
+    locationFree,
     checkIn: () => punch('in'),
     checkOut: () => punch('out'),
     startBreak,

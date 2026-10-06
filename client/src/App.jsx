@@ -20,6 +20,7 @@ const EmployeeDashboard = lazy(() => import('./pages/employee/Dashboard.jsx').th
 const Profile = lazy(() => import('./pages/employee/Profile.jsx').then((m) => ({ default: m.Profile })));
 const Attendance = lazy(() => import('./pages/employee/Attendance.jsx').then((m) => ({ default: m.Attendance })));
 const Leave = lazy(() => import('./pages/employee/Leave.jsx').then((m) => ({ default: m.Leave })));
+const WorkFromHome = lazy(() => import('./pages/employee/WorkFromHome.jsx').then((m) => ({ default: m.WorkFromHome })));
 const Tasks = lazy(() => import('./pages/employee/Tasks.jsx').then((m) => ({ default: m.Tasks })));
 const Notifications = lazy(() => import('./pages/employee/Notifications.jsx').then((m) => ({ default: m.Notifications })));
 const Announcements = lazy(() => import('./pages/employee/Announcements.jsx').then((m) => ({ default: m.Announcements })));
@@ -32,6 +33,7 @@ const Employees = lazy(() => import('./pages/admin/Employees.jsx').then((m) => (
 const EmployeeDetail = lazy(() => import('./pages/admin/EmployeeDetail.jsx').then((m) => ({ default: m.EmployeeDetail })));
 const AdminAttendance = lazy(() => import('./pages/admin/AdminAttendance.jsx').then((m) => ({ default: m.AdminAttendance })));
 const AdminLeaves = lazy(() => import('./pages/admin/AdminLeaves.jsx').then((m) => ({ default: m.AdminLeaves })));
+const AdminWorkFromHome = lazy(() => import('./pages/admin/AdminWorkFromHome.jsx').then((m) => ({ default: m.AdminWorkFromHome })));
 const AdminTasks = lazy(() => import('./pages/admin/AdminTasks.jsx').then((m) => ({ default: m.AdminTasks })));
 const Departments = lazy(() => import('./pages/admin/Departments.jsx').then((m) => ({ default: m.Departments })));
 const AdminAnnouncements = lazy(() => import('./pages/admin/AdminAnnouncements.jsx').then((m) => ({ default: m.AdminAnnouncements })));
@@ -59,6 +61,7 @@ export default function App() {
             <Route path="/profile" element={<Profile />} />
             <Route path="/attendance" element={<Attendance />} />
             <Route path="/leave" element={<Leave />} />
+            <Route path="/work-from-home" element={<WorkFromHome />} />
             <Route path="/tasks" element={<Tasks />} />
             <Route path="/content-calendar" element={<ContentCalendar />} />
             <Route path="/notifications" element={<Notifications />} />
@@ -83,6 +86,7 @@ export default function App() {
                 <Route path="/admin/reports" element={<Reports />} />
                 <Route path="/admin/audit-logs" element={<AuditLogs />} />
                 <Route path="/admin/edit-requests" element={<EditRequests />} />
+                <Route path="/admin/work-from-home" element={<AdminWorkFromHome />} />
                 <Route path="/admin/settings/office" element={<OfficeSettings />} />
               </Route>
             </Route>

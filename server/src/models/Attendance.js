@@ -1,12 +1,15 @@
 import mongoose from 'mongoose';
-import { ATTENDANCE_STATUS, BREAK_TYPE } from '../utils/constants.js';
+import { ATTENDANCE_STATUS, ATTENDANCE_MODE, BREAK_TYPE } from '../utils/constants.js';
 
 const locationPunchSchema = new mongoose.Schema(
   {
     timestamp: { type: Date, required: true },
-    latitude: { type: Number, required: true },
-    longitude: { type: Number, required: true },
-    distanceFromOffice: { type: Number, required: true },
+    // null only for permanent-WFH punches, where no location is collected at
+    // all. Office and approved-request WFH punches always record real values
+    // (enforced by the route validator and attendanceService).
+    latitude: { type: Number, default: null },
+    longitude: { type: Number, default: null },
+    distanceFromOffice: { type: Number, default: null },
   },
   { _id: false }
 );
@@ -47,6 +50,9 @@ const attendanceSchema = new mongoose.Schema(
     },
     lateMinutes: { type: Number, default: 0 },
     overtimeMinutes: { type: Number, default: 0 },
+    // Optional with no default so records created before this field existed
+    // are left untouched; a missing value means OFFICE.
+    attendanceMode: { type: String, enum: Object.values(ATTENDANCE_MODE) },
   },
   { timestamps: true }
 );

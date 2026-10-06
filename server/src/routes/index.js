@@ -15,6 +15,7 @@ import editRequestRoutes from './editRequestRoutes.js';
 import documentRoutes from './documentRoutes.js';
 import contentCalendarRoutes from './contentCalendarRoutes.js';
 import clientRoutes from './clientRoutes.js';
+import wfhRoutes from './wfhRoutes.js';
 
 const router = Router();
 
@@ -34,5 +35,6 @@ router.use('/edit-requests', editRequestRoutes);
 router.use('/documents', documentRoutes);
 router.use('/content-calendar', contentCalendarRoutes);
 router.use('/clients', clientRoutes);
+router.use('/work-from-home', wfhRoutes);
 
 export default router;
