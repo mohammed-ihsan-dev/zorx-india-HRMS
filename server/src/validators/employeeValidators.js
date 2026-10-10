@@ -36,6 +36,11 @@ export const updateEmployeeSchema = z.object({
   dateOfBirth: z.coerce.date().nullable().optional(),
   employmentType: z.enum(Object.values(EMPLOYMENT_TYPE)).optional(),
   workMode: z.enum(Object.values(WORK_MODE)).optional(),
+  // Empty string / null clears the override (back to the office start time).
+  workingStartTime: z
+    .union([z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Use HH:mm, e.g. 10:00'), z.literal(''), z.null()])
+    .transform((v) => v || null)
+    .optional(),
   managerId: z.string().nullable().optional(),
   address: z.string().optional(),
   emergencyContact: z

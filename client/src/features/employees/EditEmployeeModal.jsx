@@ -27,6 +27,7 @@ export function EditEmployeeModal({ open, onClose, employee, departments, onUpda
     departmentId: '',
     employmentType: 'FULL_TIME',
     workMode: 'OFFICE',
+    workingStartTime: '',
     joiningDate: '',
     dateOfBirth: '',
     phone: '',
@@ -47,6 +48,7 @@ export function EditEmployeeModal({ open, onClose, employee, departments, onUpda
         departmentId: employee.departmentId?._id || employee.departmentId || '',
         employmentType: employee.employmentType || 'FULL_TIME',
         workMode: employee.workMode || 'OFFICE',
+        workingStartTime: employee.workingStartTime || '',
         joiningDate: employee.joiningDate ? new Date(employee.joiningDate).toISOString().split('T')[0] : '',
         dateOfBirth: employee.dateOfBirth ? new Date(employee.dateOfBirth).toISOString().split('T')[0] : '',
         phone: employee.phone || '',
@@ -108,6 +110,7 @@ export function EditEmployeeModal({ open, onClose, employee, departments, onUpda
         departmentId: form.departmentId || null,
         employmentType: form.employmentType,
         workMode: form.workMode,
+        workingStartTime: form.workingStartTime || null,
         joiningDate: form.joiningDate ? new Date(form.joiningDate) : undefined,
         dateOfBirth: form.dateOfBirth ? new Date(form.dateOfBirth) : null,
         phone: form.phone.trim(),
@@ -246,6 +249,14 @@ export function EditEmployeeModal({ open, onClose, employee, departments, onUpda
             <option value="OFFICE">Office</option>
             <option value="WFH">Work From Home (permanent)</option>
           </Select>
+
+          <Input
+            type="time"
+            label="Official Check-in Time (optional)"
+            value={form.workingStartTime}
+            onChange={handleChange('workingStartTime')}
+            hint="Leave empty to use the office start time. Late is counted after this time plus the office grace period."
+          />
         </div>
 
         <div className="space-y-3 pt-3 border-t border-slate-100">

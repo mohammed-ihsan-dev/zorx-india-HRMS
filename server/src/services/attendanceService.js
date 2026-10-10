@@ -1,5 +1,6 @@
 import { Attendance } from '../models/Attendance.js';
 import { OfficeSettings } from '../models/OfficeSettings.js';
+import { Employee } from '../models/Employee.js';
 import { ApiError } from '../utils/ApiError.js';
 import { haversineDistanceMeters, isValidCoordinate } from '../utils/geo.js';
 import {
@@ -121,6 +122,17 @@ export function totalCompletedBreakMinutes(attendance) {
   return (attendance.breaks || []).filter((b) => b.endTime).reduce((sum, b) => sum + b.durationMinutes, 0);
 }
 
+/**
+ * Office settings for the late check only, with the employee's own official
+ * check-in time (Employee.workingStartTime) in place of the office's when set.
+ * The grace period, working hours, overtime and half-day rules stay the office's.
+ */
+async function lateRulesFor(employeeId, officeSettings) {
+  const employee = await Employee.findById(employeeId).select('workingStartTime').lean();
+  if (!employee?.workingStartTime) return officeSettings;
+  return { ...(officeSettings.toObject?.() ?? officeSettings), workingStartTime: employee.workingStartTime };
+}
+
 /** Minutes late relative to the configured working start time, 0 if on time. */
 export function calculateLateMinutes(checkInTime, officeSettings) {
   const startMinutes = parseTimeToMinutes(officeSettings.workingStartTime);
@@ -161,7 +173,7 @@ export async function performCheckIn(employeeId, coords) {
   const existing = await Attendance.findOne({ employeeId, date: dateKey });
   canCheckIn(existing);
 
-  const lateMinutes = calculateLateMinutes(now, officeSettings);
+  const lateMinutes = calculateLateMinutes(now, await lateRulesFor(employeeId, officeSettings));
   const status = lateMinutes > 0 ? ATTENDANCE_STATUS.LATE : ATTENDANCE_STATUS.PRESENT;
 
   const checkInPunch = { timestamp: now, ...location };

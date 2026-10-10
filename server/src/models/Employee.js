@@ -28,6 +28,9 @@ const employeeSchema = new mongoose.Schema(
     status: { type: String, enum: ['ACTIVE', 'INACTIVE'], default: 'ACTIVE' },
     // Documents created before this field existed have no value and are OFFICE.
     workMode: { type: String, enum: Object.values(WORK_MODE), default: WORK_MODE.OFFICE },
+    // Optional "HH:mm" official check-in time for this employee only, used for
+    // late calculation. null = the office's workingStartTime.
+    workingStartTime: { type: String, default: null },
   },
   { timestamps: true }
 );
