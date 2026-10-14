@@ -44,11 +44,20 @@ export async function assertNoOverlap(employeeId, startDate, endDate, excludeLea
   }
 }
 
-/** First calendar day Sick Leave may start: joining date + 3 months (null if no joining date). */
+/**
+ * First calendar day Sick Leave may start: the 3-month anniversary of the
+ * joining date (12 Sep → 12 Dec). When that month is shorter, the last day of
+ * the month is used (30 Nov → 28 Feb, 31 Aug → 30 Nov). null for a missing or
+ * invalid joining date — which means NOT eligible, never "no restriction".
+ */
 export function getSickLeaveEligibleFrom(joiningDate) {
   if (!joiningDate) return null;
   const j = new Date(joiningDate);
-  return new Date(Date.UTC(j.getUTCFullYear(), j.getUTCMonth() + SICK_LEAVE_ELIGIBILITY_MONTHS, j.getUTCDate()));
+  if (Number.isNaN(j.getTime())) return null;
+  const y = j.getUTCFullYear();
+  const m = j.getUTCMonth() + SICK_LEAVE_ELIGIBILITY_MONTHS;
+  const lastDayOfTargetMonth = new Date(Date.UTC(y, m + 1, 0)).getUTCDate();
+  return new Date(Date.UTC(y, m, Math.min(j.getUTCDate(), lastDayOfTargetMonth)));
 }
 
 // Leave dates are stored as UTC-midnight calendar days, so months are taken in UTC.
@@ -139,7 +148,10 @@ export async function assertLeaveAllowed(employee, leaveType, startDate, days, e
 
   if (leaveType === LEAVE_TYPE.SICK) {
     const eligibleFrom = getSickLeaveEligibleFrom(employee.joiningDate);
-    if (eligibleFrom && new Date(startDate) < eligibleFrom) {
+    if (!eligibleFrom) {
+      throw ApiError.badRequest('Sick Leave needs a joining date on your profile. Please contact HR.');
+    }
+    if (new Date(startDate) < eligibleFrom) {
       const on = eligibleFrom.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'UTC' });
       throw ApiError.badRequest(`Sick Leave is available ${SICK_LEAVE_ELIGIBILITY_MONTHS} months after joining (from ${on}).`);
     }
@@ -220,7 +232,7 @@ export async function getLeaveSummary(employee, referenceDate = new Date()) {
         allowance: MONTHLY_LEAVE_ALLOWANCE[LEAVE_TYPE.SICK],
         used: await used(LEAVE_TYPE.SICK),
         eligibleFrom,
-        eligibleNow: !eligibleFrom || new Date(referenceDate) >= eligibleFrom,
+        eligibleNow: Boolean(eligibleFrom) && new Date(referenceDate) >= eligibleFrom,
       },
       [LEAVE_TYPE.PAID]: { allowance: null, used: await used(LEAVE_TYPE.PAID) },
     },

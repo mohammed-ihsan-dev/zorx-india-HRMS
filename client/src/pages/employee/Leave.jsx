@@ -108,7 +108,11 @@ export function Leave() {
                       </span>
                     </>
                   ) : sickLocked ? (
-                    <span className="text-sm font-semibold text-slate-500">Available from {formatDate(info.eligibleFrom, { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'UTC' })}</span>
+                    <span className="text-sm font-semibold text-slate-500">
+                      {info.eligibleFrom
+                        ? `Available from ${formatDate(info.eligibleFrom, { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' })}`
+                        : 'Needs a joining date — contact HR'}
+                    </span>
                   ) : isPaid ? (
                     <>
                       {info.used} <span className="text-sm font-normal text-slate-500">day{info.used === 1 ? '' : 's'} this month</span>

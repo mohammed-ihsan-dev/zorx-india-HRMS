@@ -22,7 +22,6 @@ const MAX_SIZE_BYTES = 5 * 1024 * 1024;
 
 const ymd = (value) => (value ? new Date(value).toISOString().slice(0, 10) : '');
 const sameMonth = (a, b) => a && b && a.slice(0, 7) === b.slice(0, 7);
-const displayDate = (value) => formatDate(value, { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'UTC' });
 const monthIdx = (value) => { const d = new Date(value); return d.getUTCFullYear() * 12 + d.getUTCMonth(); };
 const monthLabel = (value) => formatDate(value, { month: 'long', year: 'numeric', timeZone: 'UTC' });
 
@@ -64,8 +63,11 @@ export function LeaveRequestModal({ open, onClose, initialDate, onSubmitted, lea
   }, [casual, form.startDate]);
 
   const unavailableReason = (type) => {
+    if (type === 'SICK' && summary?.types?.SICK && !sickEligibleFrom) {
+      return 'Sick Leave needs a joining date on your profile. Please contact HR.';
+    }
     if (type === 'SICK' && sickEligibleFrom && form.startDate && form.startDate < sickEligibleFrom) {
-      return `Sick Leave is available 3 months after joining, from ${displayDate(sickEligibleFrom)}.`;
+      return `Sick Leave will be available from ${formatDate(sickEligibleFrom, { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' })} (3 months after joining).`;
     }
     if (MONTHLY_ALLOWANCE[type] && usedInMonth[type] >= MONTHLY_ALLOWANCE[type]) {
       return "You've already used this month's Sick Leave. Please choose Paid Leave instead.";
