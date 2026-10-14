@@ -1,44 +1,17 @@
-import { LeaveBalance } from '../models/LeaveBalance.js';
+import { randomUUID } from 'node:crypto';
 import { Leave } from '../models/Leave.js';
-import { LEAVE_TYPE, LEAVE_STATUS } from '../utils/constants.js';
+import { LeaveLock } from '../models/LeaveLock.js';
+import {
+  LEAVE_TYPE,
+  LEAVE_STATUS,
+  MONTHLY_LEAVE_ALLOWANCE,
+  SICK_LEAVE_ELIGIBILITY_MONTHS,
+  CASUAL_LEAVE_ACCRUAL,
+} from '../utils/constants.js';
 import { ApiError } from '../utils/ApiError.js';
 
-const DEFAULT_BALANCES = {
-  [LEAVE_TYPE.CASUAL]: 0,
-  [LEAVE_TYPE.SICK]: 1,
-  [LEAVE_TYPE.EARNED]: 1,
-};
-
-export async function getOrCreateLeaveBalance(employeeId, year = new Date().getFullYear()) {
-  let balance = await LeaveBalance.findOne({ employeeId, year });
-  if (!balance) {
-    balance = await LeaveBalance.create({
-      employeeId,
-      year,
-      balances: DEFAULT_BALANCES,
-      used: { [LEAVE_TYPE.CASUAL]: 0, [LEAVE_TYPE.SICK]: 0, [LEAVE_TYPE.EARNED]: 0 },
-    });
-  } else {
-    // Sync existing DB records to the current company leave policy defaults
-    let modified = false;
-    if (balance.balances[LEAVE_TYPE.CASUAL] !== DEFAULT_BALANCES[LEAVE_TYPE.CASUAL]) {
-      balance.balances[LEAVE_TYPE.CASUAL] = DEFAULT_BALANCES[LEAVE_TYPE.CASUAL];
-      modified = true;
-    }
-    if (balance.balances[LEAVE_TYPE.SICK] !== DEFAULT_BALANCES[LEAVE_TYPE.SICK]) {
-      balance.balances[LEAVE_TYPE.SICK] = DEFAULT_BALANCES[LEAVE_TYPE.SICK];
-      modified = true;
-    }
-    if (balance.balances[LEAVE_TYPE.EARNED] !== DEFAULT_BALANCES[LEAVE_TYPE.EARNED]) {
-      balance.balances[LEAVE_TYPE.EARNED] = DEFAULT_BALANCES[LEAVE_TYPE.EARNED];
-      modified = true;
-    }
-    if (modified) {
-      await balance.save();
-    }
-  }
-  return balance;
-}
+const ACTIVE_STATUSES = [LEAVE_STATUS.PENDING, LEAVE_STATUS.APPROVED];
+const TYPE_LABEL = { [LEAVE_TYPE.CASUAL]: 'Casual Leave', [LEAVE_TYPE.SICK]: 'Sick Leave', [LEAVE_TYPE.PAID]: 'Paid Leave' };
 
 export function calculateLeaveDays(startDate, endDate) {
   const start = new Date(startDate);
@@ -59,7 +32,7 @@ export function calculateLeaveDays(startDate, endDate) {
 export async function assertNoOverlap(employeeId, startDate, endDate, excludeLeaveId = null) {
   const filter = {
     employeeId,
-    status: { $in: [LEAVE_STATUS.PENDING, LEAVE_STATUS.APPROVED] },
+    status: { $in: ACTIVE_STATUSES },
     startDate: { $lte: endDate },
     endDate: { $gte: startDate },
   };
@@ -71,51 +44,185 @@ export async function assertNoOverlap(employeeId, startDate, endDate, excludeLea
   }
 }
 
-/**
- * Throws if the employee already has a pending or approved Earned Leave request in the same month.
- */
-export async function assertEarnedLeaveMonthlyLimit(employeeId, startDate, excludeLeaveId = null) {
-  const dateObj = new Date(startDate);
-  const startOfMonth = new Date(dateObj.getFullYear(), dateObj.getMonth(), 1, 0, 0, 0, 0);
-  const endOfMonth = new Date(dateObj.getFullYear(), dateObj.getMonth() + 1, 0, 23, 59, 59, 999);
+/** First calendar day Sick Leave may start: joining date + 3 months (null if no joining date). */
+export function getSickLeaveEligibleFrom(joiningDate) {
+  if (!joiningDate) return null;
+  const j = new Date(joiningDate);
+  return new Date(Date.UTC(j.getUTCFullYear(), j.getUTCMonth() + SICK_LEAVE_ELIGIBILITY_MONTHS, j.getUTCDate()));
+}
 
-  const filter = {
-    employeeId,
-    leaveType: LEAVE_TYPE.EARNED,
-    status: { $in: [LEAVE_STATUS.PENDING, LEAVE_STATUS.APPROVED] },
-    startDate: { $gte: startOfMonth, $lte: endOfMonth },
+// Leave dates are stored as UTC-midnight calendar days, so months are taken in UTC.
+function monthWindow(date) {
+  const d = new Date(date);
+  return {
+    start: new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1)),
+    end: new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 1)),
+    label: d.toLocaleDateString('en-IN', { month: 'long', year: 'numeric', timeZone: 'UTC' }),
   };
-  if (excludeLeaveId) filter._id = { $ne: excludeLeaveId };
+}
 
-  const existing = await Leave.findOne(filter);
-  if (existing) {
+/** Days of `leaveType` in the calendar month of `date` with one of `statuses` (default pending/approved). */
+export async function countMonthlyLeaveDays(employeeId, leaveType, date, excludeLeaveId = null, statuses = ACTIVE_STATUSES) {
+  const { start, end } = monthWindow(date);
+  const match = { employeeId, leaveType, status: { $in: statuses }, startDate: { $gte: start, $lt: end } };
+  if (excludeLeaveId) match._id = { $ne: excludeLeaveId };
+  const [row] = await Leave.aggregate([{ $match: match }, { $group: { _id: null, days: { $sum: '$days' } } }]);
+  return row?.days || 0;
+}
+
+// ---- Casual Leave: monthly accrual with unlimited carry-forward ----
+// The balance is derived, never stored: credits are a pure function of the
+// joining date and the calendar month, so refreshes, retries, tabs and
+// concurrent calls can never grant a month twice, and nothing resets at
+// month-end. Usage comes from the leave requests themselves.
+const monthIndex = (date) => {
+  const d = new Date(date);
+  return d.getUTCFullYear() * 12 + d.getUTCMonth();
+};
+const ACCRUAL_START_INDEX = CASUAL_LEAVE_ACCRUAL.START_YEAR * 12 + CASUAL_LEAVE_ACCRUAL.START_MONTH_INDEX;
+const ACCRUAL_START_DATE = new Date(Date.UTC(CASUAL_LEAVE_ACCRUAL.START_YEAR, CASUAL_LEAVE_ACCRUAL.START_MONTH_INDEX, 1));
+
+/** First month (as a UTC month-start Date) in which this employee earns Casual Leave. */
+export function getCasualCreditStart(joiningDate) {
+  const first = Math.max(ACCRUAL_START_INDEX, joiningDate ? monthIndex(joiningDate) : ACCRUAL_START_INDEX);
+  return new Date(Date.UTC(Math.floor(first / 12), first % 12, 1));
+}
+
+/** Casual Leave days earned from the credit start month through the month of `date`, inclusive. */
+export function casualCreditsThrough(joiningDate, date) {
+  const months = monthIndex(date) - monthIndex(getCasualCreditStart(joiningDate)) + 1;
+  return Math.max(0, months) * CASUAL_LEAVE_ACCRUAL.DAYS_PER_MONTH;
+}
+
+/** Casual days with one of `statuses` since accrual began (earlier "user's risk" casual leave never counts). */
+export async function casualDaysTaken(employeeId, statuses = ACTIVE_STATUSES, excludeLeaveId = null) {
+  const match = { employeeId, leaveType: LEAVE_TYPE.CASUAL, status: { $in: statuses }, startDate: { $gte: ACCRUAL_START_DATE } };
+  if (excludeLeaveId) match._id = { $ne: excludeLeaveId };
+  const [row] = await Leave.aggregate([{ $match: match }, { $group: { _id: null, days: { $sum: '$days' } } }]);
+  return row?.days || 0;
+}
+
+/**
+ * Casual days available for a leave starting on `date`: credits earned through
+ * that month minus every other pending/approved casual day (wherever dated).
+ * Counting all other days, not just earlier ones, means no combination of
+ * requests can ever spend more than has been earned.
+ */
+export async function getCasualAvailable(employee, date, { statuses = ACTIVE_STATUSES, excludeLeaveId = null } = {}) {
+  return casualCreditsThrough(employee.joiningDate, date) - (await casualDaysTaken(employee._id, statuses, excludeLeaveId));
+}
+
+/**
+ * Company leave policy, enforced on both submission and approval:
+ * - Casual Leave: only within the accrued balance (1/month, unlimited carry-forward);
+ * - Sick Leave: only from 3 months after joining, MONTHLY_LEAVE_ALLOWANCE days per month;
+ * - Paid Leave: no allowance (taken at the employee's own risk).
+ * On submission, pending requests hold their days (no double-requesting the same
+ * balance); on approval (`approving: true`) only already-approved leave counts,
+ * so any one of several pending requests can still be approved.
+ */
+export async function assertLeaveAllowed(employee, leaveType, startDate, days, excludeLeaveId = null, { approving = false } = {}) {
+  const statuses = approving ? [LEAVE_STATUS.APPROVED] : ACTIVE_STATUSES;
+
+  if (leaveType === LEAVE_TYPE.CASUAL) {
+    const available = Math.max(0, await getCasualAvailable(employee, startDate, { statuses, excludeLeaveId }));
+    if (days > available) {
+      const { label } = monthWindow(startDate);
+      throw ApiError.badRequest(
+        `Not enough Casual Leave: ${available} day${available === 1 ? '' : 's'} available for ${label}, ${days} requested ` +
+          `(short by ${days - available}). You can choose Paid Leave instead.`,
+        { leaveType, available, requested: days, shortfall: days - available }
+      );
+    }
+    return;
+  }
+
+  if (leaveType === LEAVE_TYPE.SICK) {
+    const eligibleFrom = getSickLeaveEligibleFrom(employee.joiningDate);
+    if (eligibleFrom && new Date(startDate) < eligibleFrom) {
+      const on = eligibleFrom.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'UTC' });
+      throw ApiError.badRequest(`Sick Leave is available ${SICK_LEAVE_ELIGIBILITY_MONTHS} months after joining (from ${on}).`);
+    }
+  }
+
+  const allowance = MONTHLY_LEAVE_ALLOWANCE[leaveType];
+  if (allowance === undefined) return;
+
+  const used = await countMonthlyLeaveDays(employee._id, leaveType, startDate, excludeLeaveId, statuses);
+  if (used + days > allowance) {
+    const { label } = monthWindow(startDate);
     throw ApiError.badRequest(
-      'You can only request 1 Earned (Paid) Leave per month. You already have a pending or approved Earned Leave for this month.'
+      used >= allowance
+        ? `You have already used your ${TYPE_LABEL[leaveType]} for ${label}. Please choose Paid Leave instead.`
+        : `${TYPE_LABEL[leaveType]} is limited to ${allowance} day per month. Please choose Paid Leave for the remaining days.`
     );
   }
 }
 
-export async function deductLeaveBalance(employeeId, leaveType, days, year) {
-  if (leaveType === LEAVE_TYPE.UNPAID) return; // unpaid leave does not draw from balance
-  const balance = await getOrCreateLeaveBalance(employeeId, year);
-  
-  // Casual leave has 0 company balance allowance, but employees can take it at their own risk
-  if (leaveType !== LEAVE_TYPE.CASUAL) {
-    const available = balance.balances[leaveType] - balance.used[leaveType];
-    if (days > available) {
-      throw ApiError.badRequest(`Insufficient ${leaveType.toLowerCase()} leave balance. Available: ${available} day(s).`);
+// ---- Per-employee serialization of balance-affecting leave operations ----
+const LOCK_MS = 10_000;
+const LOCK_WAIT_MS = 3_000;
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/**
+ * Runs `fn` while holding this employee's leave lock, so balance checks and the
+ * writes that depend on them (submission, approval) never interleave. Works on
+ * any MongoDB deployment (no transaction/replica-set requirement).
+ */
+export async function withEmployeeLeaveLock(employeeId, fn) {
+  await LeaveLock.init();
+  const token = randomUUID();
+  const giveUpAt = Date.now() + LOCK_WAIT_MS;
+  for (;;) {
+    const now = new Date();
+    try {
+      await LeaveLock.findOneAndUpdate(
+        { employeeId, lockedUntil: { $lt: now } },
+        { $set: { token, lockedUntil: new Date(now.getTime() + LOCK_MS) } },
+        { upsert: true }
+      );
+      break;
+    } catch (err) {
+      if (err?.code !== 11000) throw err;
+      if (Date.now() > giveUpAt) {
+        throw ApiError.conflict('Another leave request is being processed. Please try again.');
+      }
+      await sleep(25 + Math.floor(Math.random() * 50));
     }
   }
-
-  balance.used[leaveType] += days;
-  await balance.save();
-  return balance;
+  try {
+    return await fn();
+  } finally {
+    await LeaveLock.deleteOne({ employeeId, token });
+  }
 }
 
-export async function restoreLeaveBalance(employeeId, leaveType, days, year) {
-  if (leaveType === LEAVE_TYPE.UNPAID) return;
-  const balance = await getOrCreateLeaveBalance(employeeId, year);
-  balance.used[leaveType] = Math.max(0, balance.used[leaveType] - days);
-  await balance.save();
-  return balance;
+/** Current balances for the Leave page (Casual: accrued balance; Sick/Paid: this month). */
+export async function getLeaveSummary(employee, referenceDate = new Date()) {
+  const { start, label } = monthWindow(referenceDate);
+  const used = async (type) => countMonthlyLeaveDays(employee._id, type, start);
+  const eligibleFrom = getSickLeaveEligibleFrom(employee.joiningDate);
+  const credited = casualCreditsThrough(employee.joiningDate, referenceDate);
+  const approved = await casualDaysTaken(employee._id, [LEAVE_STATUS.APPROVED]);
+  const pending = await casualDaysTaken(employee._id, [LEAVE_STATUS.PENDING]);
+  return {
+    month: label,
+    types: {
+      [LEAVE_TYPE.CASUAL]: {
+        accruesPerMonth: CASUAL_LEAVE_ACCRUAL.DAYS_PER_MONTH,
+        creditStart: getCasualCreditStart(employee.joiningDate),
+        credited,
+        approved,
+        pending,
+        available: Math.max(0, credited - approved - pending),
+      },
+      [LEAVE_TYPE.SICK]: {
+        allowance: MONTHLY_LEAVE_ALLOWANCE[LEAVE_TYPE.SICK],
+        used: await used(LEAVE_TYPE.SICK),
+        eligibleFrom,
+        eligibleNow: !eligibleFrom || new Date(referenceDate) >= eligibleFrom,
+      },
+      [LEAVE_TYPE.PAID]: { allowance: null, used: await used(LEAVE_TYPE.PAID) },
+    },
+  };
 }

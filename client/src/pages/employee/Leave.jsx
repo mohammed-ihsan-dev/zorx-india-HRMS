@@ -6,14 +6,16 @@ import { LeaveCalendar } from '../../features/leave/LeaveCalendar.jsx';
 import { LeaveRequestModal } from '../../features/leave/LeaveRequestModal.jsx';
 import { LeaveDetailModal } from '../../features/leave/LeaveDetailModal.jsx';
 import * as leaveService from '../../services/leaveService.js';
-import { titleCase } from '../../utils/formatters.js';
+import { formatDate, titleCase } from '../../utils/formatters.js';
 import { useToast } from '../../hooks/useToast.js';
 import { getErrorMessage } from '../../services/apiClient.js';
+
+const LEAVE_TYPE_ORDER = ['CASUAL', 'SICK', 'PAID'];
 
 export function Leave() {
   const toast = useToast();
   const [leaves, setLeaves] = useState([]);
-  const [balance, setBalance] = useState(null);
+  const [summary, setSummary] = useState(null);
   const [loading, setLoading] = useState(true);
   const [requestDate, setRequestDate] = useState(null);
   const [detailLeave, setDetailLeave] = useState(null);
@@ -26,7 +28,7 @@ export function Leave() {
       .getMyLeaves()
       .then((data) => {
         setLeaves(data.leaves);
-        setBalance(data.balance);
+        setSummary(data.summary);
       })
       .catch((err) => toast.error(getErrorMessage(err)))
       .finally(() => setLoading(false));
@@ -78,33 +80,43 @@ export function Leave() {
         <p className="text-base text-slate-500 mt-1">Manage your leave requests and upcoming time off.</p>
       </div>
 
-      {balance && (
+      {summary && (
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-          {Object.keys(balance.balances).map((type) => {
-            const isCasual = type === 'CASUAL';
-            const total = balance.balances[type];
-            const used = balance.used[type];
-            const remaining = Math.max(0, total - used);
+          {LEAVE_TYPE_ORDER.map((type) => {
+            const info = summary.types[type];
+            const isPaid = info.allowance === null;
+            const sickLocked = type === 'SICK' && !info.eligibleNow;
 
             return (
               <div key={type} className="bg-white rounded-xl border border-slate-200 p-4">
                 <div className="flex items-center justify-between gap-1">
                   <p className="text-sm text-slate-500 font-medium">{titleCase(type)} Leave</p>
-                  {isCasual && (
+                  {isPaid && (
                     <span className="text-[10px] font-extrabold uppercase tracking-wider text-amber-800 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded">
                       User Risk
                     </span>
                   )}
                 </div>
                 <p className="text-lg font-bold text-slate-900 mt-1">
-                  {isCasual ? (
+                  {type === 'CASUAL' ? (
                     <>
-                      {used} <span className="text-sm font-normal text-slate-500">day{used === 1 ? '' : 's'} taken (0 allowed)</span>
+                      {info.available}{' '}
+                      <span className="text-sm font-normal text-slate-500">day{info.available === 1 ? '' : 's'} available</span>
+                      <span className="block text-xs font-medium text-slate-400 mt-0.5">
+                        +1 each month · unused days carry forward
+                        {info.pending > 0 ? ` · ${info.pending} pending` : ''}
+                      </span>
+                    </>
+                  ) : sickLocked ? (
+                    <span className="text-sm font-semibold text-slate-500">Available from {formatDate(info.eligibleFrom, { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'UTC' })}</span>
+                  ) : isPaid ? (
+                    <>
+                      {info.used} <span className="text-sm font-normal text-slate-500">day{info.used === 1 ? '' : 's'} this month</span>
                     </>
                   ) : (
                     <>
-                      {remaining}{' '}
-                      <span className="text-sm font-normal text-slate-400">/ {total} day{total === 1 ? '' : 's'} left</span>
+                      {Math.max(0, info.allowance - info.used)}{' '}
+                      <span className="text-sm font-normal text-slate-400">/ {info.allowance} left this month</span>
                     </>
                   )}
                 </p>
@@ -118,7 +130,14 @@ export function Leave() {
         {loading ? <Loader label="Loading leave calendar…" /> : <LeaveCalendar leaves={leaves} onDayClick={handleDayClick} />}
       </Card>
 
-      <LeaveRequestModal open={Boolean(requestDate)} onClose={() => setRequestDate(null)} initialDate={requestDate} onSubmitted={load} />
+      <LeaveRequestModal
+        open={Boolean(requestDate)}
+        onClose={() => setRequestDate(null)}
+        initialDate={requestDate}
+        onSubmitted={load}
+        leaves={leaves}
+        summary={summary}
+      />
 
       <LeaveDetailModal
         open={Boolean(detailLeave)}
@@ -133,7 +152,7 @@ export function Leave() {
         onConfirm={handleCancel}
         loading={cancelling}
         title="Cancel leave request?"
-        description="This will cancel your leave request. If it was already approved, the leave balance will be restored."
+        description="This will cancel your leave request. Its day will count as unused again for that month."
         confirmLabel="Cancel Leave"
         variant="danger"
       />

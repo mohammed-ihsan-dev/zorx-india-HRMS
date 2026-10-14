@@ -7,16 +7,15 @@ import { sendSuccess } from '../utils/ApiResponse.js';
 import { ApiError } from '../utils/ApiError.js';
 import {
   calculateLeaveDays,
-  deductLeaveBalance,
-  restoreLeaveBalance,
-  getOrCreateLeaveBalance,
   assertNoOverlap,
-  assertEarnedLeaveMonthlyLimit,
+  assertLeaveAllowed,
+  getLeaveSummary,
+  withEmployeeLeaveLock,
 } from '../services/leaveService.js';
 import { notify } from '../services/notificationService.js';
 import { recordAudit } from '../services/auditService.js';
-import { VIRTUAL_EMPLOYEE_ID, getVirtualLeaveBalance } from '../utils/virtualTestUser.js';
-import { LEAVE_TYPE, LEAVE_STATUS, NOTIFICATION_TYPE, BACK_OFFICE_ROLES } from '../utils/constants.js';
+import { VIRTUAL_EMPLOYEE_ID } from '../utils/virtualTestUser.js';
+import { LEAVE_STATUS, NOTIFICATION_TYPE, BACK_OFFICE_ROLES } from '../utils/constants.js';
 
 function requireEmployee(req) {
   const employeeId = req.user.employeeId?._id;
@@ -70,7 +69,6 @@ export const createLeave = asyncHandler(async (req, res) => {
   }
 
   const days = calculateLeaveDays(startDate, endDate);
-  const year = new Date(startDate).getFullYear();
 
   if (supportingDocumentId) {
     const document = await ProfileDocument.findOne({ _id: supportingDocumentId, employeeId });
@@ -79,21 +77,20 @@ export const createLeave = asyncHandler(async (req, res) => {
     }
   }
 
-  if (leaveType === LEAVE_TYPE.EARNED) {
-    await assertEarnedLeaveMonthlyLimit(employeeId, startDate);
-  }
-
-  await assertNoOverlap(employeeId, startDate, endDate);
-  await getOrCreateLeaveBalance(employeeId, year);
-
-  const leave = await Leave.create({
-    employeeId,
-    leaveType,
-    startDate,
-    endDate,
-    days,
-    reason,
-    supportingDocumentId: supportingDocumentId || null,
+  // Checks and insert run under the employee's lock so two simultaneous
+  // requests can't both spend the same remaining balance or overlap.
+  const leave = await withEmployeeLeaveLock(employeeId, async () => {
+    await assertLeaveAllowed(req.user.employeeId, leaveType, startDate, days);
+    await assertNoOverlap(employeeId, startDate, endDate);
+    return Leave.create({
+      employeeId,
+      leaveType,
+      startDate,
+      endDate,
+      days,
+      reason,
+      supportingDocumentId: supportingDocumentId || null,
+    });
   });
 
   const backOfficeUsers = await User.find({ role: { $in: BACK_OFFICE_ROLES }, status: 'ACTIVE' });
@@ -113,19 +110,16 @@ export const createLeave = asyncHandler(async (req, res) => {
 });
 
 export const getMyLeaves = asyncHandler(async (req, res) => {
-  if (req.user.isVirtualTestUser) {
-    // No real leave history exists for this account — intentionally empty,
-    // never fabricated. getOrCreateLeaveBalance is deliberately NOT called
-    // here, since it would create a real LeaveBalance document otherwise.
-    return sendSuccess(res, { data: { leaves: [], balance: getVirtualLeaveBalance() } });
-  }
-
   const employeeId = requireEmployee(req);
-  const leaves = await Leave.find({ employeeId })
-    .populate('supportingDocumentId', 'documentType originalFileName mimeType')
-    .sort({ createdAt: -1 });
-  const balance = await getOrCreateLeaveBalance(employeeId, new Date().getFullYear());
-  sendSuccess(res, { data: { leaves, balance } });
+  // Read-only for everyone (including the virtual test account, whose
+  // reserved id simply matches no leaves) — nothing is created here.
+  const leaves = req.user.isVirtualTestUser
+    ? []
+    : await Leave.find({ employeeId })
+        .populate('supportingDocumentId', 'documentType originalFileName mimeType')
+        .sort({ createdAt: -1 });
+  const summary = await getLeaveSummary(req.user.employeeId);
+  sendSuccess(res, { data: { leaves, summary } });
 });
 
 export const listLeaves = asyncHandler(async (req, res) => {
@@ -149,21 +143,31 @@ export const listLeaves = asyncHandler(async (req, res) => {
   sendSuccess(res, { data: leaves, meta: { total, page: pageNum, limit: limitNum } });
 });
 
+// Atomic PENDING -> next status: of several retried/concurrent review calls,
+// exactly one succeeds; the rest see a non-pending request.
+async function transitionPending(req, nextStatus, verb) {
+  const leave = await Leave.findOneAndUpdate(
+    { _id: req.params.id, status: LEAVE_STATUS.PENDING },
+    { $set: { status: nextStatus, reviewedBy: req.user._id, reviewedAt: new Date(), reviewNote: req.body.reviewNote || '' } },
+    { new: true }
+  ).populate('employeeId');
+  if (!leave) throw ApiError.badRequest(`Only pending leave requests can be ${verb}.`);
+  return leave;
+}
+
 export const approveLeave = asyncHandler(async (req, res) => {
-  const leave = await Leave.findById(req.params.id).populate('employeeId');
-  if (!leave) throw ApiError.notFound('Leave request not found.');
-  if (leave.status !== LEAVE_STATUS.PENDING) {
+  const existing = await Leave.findById(req.params.id).populate('employeeId');
+  if (!existing) throw ApiError.notFound('Leave request not found.');
+  if (existing.status !== LEAVE_STATUS.PENDING) {
     throw ApiError.badRequest('Only pending leave requests can be approved.');
   }
 
-  const year = new Date(leave.startDate).getFullYear();
-  await deductLeaveBalance(leave.employeeId._id, leave.leaveType, leave.days, year);
-
-  leave.status = LEAVE_STATUS.APPROVED;
-  leave.reviewedBy = req.user._id;
-  leave.reviewedAt = new Date();
-  leave.reviewNote = req.body.reviewNote || '';
-  await leave.save();
+  // Balance check + status change under the employee's lock, so two approvals
+  // can't both spend the same remaining Casual Leave.
+  const leave = await withEmployeeLeaveLock(existing.employeeId._id, async () => {
+    await assertLeaveAllowed(existing.employeeId, existing.leaveType, existing.startDate, existing.days, existing._id, { approving: true });
+    return transitionPending(req, LEAVE_STATUS.APPROVED, 'approved');
+  });
 
   const employeeUser = await User.findOne({ employeeId: leave.employeeId._id });
   if (employeeUser) {
@@ -188,17 +192,9 @@ export const approveLeave = asyncHandler(async (req, res) => {
 });
 
 export const rejectLeave = asyncHandler(async (req, res) => {
-  const leave = await Leave.findById(req.params.id).populate('employeeId');
-  if (!leave) throw ApiError.notFound('Leave request not found.');
-  if (leave.status !== LEAVE_STATUS.PENDING) {
-    throw ApiError.badRequest('Only pending leave requests can be rejected.');
-  }
-
-  leave.status = LEAVE_STATUS.REJECTED;
-  leave.reviewedBy = req.user._id;
-  leave.reviewedAt = new Date();
-  leave.reviewNote = req.body.reviewNote || '';
-  await leave.save();
+  const existing = await Leave.findById(req.params.id);
+  if (!existing) throw ApiError.notFound('Leave request not found.');
+  const leave = await transitionPending(req, LEAVE_STATUS.REJECTED, 'rejected');
 
   const employeeUser = await User.findOne({ employeeId: leave.employeeId._id });
   if (employeeUser) {
@@ -226,10 +222,6 @@ export const cancelLeave = asyncHandler(async (req, res) => {
   const employeeId = requireEmployee(req);
   const leave = await Leave.findOne({ _id: req.params.id, employeeId });
   if (!leave) throw ApiError.notFound('Leave request not found.');
-  if (leave.status === LEAVE_STATUS.APPROVED) {
-    const year = new Date(leave.startDate).getFullYear();
-    await restoreLeaveBalance(employeeId, leave.leaveType, leave.days, year);
-  }
   if (![LEAVE_STATUS.PENDING, LEAVE_STATUS.APPROVED].includes(leave.status)) {
     throw ApiError.badRequest('This leave request cannot be cancelled.');
   }

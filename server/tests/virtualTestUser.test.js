@@ -229,7 +229,7 @@ describe('virtual test user: non-persisted leave writes', () => {
     const res = await request(app).get('/api/leaves/me').set('Authorization', `Bearer ${token}`);
     expect(res.status).toBe(200);
     expect(res.body.data.leaves).toEqual([]);
-    expect(res.body.data.balance).toBeTruthy();
+    expect(res.body.data.summary.types).toHaveProperty('CASUAL');
     expect(await LeaveBalance.countDocuments({})).toBe(0);
   });
 });

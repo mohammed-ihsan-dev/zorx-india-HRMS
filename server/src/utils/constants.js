@@ -92,9 +92,30 @@ export const BREAK_TYPE = Object.freeze({
 export const LEAVE_TYPE = Object.freeze({
   CASUAL: 'CASUAL',
   SICK: 'SICK',
+  PAID: 'PAID',
+  // Retired types — kept only so historical records still load. Not requestable.
   EARNED: 'EARNED',
   UNPAID: 'UNPAID',
 });
+
+export const REQUESTABLE_LEAVE_TYPES = [LEAVE_TYPE.CASUAL, LEAVE_TYPE.SICK, LEAVE_TYPE.PAID];
+
+// Non-accumulating limit: days per calendar month (by leave start date).
+// Paid Leave has no allowance — user's own risk.
+export const MONTHLY_LEAVE_ALLOWANCE = Object.freeze({
+  [LEAVE_TYPE.SICK]: 1,
+});
+
+// Casual Leave accrues 1 day per calendar month and unused days carry forward
+// with no cap. Credits start from the later of this month and the employee's
+// joining month (joining month included); there are no back-dated credits.
+export const CASUAL_LEAVE_ACCRUAL = Object.freeze({
+  DAYS_PER_MONTH: 1,
+  START_YEAR: 2026,
+  START_MONTH_INDEX: 9, // October (0-based)
+});
+
+export const SICK_LEAVE_ELIGIBILITY_MONTHS = 3;
 
 export const LEAVE_STATUS = Object.freeze({
   PENDING: 'PENDING',

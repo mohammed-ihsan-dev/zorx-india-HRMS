@@ -1,7 +1,7 @@
 import mongoose from 'mongoose';
 import { env } from '../config/env.js';
 import { ApiError } from './ApiError.js';
-import { ROLES, USER_STATUS, LEAVE_TYPE } from './constants.js';
+import { ROLES, USER_STATUS } from './constants.js';
 
 /**
  * Non-persisted virtual test identity. Everything in this module lives only
@@ -118,14 +118,4 @@ export function blockVirtualUserWrite(req, res, next) {
     return next(ApiError.badRequest('This action is not available for the virtual test account.'));
   }
   next();
-}
-
-// ---- Leave balance simulation (never persisted) ----
-// Mirrors leaveService.js's DEFAULT_BALANCES shape for display purposes only;
-// the virtual user's leave actions never touch the real LeaveBalance collection.
-export function getVirtualLeaveBalance() {
-  return {
-    balances: { [LEAVE_TYPE.CASUAL]: 0, [LEAVE_TYPE.SICK]: 1, [LEAVE_TYPE.EARNED]: 1 },
-    used: { [LEAVE_TYPE.CASUAL]: 0, [LEAVE_TYPE.SICK]: 0, [LEAVE_TYPE.EARNED]: 0 },
-  };
 }
