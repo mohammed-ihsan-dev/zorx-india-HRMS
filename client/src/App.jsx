@@ -1,5 +1,5 @@
 import { lazy, Suspense } from 'react';
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, Navigate } from 'react-router-dom';
 import { ProtectedRoute } from './routes/ProtectedRoute.jsx';
 import { RoleRoute } from './routes/RoleRoute.jsx';
 import { RoleAwareLayout } from './routes/RoleAwareLayout.jsx';
@@ -8,7 +8,6 @@ import { Loader } from './components/Loader.jsx';
 import { Login } from './pages/auth/Login.jsx';
 import { Signup } from './pages/auth/Signup.jsx';
 import { ForgotPassword } from './pages/auth/ForgotPassword.jsx';
-import { ResetPassword } from './pages/auth/ResetPassword.jsx';
 
 import { MANAGEMENT_ROLES, BACK_OFFICE_ROLES } from './utils/constants.js';
 
@@ -55,7 +54,8 @@ export default function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
-        <Route path="/reset-password" element={<ResetPassword />} />
+        {/* Old emailed reset links land here; recovery is now done with an email OTP. */}
+        <Route path="/reset-password" element={<Navigate to="/forgot-password" replace />} />
         <Route path="/not-authorized" element={<NotAuthorized />} />
 
         <Route element={<ProtectedRoute />}>

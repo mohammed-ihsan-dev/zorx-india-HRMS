@@ -190,26 +190,31 @@ export const changePassword = asyncHandler(async (req, res) => {
   sendSuccess(res, { message: 'Password updated successfully.', data: { mustChangePassword: false } });
 });
 
-// ---- Forgot / reset password ----
-const FORGOT_PASSWORD_REPLY = 'If an account exists for that email, a password reset link has been sent. It expires in 30 minutes.';
+// ---- Forgot password (email OTP) ----
+const FORGOT_PASSWORD_REPLY = 'If an account exists for this email address, an OTP will be sent.';
 
 export const forgotPassword = asyncHandler(async (req, res) => {
-  // Reply immediately and identically for every email; the reset work runs
+  // Reply immediately and identically for every email; the OTP work runs
   // afterwards so neither the message nor the response time reveals whether
   // an account exists.
-  sendSuccess(res, { message: FORGOT_PASSWORD_REPLY });
+  sendSuccess(res, {
+    message: FORGOT_PASSWORD_REPLY,
+    data: { expiresInMinutes: passwordResetService.OTP_TTL_MINUTES, resendAfterSeconds: passwordResetService.OTP_RESEND_COOLDOWN_SECONDS },
+  });
   passwordResetService.requestPasswordReset(req.body.email).catch((err) => {
-    console.error('[forgot-password] Failed to start reset:', err.message);
+    console.error('[forgot-password] Failed to issue OTP:', err.message);
   });
 });
 
-export const verifyResetToken = asyncHandler(async (req, res) => {
-  const valid = await passwordResetService.isResetTokenValid(req.body.token);
-  if (!valid) throw ApiError.badRequest('This reset link is invalid or has expired. Please request a new one.');
-  sendSuccess(res, { data: { valid: true } });
+export const verifyPasswordResetOtp = asyncHandler(async (req, res) => {
+  const resetToken = await passwordResetService.verifyOtp(req.body.email, req.body.otp);
+  sendSuccess(res, {
+    message: 'Code verified. You can now set a new password.',
+    data: { resetToken, expiresInMinutes: passwordResetService.RESET_AUTH_TTL_MINUTES },
+  });
 });
 
 export const resetPassword = asyncHandler(async (req, res) => {
-  await passwordResetService.resetPassword(req.body.token, req.body.newPassword);
+  await passwordResetService.resetPassword(req.body.resetToken, req.body.newPassword);
   sendSuccess(res, { message: 'Your password has been reset. Please log in with your new password.' });
 });

@@ -29,8 +29,8 @@ export async function forgotPassword(email) {
   return data;
 }
 
-export async function verifyResetToken(token) {
-  const { data } = await apiClient.post('/auth/reset-password/verify', { token });
+export async function verifyPasswordResetOtp(email, otp) {
+  const { data } = await apiClient.post('/auth/forgot-password/verify-otp', { email, otp });
   return data.data;
 }
 

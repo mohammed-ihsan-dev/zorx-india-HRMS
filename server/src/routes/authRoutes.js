@@ -7,7 +7,7 @@ import {
   changePasswordSchema,
   signupSchema,
   forgotPasswordSchema,
-  resetTokenSchema,
+  verifyOtpSchema,
   resetPasswordSchema,
 } from '../validators/authValidators.js';
 import rateLimit from 'express-rate-limit';
@@ -43,7 +43,7 @@ router.post('/change-password', requireAuth, validateBody(changePasswordSchema),
 
 // Public (no session) — rate-limited like login.
 router.post('/forgot-password', loginLimiter, validateBody(forgotPasswordSchema), authController.forgotPassword);
-router.post('/reset-password/verify', loginLimiter, validateBody(resetTokenSchema), authController.verifyResetToken);
+router.post('/forgot-password/verify-otp', loginLimiter, validateBody(verifyOtpSchema), authController.verifyPasswordResetOtp);
 router.post('/reset-password', loginLimiter, validateBody(resetPasswordSchema), authController.resetPassword);
 
 export default router;
