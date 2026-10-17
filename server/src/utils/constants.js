@@ -75,6 +75,14 @@ export const WORK_MODE = Object.freeze({
   WFH: 'WFH',
 });
 
+// How office attendance (check-in/check-out) is verified, chosen by Admin in
+// Office Settings. WIFI = the request must come from an allowlisted company
+// public IP (configured server-side only, see utils/networkAllowlist.js).
+export const ATTENDANCE_VERIFICATION_MODE = Object.freeze({
+  GPS: 'GPS',
+  WIFI: 'WIFI',
+});
+
 export const WFH_STATUS = Object.freeze({
   PENDING: 'PENDING',
   APPROVED: 'APPROVED',

@@ -5,6 +5,7 @@ export { Attendance } from './Attendance.js';
 export { Leave } from './Leave.js';
 export { LeaveBalance } from './LeaveBalance.js';
 export { LeaveLock } from './LeaveLock.js';
+export { PasswordResetToken } from './PasswordResetToken.js';
 export { Task } from './Task.js';
 export { Notification } from './Notification.js';
 export { Announcement } from './Announcement.js';

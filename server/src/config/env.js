@@ -52,6 +52,30 @@ export const env = {
   lateThresholdMinutes: Number(process.env.LATE_THRESHOLD_MINUTES) || 15,
   halfDayThresholdMinutes: Number(process.env.HALF_DAY_THRESHOLD_MINUTES) || 240,
 
+  // Outgoing email (password reset). Unconfigured = reset emails can't be sent;
+  // the forgot-password endpoint still answers generically and logs a warning.
+  mail: {
+    host: process.env.SMTP_HOST || '',
+    port: Number(process.env.SMTP_PORT) || 587,
+    secure: process.env.SMTP_SECURE === 'true',
+    user: process.env.SMTP_USER || '',
+    pass: process.env.SMTP_PASS || '',
+    from: process.env.MAIL_FROM || process.env.SMTP_USER || '',
+  },
+  // Public URL of the frontend, used to build the reset link.
+  appUrl: (process.env.APP_URL || 'http://localhost:5173').replace(/\/+$/, ''),
+
+  // Company Wi-Fi attendance. Server-side only — never sent to clients.
+  // ATTENDANCE_WIFI_ALLOWED_IPS: comma-separated public IPs and/or CIDR ranges
+  // (e.g. "43.229.89.156" or "2403:a080:84f:ca41::/64"). Empty = Wi-Fi mode
+  // cannot be enabled and rejects every punch (fail closed).
+  // TRUST_PROXY: Express "trust proxy" value used to derive the client IP from
+  // X-Forwarded-For. Defaults to 1 (the previous hard-coded behavior).
+  attendanceNetwork: {
+    allowedIps: process.env.ATTENDANCE_WIFI_ALLOWED_IPS || '',
+    trustProxy: process.env.TRUST_PROXY ?? '1',
+  },
+
   // Non-persisted virtual test account — see utils/virtualTestUser.js. Defaults
   // to fully disabled; must be explicitly opted into, and in production an
   // additional explicit flag is required on top of that.

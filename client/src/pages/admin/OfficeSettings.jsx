@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Save, LocateFixed, MapPin } from 'lucide-react';
+import { Save, LocateFixed, MapPin, Wifi, AlertTriangle } from 'lucide-react';
 import { Card, CardHeader } from '../../components/Card.jsx';
 import { Input, Select } from '../../components/Input.jsx';
 import { Button } from '../../components/Button.jsx';
@@ -16,11 +16,17 @@ export function OfficeSettings() {
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState(null);
   const [pendingLocation, setPendingLocation] = useState(null);
+  const [savedMode, setSavedMode] = useState('GPS');
+  const [diagnostics, setDiagnostics] = useState(null);
+  const [checkingNetwork, setCheckingNetwork] = useState(false);
 
   useEffect(() => {
     settingsService
       .getOfficeSettings()
-      .then(setForm)
+      .then((data) => {
+        setForm({ ...data, attendanceVerificationMode: data.attendanceVerificationMode || 'GPS' });
+        setSavedMode(data.attendanceVerificationMode || 'GPS');
+      })
       .catch((err) => toast.error(getErrorMessage(err)))
       .finally(() => setLoading(false));
   }, [toast]);
@@ -45,6 +51,17 @@ export function OfficeSettings() {
     toast.info('Coordinates applied. Review and click Save Settings to confirm.');
   };
 
+  const handleCheckNetwork = async () => {
+    setCheckingNetwork(true);
+    try {
+      setDiagnostics(await settingsService.getAttendanceNetworkDiagnostics());
+    } catch (err) {
+      toast.error(getErrorMessage(err));
+    } finally {
+      setCheckingNetwork(false);
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSaving(true);
@@ -64,7 +81,8 @@ export function OfficeSettings() {
       delete payload.__v;
       delete payload.updatedBy;
       const updated = await settingsService.updateOfficeSettings(payload);
-      setForm(updated);
+      setForm({ ...updated, attendanceVerificationMode: updated.attendanceVerificationMode || 'GPS' });
+      setSavedMode(updated.attendanceVerificationMode || 'GPS');
       toast.success('Office settings updated successfully.');
     } catch (err) {
       toast.error(getErrorMessage(err));
@@ -83,6 +101,62 @@ export function OfficeSettings() {
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
+        <Card padded={false} className="p-5">
+          <CardHeader title="Attendance Verification" subtitle="How office check-in and check-out are verified" />
+          <div className="space-y-4">
+            <Select label="Verification Method" value={form.attendanceVerificationMode} onChange={handleChange('attendanceVerificationMode')}>
+              <option value="GPS">GPS / Location-Based</option>
+              <option value="WIFI">Company Wi-Fi / Public IP-Based</option>
+            </Select>
+            <ul className="text-sm text-slate-600 space-y-1.5 list-disc pl-5">
+              <li>
+                <span className="font-semibold text-slate-800">GPS:</span> employees share their location and must be within the attendance radius below.
+              </li>
+              <li>
+                <span className="font-semibold text-slate-800">Company Wi-Fi:</span> no location is used; the server only accepts check-in/check-out
+                coming from the company&apos;s internet connection (its public IP, configured on the server).
+              </li>
+              <li>Work From Home employees are never required to be at the office or on its network.</li>
+            </ul>
+
+            {form.attendanceVerificationMode !== savedMode && (
+              <div className="flex items-start gap-2 text-sm font-medium text-amber-900 bg-amber-50 border border-amber-200 rounded-lg p-3">
+                <AlertTriangle size={18} className="text-amber-600 shrink-0 mt-0.5" />
+                <span>
+                  This applies to all employees as soon as you save. Switching to Company Wi-Fi means office staff can only check in and out from the
+                  company network.
+                </span>
+              </div>
+            )}
+
+            <div className="border-t border-slate-100 pt-4 space-y-3">
+              <Button type="button" variant="outline" icon={Wifi} onClick={handleCheckNetwork} loading={checkingNetwork}>
+                Check This Device&apos;s Network
+              </Button>
+              <p className="text-xs text-slate-500">
+                Run this from a device on the office Wi-Fi before enabling Company Wi-Fi mode, to confirm the server recognises the office network.
+              </p>
+              {diagnostics && (
+                <div className={`rounded-lg border p-3.5 text-sm space-y-1 ${diagnostics.detectedIpAllowed ? 'border-emerald-200 bg-emerald-50 text-emerald-900' : 'border-amber-200 bg-amber-50 text-amber-900'}`}>
+                  <p className="font-semibold">
+                    {diagnostics.detectedIpAllowed ? 'This device is on the company network.' : 'This device is NOT recognised as the company network.'}
+                  </p>
+                  <p>
+                    Detected public IP: <span className="font-mono">{diagnostics.detectedIp || 'unknown'}</span>
+                  </p>
+                  <p>
+                    Server network list: {diagnostics.allowlist.configured ? `${diagnostics.allowlist.entryCount} entr${diagnostics.allowlist.entryCount === 1 ? 'y' : 'ies'} configured` : 'not configured'}
+                  </p>
+                  {diagnostics.allowlist.errors.map((err) => (
+                    <p key={err} className="text-red-700">
+                      {err}
+                    </p>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </Card>
         <Card padded={false} className="p-5">
           <CardHeader title="Office Location" subtitle="Used for location-based attendance verification" />
           <div className="space-y-4">

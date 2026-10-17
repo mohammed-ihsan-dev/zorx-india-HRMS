@@ -11,13 +11,23 @@ import routes from './routes/index.js';
 import { notFoundHandler, errorHandler } from './middleware/errorHandler.js';
 import { PROFILE_PICTURES_DIR } from './services/fileStorageService.js';
 
+/** "1" → 1 (hop count), "true"/"false" → boolean, anything else → Express trust string (e.g. "loopback, 10.0.0.0/8"). */
+function parseTrustProxy(value) {
+  const v = String(value).trim();
+  if (/^\d+$/.test(v)) return Number(v);
+  if (v === 'true' || v === 'false') return v === 'true';
+  return v;
+}
+
 export function createApp() {
   const app = express();
 
   // Render (and most PaaS hosts) terminate TLS at a reverse proxy — without this,
   // req.protocol always reports "http", which would bake wrong http:// URLs into
   // stored profile picture links.
-  app.set('trust proxy', 1);
+  // It also decides which X-Forwarded-For entry becomes req.ip, which Company
+  // Wi-Fi attendance relies on — set TRUST_PROXY to match the real proxy chain.
+  app.set('trust proxy', parseTrustProxy(env.attendanceNetwork.trustProxy));
 
   app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
   const allowedOrigins = (env.clientOrigins || [env.clientOrigin]).map((o) =>

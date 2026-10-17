@@ -14,7 +14,8 @@ import {
   setVirtualAttendanceSnapshot,
   resetVirtualAttendanceSnapshot,
 } from '../utils/virtualTestUser.js';
-import { ROLES, ATTENDANCE_STATUS, ATTENDANCE_MODE, BREAK_TYPE } from '../utils/constants.js';
+import { ROLES, ATTENDANCE_STATUS, ATTENDANCE_MODE, ATTENDANCE_VERIFICATION_MODE, BREAK_TYPE } from '../utils/constants.js';
+import { parseAllowlist, isIpAllowed } from '../utils/networkAllowlist.js';
 
 function requireEmployee(req) {
   const employeeId = req.user.employeeId?._id;
@@ -81,7 +82,7 @@ export const checkIn = asyncHandler(async (req, res) => {
   }
 
   const employeeId = requireEmployee(req);
-  const attendance = await attendanceService.performCheckIn(employeeId, req.body);
+  const attendance = await attendanceService.performCheckIn(employeeId, req.body, { clientIp: req.ip });
   sendSuccess(res, { message: 'Checked in successfully.', data: attendance });
 });
 
@@ -124,7 +125,7 @@ export const checkOut = asyncHandler(async (req, res) => {
   }
 
   const employeeId = requireEmployee(req);
-  const attendance = await attendanceService.performCheckOut(employeeId, req.body);
+  const attendance = await attendanceService.performCheckOut(employeeId, req.body, { clientIp: req.ip });
   sendSuccess(res, { message: 'Checked out successfully.', data: attendance });
 });
 
@@ -174,6 +175,21 @@ export const endBreak = asyncHandler(async (req, res) => {
   const employeeId = requireEmployee(req);
   const attendance = await attendanceService.performEndBreak(employeeId);
   sendSuccess(res, { message: 'Break ended.', data: attendance });
+});
+
+/**
+ * Read-only pre-check for the Punch Station. Reveals only the active mode and
+ * whether THIS request's source network is accepted — never the allowlist or
+ * any IP address. The real enforcement still happens on check-in/check-out.
+ */
+export const getNetworkStatus = asyncHandler(async (req, res) => {
+  const settings = await OfficeSettings.getSingleton();
+  const mode = settings.attendanceVerificationMode;
+  if (mode !== ATTENDANCE_VERIFICATION_MODE.WIFI) {
+    return sendSuccess(res, { data: { mode } });
+  }
+  const allowlist = parseAllowlist(env.attendanceNetwork.allowedIps);
+  sendSuccess(res, { data: { mode, configured: allowlist.ok, verified: isIpAllowed(req.ip, allowlist) } });
 });
 
 export const getMyAttendanceToday = asyncHandler(async (req, res) => {

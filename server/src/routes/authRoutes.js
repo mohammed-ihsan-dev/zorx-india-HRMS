@@ -2,7 +2,14 @@ import { Router } from 'express';
 import * as authController from '../controllers/authController.js';
 import { requireAuth } from '../middleware/auth.js';
 import { validateBody } from '../middleware/validate.js';
-import { loginSchema, changePasswordSchema, signupSchema } from '../validators/authValidators.js';
+import {
+  loginSchema,
+  changePasswordSchema,
+  signupSchema,
+  forgotPasswordSchema,
+  resetTokenSchema,
+  resetPasswordSchema,
+} from '../validators/authValidators.js';
 import rateLimit from 'express-rate-limit';
 import { env } from '../config/env.js';
 
@@ -33,5 +40,10 @@ router.post('/login', loginLimiter, validateBody(loginSchema), authController.lo
 router.post('/logout', requireAuth, authController.logout);
 router.get('/me', requireAuth, authController.getMe);
 router.post('/change-password', requireAuth, validateBody(changePasswordSchema), authController.changePassword);
+
+// Public (no session) — rate-limited like login.
+router.post('/forgot-password', loginLimiter, validateBody(forgotPasswordSchema), authController.forgotPassword);
+router.post('/reset-password/verify', loginLimiter, validateBody(resetTokenSchema), authController.verifyResetToken);
+router.post('/reset-password', loginLimiter, validateBody(resetPasswordSchema), authController.resetPassword);
 
 export default router;

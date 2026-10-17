@@ -1,3 +1,4 @@
+import * as passwordResetService from '../services/passwordResetService.js';
 import { User } from '../models/User.js';
 import { Employee } from '../models/Employee.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
@@ -187,4 +188,28 @@ export const changePassword = asyncHandler(async (req, res) => {
   await user.save();
 
   sendSuccess(res, { message: 'Password updated successfully.', data: { mustChangePassword: false } });
+});
+
+// ---- Forgot / reset password ----
+const FORGOT_PASSWORD_REPLY = 'If an account exists for that email, a password reset link has been sent. It expires in 30 minutes.';
+
+export const forgotPassword = asyncHandler(async (req, res) => {
+  // Reply immediately and identically for every email; the reset work runs
+  // afterwards so neither the message nor the response time reveals whether
+  // an account exists.
+  sendSuccess(res, { message: FORGOT_PASSWORD_REPLY });
+  passwordResetService.requestPasswordReset(req.body.email).catch((err) => {
+    console.error('[forgot-password] Failed to start reset:', err.message);
+  });
+});
+
+export const verifyResetToken = asyncHandler(async (req, res) => {
+  const valid = await passwordResetService.isResetTokenValid(req.body.token);
+  if (!valid) throw ApiError.badRequest('This reset link is invalid or has expired. Please request a new one.');
+  sendSuccess(res, { data: { valid: true } });
+});
+
+export const resetPassword = asyncHandler(async (req, res) => {
+  await passwordResetService.resetPassword(req.body.token, req.body.newPassword);
+  sendSuccess(res, { message: 'Your password has been reset. Please log in with your new password.' });
 });

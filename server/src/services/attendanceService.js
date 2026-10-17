@@ -8,7 +8,9 @@ import {
   minutesSinceMidnight,
   parseTimeToMinutes,
 } from '../utils/dateUtils.js';
-import { ATTENDANCE_STATUS, ATTENDANCE_MODE, BREAK_TYPE } from '../utils/constants.js';
+import { ATTENDANCE_STATUS, ATTENDANCE_MODE, ATTENDANCE_VERIFICATION_MODE, BREAK_TYPE } from '../utils/constants.js';
+import { env } from '../config/env.js';
+import { parseAllowlist, isIpAllowed } from '../utils/networkAllowlist.js';
 import { resolveWfhSource, WFH_SOURCE } from './wfhService.js';
 
 /**
@@ -46,18 +48,48 @@ export function validateLocation(coords, officeSettings) {
 
 const NO_LOCATION = Object.freeze({ latitude: null, longitude: null, distanceFromOffice: null });
 
+/** The Admin-selected verification mode; anything missing/unknown fails closed. */
+export function getVerificationMode(officeSettings) {
+  const mode = officeSettings?.attendanceVerificationMode ?? ATTENDANCE_VERIFICATION_MODE.GPS;
+  if (!Object.values(ATTENDANCE_VERIFICATION_MODE).includes(mode)) {
+    throw new ApiError(503, 'The attendance verification setting is invalid. Please contact HR/Admin.');
+  }
+  return mode;
+}
+
 /**
- * The only place WFH changes attendance behavior, decided from trusted server
- * data only (never the request body):
- * - permanent WFH (Employee.workMode): no location is used or stored at all;
- * - APPROVED WFH request for this day: coordinates are still required and
- *   recorded, only the office-radius check is skipped;
- * - otherwise: exactly validateLocation, as before.
+ * Company Wi-Fi check: the request's source IP — derived by Express from the
+ * trusted proxy chain (TRUST_PROXY), never from anything the client sends —
+ * must be inside the server-side allowlist. Misconfiguration fails closed.
  */
-async function resolvePunchLocation(employeeId, coords, officeSettings, dateKey) {
+export function verifyCompanyNetwork(clientIp) {
+  const allowlist = parseAllowlist(env.attendanceNetwork.allowedIps);
+  if (!allowlist.ok) {
+    throw new ApiError(503, 'Company Wi-Fi attendance is not configured correctly. Please contact HR/Admin.');
+  }
+  if (!isIpAllowed(clientIp, allowlist)) {
+    throw ApiError.forbidden('Your company network could not be verified. Please connect to the office Wi-Fi and try again.');
+  }
+}
+
+/**
+ * The single place attendance verification is decided, from trusted server
+ * data only (never the request body):
+ * - permanent WFH (Employee.workMode): no location or network check at all;
+ * - Company Wi-Fi mode: office employees must come from the company network;
+ *   approved-WFH employees (not in the office) skip it; no location is stored;
+ * - GPS mode, APPROVED WFH for this day: coordinates required and recorded,
+ *   only the office-radius check is skipped;
+ * - GPS mode otherwise: exactly validateLocation, as before.
+ */
+async function resolvePunchLocation(employeeId, coords, officeSettings, dateKey, clientIp) {
   const source = await resolveWfhSource(employeeId, dateKey);
   if (source === WFH_SOURCE.DEFAULT) {
     return { isWfh: true, location: NO_LOCATION };
+  }
+  if (getVerificationMode(officeSettings) === ATTENDANCE_VERIFICATION_MODE.WIFI) {
+    if (!source) verifyCompanyNetwork(clientIp);
+    return { isWfh: Boolean(source), location: NO_LOCATION };
   }
   if (!source) {
     const distanceFromOffice = validateLocation(coords, officeSettings);
@@ -163,11 +195,11 @@ export function deriveStatus(lateMinutes, totalWorkingMinutes, officeSettings) {
   return lateMinutes > 0 ? ATTENDANCE_STATUS.LATE : ATTENDANCE_STATUS.PRESENT;
 }
 
-export async function performCheckIn(employeeId, coords) {
+export async function performCheckIn(employeeId, coords, { clientIp } = {}) {
   const officeSettings = await OfficeSettings.getSingleton();
   const now = new Date();
   const dateKey = getStartOfDayUTC(now, officeSettings.timezone);
-  const { isWfh, location } = await resolvePunchLocation(employeeId, coords, officeSettings, dateKey);
+  const { isWfh, location } = await resolvePunchLocation(employeeId, coords, officeSettings, dateKey, clientIp);
   const attendanceMode = isWfh ? ATTENDANCE_MODE.WFH : ATTENDANCE_MODE.OFFICE;
 
   const existing = await Attendance.findOne({ employeeId, date: dateKey });
@@ -187,21 +219,27 @@ export async function performCheckIn(employeeId, coords) {
     return existing;
   }
 
-  return Attendance.create({
-    employeeId,
-    date: dateKey,
-    checkIn: checkInPunch,
-    lateMinutes,
-    status,
-    attendanceMode,
-  });
+  try {
+    return await Attendance.create({
+      employeeId,
+      date: dateKey,
+      checkIn: checkInPunch,
+      lateMinutes,
+      status,
+      attendanceMode,
+    });
+  } catch (err) {
+    // A simultaneous check-in already created today's record (unique employeeId+date).
+    if (err?.code === 11000) throw ApiError.conflict('You have already checked in today.');
+    throw err;
+  }
 }
 
-export async function performCheckOut(employeeId, coords) {
+export async function performCheckOut(employeeId, coords, { clientIp } = {}) {
   const officeSettings = await OfficeSettings.getSingleton();
   const now = new Date();
   const dateKey = getStartOfDayUTC(now, officeSettings.timezone);
-  const { location } = await resolvePunchLocation(employeeId, coords, officeSettings, dateKey);
+  const { location } = await resolvePunchLocation(employeeId, coords, officeSettings, dateKey, clientIp);
 
   const existing = await Attendance.findOne({ employeeId, date: dateKey });
   canCheckOut(existing);

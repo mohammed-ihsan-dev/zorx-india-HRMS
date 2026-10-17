@@ -33,7 +33,7 @@ export function useTodayAttendance() {
   // Permanent-WFH employees punch without any location request. Display/flow
   // hint only — the backend independently decides from the employee record.
   // If this lookup fails, the normal location flow is used.
-  const [locationFree, setLocationFree] = useState(false);
+  const [defaultWfh, setDefaultWfh] = useState(false);
 
   const refresh = useCallback(async () => {
     try {
@@ -43,7 +43,7 @@ export function useTodayAttendance() {
       ]);
       setRecord(data.attendance);
       setOfficeSettings(data.officeSettings);
-      setLocationFree(Boolean(wfhToday?.defaultWfh));
+      setDefaultWfh(Boolean(wfhToday?.defaultWfh));
     } catch (err) {
       toast.error(getErrorMessage(err, 'Could not load attendance status.'));
     } finally {
@@ -140,6 +140,11 @@ export function useTodayAttendance() {
     };
   }, [record, officeSettings]);
 
+  // Location is only collected in GPS mode for office staff. Display/flow hint
+  // only — the backend independently enforces the Admin-selected mode.
+  const verificationMode = officeSettings?.attendanceVerificationMode === 'WIFI' ? 'WIFI' : 'GPS';
+  const locationFree = defaultWfh || verificationMode === 'WIFI';
+
   const punch = useCallback(
     async (kind) => {
       setSubmitting(true);
@@ -230,6 +235,8 @@ export function useTodayAttendance() {
     lastVerification,
     geolocation,
     locationFree,
+    defaultWfh,
+    verificationMode,
     checkIn: () => punch('in'),
     checkOut: () => punch('out'),
     startBreak,

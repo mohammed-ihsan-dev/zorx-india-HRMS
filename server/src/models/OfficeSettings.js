@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 import { env } from '../config/env.js';
+import { ATTENDANCE_VERIFICATION_MODE } from '../utils/constants.js';
 
 const officeSettingsSchema = new mongoose.Schema(
   {
@@ -17,6 +18,11 @@ const officeSettingsSchema = new mongoose.Schema(
     lateThresholdMinutes: { type: Number, default: 15, min: 0 },
     halfDayThresholdMinutes: { type: Number, default: 240, min: 0 },
     overtimeEnabled: { type: Boolean, default: true },
+    attendanceVerificationMode: {
+      type: String,
+      enum: Object.values(ATTENDANCE_VERIFICATION_MODE),
+      default: ATTENDANCE_VERIFICATION_MODE.GPS,
+    },
     updatedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
   },
   { timestamps: true }

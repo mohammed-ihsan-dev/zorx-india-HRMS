@@ -5,18 +5,25 @@ import { requireRole } from '../middleware/rbac.js';
 import { validateBody } from '../middleware/validate.js';
 import { punchSchema, startBreakSchema } from '../validators/attendanceValidators.js';
 import { isDefaultWfhEmployee } from '../services/wfhService.js';
-import { BACK_OFFICE_ROLES } from '../utils/constants.js';
+import { OfficeSettings } from '../models/OfficeSettings.js';
+import { BACK_OFFICE_ROLES, ATTENDANCE_VERIFICATION_MODE } from '../utils/constants.js';
 
 const router = Router();
 
 const validatePunch = validateBody(punchSchema);
 
-// Permanent-WFH employees (per their stored Employee.workMode — never anything
-// in the request) punch without coordinates, so the body is discarded.
-// Everyone else gets exactly the existing coordinate validation.
+// Coordinates are only used in GPS mode. Permanent-WFH employees (per their
+// stored Employee.workMode) and everyone in Company Wi-Fi mode (per the
+// server-side Office Settings) punch without them, so the body is discarded —
+// nothing in the request can choose the mode. Otherwise: the existing
+// coordinate validation, unchanged.
 async function validatePunchBody(req, res, next) {
   try {
-    if (await isDefaultWfhEmployee(req.user.employeeId?._id)) {
+    const settings = await OfficeSettings.getSingleton();
+    if (
+      settings.attendanceVerificationMode === ATTENDANCE_VERIFICATION_MODE.WIFI ||
+      (await isDefaultWfhEmployee(req.user.employeeId?._id))
+    ) {
       req.body = {};
       return next();
     }
@@ -34,6 +41,7 @@ router.post('/virtual/reset', attendanceController.resetVirtualAttendance);
 router.post('/break/start', validateBody(startBreakSchema), attendanceController.startBreak);
 router.post('/break/end', attendanceController.endBreak);
 router.get('/me/today', attendanceController.getMyAttendanceToday);
+router.get('/network-status', attendanceController.getNetworkStatus);
 router.get('/me', attendanceController.getMyAttendanceHistory);
 
 router.get('/', requireRole(...BACK_OFFICE_ROLES), attendanceController.listAttendance);

@@ -22,3 +22,19 @@ export const signupSchema = z
     path: ['confirmPassword'],
   });
 
+
+export const forgotPasswordSchema = z.object({
+  email: z.string().trim().email('Enter a valid email address.'),
+});
+
+export const resetTokenSchema = z.object({
+  token: z.string().regex(/^[a-f0-9]{64}$/, 'This reset link is invalid.'),
+});
+
+export const resetPasswordSchema = z
+  .object({
+    token: z.string().regex(/^[a-f0-9]{64}$/, 'This reset link is invalid.'),
+    newPassword: z.string().min(8, 'New password must be at least 8 characters.'),
+    confirmPassword: z.string().min(1, 'Please confirm your new password.'),
+  })
+  .refine((d) => d.newPassword === d.confirmPassword, { message: 'Passwords do not match.', path: ['confirmPassword'] });

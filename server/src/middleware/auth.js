@@ -57,6 +57,11 @@ export const requireAuth = asyncHandler(async (req, res, next) => {
   if (user.status !== USER_STATUS.ACTIVE) {
     throw ApiError.forbidden('Your account is not active. Please contact HR/Admin.');
   }
+  // A password reset signs out every session issued before it (JWT iat is in
+  // whole seconds, so compare at that precision).
+  if (user.passwordChangedAt && payload.iat < Math.floor(user.passwordChangedAt.getTime() / 1000)) {
+    throw ApiError.unauthorized('Your password was reset. Please log in again.');
+  }
 
   if (user.mustChangePassword) {
     const path = req.originalUrl || req.path || '';

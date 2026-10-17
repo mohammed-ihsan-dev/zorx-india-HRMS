@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { ATTENDANCE_VERIFICATION_MODE } from '../utils/constants.js';
 
 export const updateOfficeSettingsSchema = z.object({
   officeName: z.string().min(1).optional(),
@@ -18,4 +19,5 @@ export const updateOfficeSettingsSchema = z.object({
   lateThresholdMinutes: z.number().min(0).optional(),
   halfDayThresholdMinutes: z.number().min(0).optional(),
   overtimeEnabled: z.boolean().optional(),
+  attendanceVerificationMode: z.enum(Object.values(ATTENDANCE_VERIFICATION_MODE)).optional(),
 });

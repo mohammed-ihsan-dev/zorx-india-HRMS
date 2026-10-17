@@ -48,6 +48,12 @@ const userSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    // Set when a password is reset via the forgot-password flow; sessions
+    // (JWTs) issued before it are rejected by requireAuth.
+    passwordChangedAt: {
+      type: Date,
+      default: null,
+    },
   },
   { timestamps: true }
 );

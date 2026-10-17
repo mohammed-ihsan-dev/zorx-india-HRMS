@@ -11,6 +11,11 @@ const router = Router();
 router.use(requireAuth);
 
 router.get('/office', settingsController.getOfficeSettings);
+router.get(
+  '/attendance-network/diagnostics',
+  requireRole(ROLES.SUPER_ADMIN, ROLES.ADMIN),
+  settingsController.getAttendanceNetworkDiagnostics
+);
 router.patch(
   '/office',
   requireRole(ROLES.SUPER_ADMIN, ROLES.ADMIN),

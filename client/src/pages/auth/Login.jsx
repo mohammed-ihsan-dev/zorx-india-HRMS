@@ -124,6 +124,11 @@ export function Login() {
                 </button>
               }
             />
+            <div className="flex justify-end -mt-2">
+              <Link to="/forgot-password" className="text-sm font-semibold text-brand-700 hover:text-brand-800 hover:underline">
+                Forgot password?
+              </Link>
+            </div>
             <Button
               type="submit"
               disabled={!isPasswordValid || submitting}

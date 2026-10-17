@@ -44,3 +44,8 @@ export async function getEmployeeAttendance(employeeId) {
   const { data } = await apiClient.get(`/attendance/${employeeId}`);
   return data.data;
 }
+
+export async function getNetworkStatus() {
+  const { data } = await apiClient.get('/attendance/network-status');
+  return data.data;
+}

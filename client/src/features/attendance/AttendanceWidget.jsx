@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { MapPin, House, CheckCircle2, LoaderCircle, AlertTriangle, Radio, Clock, Coffee, LogOut, Play, RotateCcw } from 'lucide-react';
+import { MapPin, House, Wifi, CheckCircle2, LoaderCircle, AlertTriangle, Radio, Clock, Coffee, LogOut, Play, RotateCcw } from 'lucide-react';
 import { Card } from '../../components/Card.jsx';
 import { ConfirmDialog } from '../../components/ConfirmDialog.jsx';
 import { StatusBadge } from '../../components/StatusBadge.jsx';
@@ -9,6 +9,7 @@ import { LOCATION_STATUS } from '../../hooks/useGeolocation.js';
 import { useAuth } from '../../hooks/useAuth.js';
 import { useToast } from '../../hooks/useToast.js';
 import { WfhTodayBanner } from '../workFromHome/WfhTodayBanner.jsx';
+import { NetworkStatusBanner } from './NetworkStatusBanner.jsx';
 import {
   isGandhiJayantiToday,
   hasCelebratedThisSession,
@@ -35,9 +36,11 @@ export function AttendanceWidget({ data }) {
     startBreak,
     endBreak,
     breakCountdownStr,
-    locationFree,
+    defaultWfh,
+    verificationMode,
   } = data;
-  const PunchIcon = locationFree ? House : MapPin;
+  const wifiMode = verificationMode === 'WIFI' && !defaultWfh;
+  const PunchIcon = defaultWfh ? House : wifiMode ? Wifi : MapPin;
 
   // Gandhi Jayanti celebration trigger — observes genuine check-in success and
   // triggers the shared celebration. Never touches the attendance logic itself.
@@ -130,6 +133,7 @@ export function AttendanceWidget({ data }) {
 
       <div className="empty:hidden mb-4">
         <WfhTodayBanner record={record} />
+        {wifiMode && <NetworkStatusBanner />}
       </div>
 
       {/* Status Info Block */}
