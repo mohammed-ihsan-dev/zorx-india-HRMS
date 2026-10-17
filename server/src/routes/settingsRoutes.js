@@ -16,6 +16,7 @@ router.get(
   requireRole(ROLES.SUPER_ADMIN, ROLES.ADMIN),
   settingsController.getAttendanceNetworkDiagnostics
 );
+router.post('/mail/test', requireRole(ROLES.SUPER_ADMIN, ROLES.ADMIN), settingsController.testEmailDelivery);
 router.patch(
   '/office',
   requireRole(ROLES.SUPER_ADMIN, ROLES.ADMIN),

@@ -101,8 +101,11 @@ export async function requestPasswordReset(email) {
 
   const sent = await sendMail({ to: user.email, ...otpEmail(otp) });
   if (!sent) {
-    // Undelivered code: discard it so the user can retry right away.
-    await PasswordResetOtp.deleteOne({ _id: record._id, otpDigest: fields.otpDigest });
+    // Undelivered code: make it unusable but keep the record, so the 60s
+    // cooldown and the hourly per-account limit still apply — failed sends can
+    // never turn into unlimited new codes or provider calls. The user can
+    // request a new code once the normal cooldown has passed.
+    await PasswordResetOtp.updateOne({ _id: record._id, otpDigest: fields.otpDigest }, { $set: { expiresAt: new Date() } });
   }
 }
 

@@ -4,7 +4,10 @@ import { useToast } from '../../hooks/useToast.js';
 import * as attendanceService from '../../services/attendanceService.js';
 import * as wfhService from '../../services/wfhService.js';
 import { getErrorMessage } from '../../services/apiClient.js';
-import { parseTimeToMinutes, formatCountdownSeconds } from '../../utils/formatters.js';
+import { formatCountdownSeconds } from '../../utils/formatters.js';
+import { announceAttendanceRecord } from './BreakReminderWatcher.jsx';
+import { breakAllowanceUsage } from './breakReminders.js';
+import { netWorkedMinutes, requiredWorkingMinutes, progressPercent as toProgressPercent } from './workingTime.js';
 
 export const ATTENDANCE_UI_STATE = {
   NOT_CHECKED_IN: 'NOT_CHECKED_IN',
@@ -26,7 +29,12 @@ export function useTodayAttendance() {
 
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [record, setRecord] = useState(null);
+  const [record, setRecordState] = useState(null);
+  // Every confirmed record is also shared with the app-wide break reminder watcher.
+  const setRecord = useCallback((next) => {
+    setRecordState(next);
+    announceAttendanceRecord(next);
+  }, []);
   const [officeSettings, setOfficeSettings] = useState(null);
   const [lastVerification, setLastVerification] = useState(null);
   const [tick, setTick] = useState(() => Date.now());
@@ -49,7 +57,7 @@ export function useTodayAttendance() {
     } finally {
       setLoading(false);
     }
-  }, [toast]);
+  }, [toast, setRecord]);
 
   useEffect(() => {
     refresh();
@@ -82,47 +90,24 @@ export function useTodayAttendance() {
     return () => clearInterval(id);
   }, [isWorking, activeBreak]);
 
-  const workedMinutes = useMemo(() => {
-    if (hasCheckedOut) return record.totalWorkingMinutes;
-    if (hasCheckedIn) return Math.max(0, (tick - new Date(record.checkIn.timestamp).getTime()) / 60000);
-    return 0;
-  }, [hasCheckedIn, hasCheckedOut, record, tick]);
+  // Net of recorded breaks (an active break pauses the clock) — same rule the
+  // backend applies at checkout, so the live value matches the final total.
+  const workedMinutes = useMemo(() => netWorkedMinutes(record, tick), [record, tick]);
 
-  const requiredMinutes = useMemo(() => {
-    if (!officeSettings) return null;
-    const raw =
-      parseTimeToMinutes(officeSettings.workingEndTime) -
-      parseTimeToMinutes(officeSettings.workingStartTime) -
-      officeSettings.breakDurationMinutes;
-    return Math.max(0, raw);
-  }, [officeSettings]);
+  const requiredMinutes = useMemo(() => requiredWorkingMinutes(officeSettings), [officeSettings]);
 
   const remainingMinutes = requiredMinutes === null ? null : Math.max(0, requiredMinutes - workedMinutes);
   const overtimeMinutes = requiredMinutes === null ? 0 : Math.max(0, workedMinutes - requiredMinutes);
-  const progressPercent = requiredMinutes ? Math.min(100, (workedMinutes / requiredMinutes) * 100) : 0;
+  const progressPercent = toProgressPercent(workedMinutes, requiredMinutes);
 
   const maxBreakMinutes = officeSettings?.breakDurationMinutes || 60;
   const maxBreakSeconds = maxBreakMinutes * 60;
 
-  const activeBreakSeconds = useMemo(() => {
-    if (!activeBreak?.startTime) return 0;
-    const elapsedMs = tick - new Date(activeBreak.startTime).getTime();
-    return Math.max(0, elapsedMs / 1000);
-  }, [activeBreak, tick]);
-
-  const pastBreakSeconds = useMemo(() => {
-    const breaks = record?.breaks || [];
-    let seconds = 0;
-    for (const b of breaks) {
-      if (b.startTime && b.endTime) {
-        const ms = new Date(b.endTime).getTime() - new Date(b.startTime).getTime();
-        seconds += Math.max(0, ms / 1000);
-      }
-    }
-    return seconds;
-  }, [record]);
-
-  const totalBreakSecondsUsed = pastBreakSeconds + activeBreakSeconds;
+  // Same calculation the break reminders use (breakReminders.breakAllowanceUsage).
+  const totalBreakSecondsUsed = useMemo(
+    () => breakAllowanceUsage(record, tick, maxBreakMinutes).usedMs / 1000,
+    [record, tick, maxBreakMinutes]
+  );
   const breakRemainingSeconds = Math.max(0, maxBreakSeconds - totalBreakSecondsUsed);
   const breakCountdownStr = formatCountdownSeconds(breakRemainingSeconds);
 
@@ -168,7 +153,7 @@ export function useTodayAttendance() {
         setSubmitting(false);
       }
     },
-    [geolocation, officeSettings, toast, locationFree]
+    [geolocation, officeSettings, toast, locationFree, setRecord]
   );
 
   const [breakSubmitting, setBreakSubmitting] = useState(false);
@@ -185,7 +170,7 @@ export function useTodayAttendance() {
         setBreakSubmitting(false);
       }
     },
-    [toast]
+    [toast, setRecord]
   );
 
   const endBreak = useCallback(async () => {
@@ -198,7 +183,7 @@ export function useTodayAttendance() {
     } finally {
       setBreakSubmitting(false);
     }
-  }, [toast]);
+  }, [toast, setRecord]);
 
   const resetVirtualAttendance = useCallback(async () => {
     try {
@@ -208,7 +193,7 @@ export function useTodayAttendance() {
     }
     setRecord(null);
     setLastVerification(null);
-  }, []);
+  }, [setRecord]);
 
   return {
     loading,

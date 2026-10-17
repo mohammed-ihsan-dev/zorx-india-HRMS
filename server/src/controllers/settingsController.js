@@ -3,6 +3,7 @@ import { asyncHandler } from '../utils/asyncHandler.js';
 import { sendSuccess } from '../utils/ApiResponse.js';
 import { ApiError } from '../utils/ApiError.js';
 import { recordAudit } from '../services/auditService.js';
+import { runMailDiagnostic } from '../services/mailService.js';
 import { env } from '../config/env.js';
 import { parseAllowlist, isIpAllowed } from '../utils/networkAllowlist.js';
 import { ATTENDANCE_VERIFICATION_MODE } from '../utils/constants.js';
@@ -73,4 +74,27 @@ export const getAttendanceNetworkDiagnostics = asyncHandler(async (req, res) => 
       detectedIpAllowed: isIpAllowed(req.ip, allowlist),
     },
   });
+});
+
+/**
+ * Admin-only email check run on the server's real environment (e.g. Render):
+ * one test email via the configured provider (Resend API or SMTP) to the
+ * requesting admin's own address (never an arbitrary recipient). Returns
+ * sanitized results only.
+ */
+const MAIL_TEST_COOLDOWN_MS = 30_000;
+const lastMailTestAt = new Map(); // per admin, in-memory: limits repeat clicks
+
+export const testEmailDelivery = asyncHandler(async (req, res) => {
+  const key = String(req.user._id);
+  const now = Date.now();
+  const last = lastMailTestAt.get(key) || 0;
+  if (now - last < MAIL_TEST_COOLDOWN_MS) {
+    const wait = Math.ceil((MAIL_TEST_COOLDOWN_MS - (now - last)) / 1000);
+    throw new ApiError(429, `Please wait ${wait}s before sending another test email.`);
+  }
+  // Claimed before sending, so simultaneous clicks can't both send.
+  lastMailTestAt.set(key, now);
+  const result = await runMailDiagnostic(req.user.email);
+  sendSuccess(res, { data: result });
 });

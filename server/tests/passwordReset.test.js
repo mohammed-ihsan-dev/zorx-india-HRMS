@@ -166,14 +166,40 @@ describe('POST /api/auth/forgot-password', () => {
     expect(await PasswordResetOtp.countDocuments({})).toBe(1);
   });
 
-  test('if the email fails to send, the endpoint still answers normally and the user can retry at once', async () => {
+  test('if the email fails: generic reply, the undelivered code is dead, and retries stay within the cooldown/hourly limits', async () => {
     await createUser();
     failSending = true;
     expect((await forgot()).status).toBe(200);
-    await waitFor(async () => (await PasswordResetOtp.countDocuments({})) === 0);
+    await waitFor(async () => {
+      const r = await PasswordResetOtp.findOne({});
+      return r && r.expiresAt <= new Date();
+    });
+    const failed = await PasswordResetOtp.findOne({});
+    expect(failed.requestsInWindow).toBe(1); // still counted toward the hourly limit
+
     failSending = false;
-    await requestOtp();
+    await forgot(); // within the 60s cooldown → nothing sent
+    await settle();
+    expect(sent).toHaveLength(0);
+
+    await skipCooldown();
+    const otp = await requestOtp();
     expect(sent).toHaveLength(1);
+    expect((await PasswordResetOtp.findOne({})).requestsInWindow).toBe(2);
+    expect((await verify(otp)).status).toBe(200);
+  });
+
+  test('repeated delivery failures cannot exceed the hourly per-account limit', async () => {
+    await createUser();
+    failSending = true;
+    let attempts = 0;
+    for (let i = 0; i < 8; i += 1) {
+      await forgot();
+      await settle();
+      await skipCooldown();
+    }
+    attempts = (await PasswordResetOtp.findOne({})).requestsInWindow;
+    expect(attempts).toBe(5);
   });
 
   test('rejects a malformed email', async () => {

@@ -2,6 +2,7 @@ import { createApp } from './app.js';
 import { connectDB } from './config/db.js';
 import { env } from './config/env.js';
 import { migrateContentCalendarClients } from './seed/migrateContentCalendarClients.js';
+import { getMailProvider, mailConfigWarnings } from './services/mailService.js';
 
 async function main() {
   await connectDB();
@@ -9,6 +10,8 @@ async function main() {
   const app = createApp();
   app.listen(env.port, '0.0.0.0', () => {
     console.log(`[server] ZORX INDIA API listening on port ${env.port} (${env.nodeEnv})`);
+    console.log(`[mail] provider: ${getMailProvider() || 'none'}`);
+    for (const w of mailConfigWarnings()) console.warn(`[mail] WARNING: ${w}`);
   });
 }
 

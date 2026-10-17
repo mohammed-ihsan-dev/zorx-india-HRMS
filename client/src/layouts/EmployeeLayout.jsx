@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import { Sidebar } from '../components/Sidebar.jsx';
 import { Topbar } from '../components/Topbar.jsx';
+import { BreakReminderWatcher } from '../features/attendance/BreakReminderWatcher.jsx';
 import { employeeNavItems } from '../routes/navConfig.js';
 
 function getTitle(pathname) {
@@ -24,6 +25,7 @@ export function EmployeeLayout() {
           </div>
         </main>
       </div>
+      <BreakReminderWatcher />
     </div>
   );
 }

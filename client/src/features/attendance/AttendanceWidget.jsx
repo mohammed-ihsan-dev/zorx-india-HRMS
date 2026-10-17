@@ -4,6 +4,7 @@ import { Card } from '../../components/Card.jsx';
 import { ConfirmDialog } from '../../components/ConfirmDialog.jsx';
 import { StatusBadge } from '../../components/StatusBadge.jsx';
 import { formatTime } from '../../utils/formatters.js';
+import { BreakAlertSettings } from './BreakReminderWatcher.jsx';
 import { ATTENDANCE_UI_STATE } from './useTodayAttendance.js';
 import { LOCATION_STATUS } from '../../hooks/useGeolocation.js';
 import { useAuth } from '../../hooks/useAuth.js';
@@ -162,6 +163,7 @@ export function AttendanceWidget({ data }) {
             subtitle="Press End Break to resume your work timer."
           />
         )}
+        {uiState === ATTENDANCE_UI_STATE.ON_BREAK && <BreakAlertSettings />}
         {uiState === ATTENDANCE_UI_STATE.COMPLETED && (
           <StateBlock
             icon={CheckCircle2}

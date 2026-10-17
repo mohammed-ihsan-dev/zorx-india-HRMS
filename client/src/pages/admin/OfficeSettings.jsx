@@ -8,6 +8,7 @@ import * as settingsService from '../../services/settingsService.js';
 import { useToast } from '../../hooks/useToast.js';
 import { getErrorMessage } from '../../services/apiClient.js';
 import { useGeolocation, LOCATION_STATUS } from '../../hooks/useGeolocation.js';
+import { EmailDeliveryCard } from './EmailDeliveryCard.jsx';
 
 export function OfficeSettings() {
   const toast = useToast();
@@ -234,6 +235,8 @@ export function OfficeSettings() {
           </Button>
         </div>
       </form>
+
+      <EmailDeliveryCard />
     </div>
   );
 }

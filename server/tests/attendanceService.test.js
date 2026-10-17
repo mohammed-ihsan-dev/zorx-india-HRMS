@@ -130,6 +130,17 @@ describe('attendanceService pure calculations', () => {
       .toBe(450);
   });
 
+  test('a full standard day (7h 30m net) is exactly on target: no overtime', () => {
+    const officeSettings = { workingStartTime: '09:30', workingEndTime: '18:00', breakDurationMinutes: 60, overtimeEnabled: true };
+    expect(attendanceService.calculateOvertime(450, officeSettings)).toBe(0);
+  });
+
+  test('calculateWorkingMinutes never goes negative', () => {
+    const t = new Date('2026-01-01T10:00:00Z');
+    expect(attendanceService.calculateWorkingMinutes(t, new Date('2026-01-01T09:00:00Z'), 0)).toBe(0);
+    expect(attendanceService.calculateWorkingMinutes(t, new Date('2026-01-01T10:30:00Z'), 60)).toBe(0);
+  });
+
   test('calculateOvertime returns 0 when overtime disabled', () => {
     const officeSettings = {
       workingStartTime: '09:30',

@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import { Sidebar } from '../components/Sidebar.jsx';
 import { Topbar } from '../components/Topbar.jsx';
+import { BreakReminderWatcher } from '../features/attendance/BreakReminderWatcher.jsx';
 import { getAdminNavItemsForRole, employeeNavItems } from '../routes/navConfig.js';
 import { useAuth } from '../hooks/useAuth.js';
 
@@ -30,6 +31,7 @@ export function AdminLayout() {
           </div>
         </main>
       </div>
+      <BreakReminderWatcher />
     </div>
   );
 }

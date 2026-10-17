@@ -61,6 +61,9 @@ export const env = {
     user: process.env.SMTP_USER || '',
     pass: process.env.SMTP_PASS || '',
     from: process.env.MAIL_FROM || process.env.SMTP_USER || '',
+    // Resend HTTPS API (preferred; works where outbound SMTP ports are blocked,
+    // e.g. Render free instances). When set, it is used instead of SMTP.
+    resendApiKey: process.env.RESEND_API_KEY || '',
   },
   // Public URL of the frontend, used to build the reset link.
   appUrl: (process.env.APP_URL || 'http://localhost:5173').replace(/\/+$/, ''),

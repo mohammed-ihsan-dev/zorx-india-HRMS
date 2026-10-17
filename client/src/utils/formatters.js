@@ -18,7 +18,7 @@ export function formatMinutes(totalMinutes) {
   const abs = Math.abs(Math.round(totalMinutes));
   const h = Math.floor(abs / 60);
   const m = abs % 60;
-  return `${h}h ${m}m`;
+  return `${h}h ${String(m).padStart(2, '0')}m`;
 }
 
 export function formatMeters(distance) {
