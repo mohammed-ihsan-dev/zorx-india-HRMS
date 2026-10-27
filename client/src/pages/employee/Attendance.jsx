@@ -82,7 +82,20 @@ export function Attendance() {
   });
 
   const columns = [
-    { key: 'date', header: 'Date', render: (r) => <span className="font-semibold text-slate-800">{formatDate(r.date)}</span> },
+    {
+      key: 'date',
+      header: 'Date',
+      render: (r) =>
+        r.overtimeAfter7Minutes > 0 ? (
+          // Worked after 7:00 PM (server value, from the recorded check-out).
+          <span className="inline-flex items-center gap-1.5 font-semibold text-slate-800" title="Overtime recorded">
+            {formatDate(r.date)}
+            <Clock size={14} className="text-slate-400" aria-label="Overtime recorded" />
+          </span>
+        ) : (
+          <span className="font-semibold text-slate-800">{formatDate(r.date)}</span>
+        ),
+    },
     { key: 'checkIn', header: 'Check In', render: (r) => (r.checkIn ? <span className="font-medium text-slate-700">{formatTime(r.checkIn.timestamp)}</span> : '—') },
     { key: 'checkOut', header: 'Check Out', render: (r) => (r.checkOut ? <span className="font-medium text-slate-700">{formatTime(r.checkOut.timestamp)}</span> : '—') },
     { key: 'working', header: 'Working Hours', render: (r) => <span className="font-bold text-slate-900">{formatMinutes(r.totalWorkingMinutes)}</span> },

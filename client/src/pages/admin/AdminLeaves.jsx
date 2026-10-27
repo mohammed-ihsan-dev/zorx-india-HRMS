@@ -14,6 +14,7 @@ import { useAuth } from '../../hooks/useAuth.js';
 import { BACK_OFFICE_ROLES } from '../../utils/constants.js';
 import { useToast } from '../../hooks/useToast.js';
 import { getErrorMessage } from '../../services/apiClient.js';
+import { leaveDurationLabel, isHalfDay } from '../../features/leave/leaveFormat.js';
 
 export function AdminLeaves() {
   const toast = useToast();
@@ -74,7 +75,16 @@ export function AdminLeaves() {
         </div>
       ),
     },
-    { key: 'leaveType', header: 'Type', render: (r) => titleCase(r.leaveType) },
+    {
+      key: 'leaveType',
+      header: 'Type',
+      render: (r) => (
+        <div>
+          <p>{titleCase(r.leaveType)}</p>
+          <p className={`text-xs ${isHalfDay(r) ? 'font-semibold text-brand-700' : 'text-slate-400'}`}>{leaveDurationLabel(r)}</p>
+        </div>
+      ),
+    },
     { key: 'startDate', header: 'Start', render: (r) => formatDate(r.startDate) },
     { key: 'endDate', header: 'End', render: (r) => formatDate(r.endDate) },
     { key: 'days', header: 'Days' },

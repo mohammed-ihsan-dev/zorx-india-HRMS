@@ -6,6 +6,7 @@ import { ApiError } from '../utils/ApiError.js';
 import * as attendanceService from '../services/attendanceService.js';
 import { isValidCoordinate } from '../utils/geo.js';
 import { getStartOfDayUTC } from '../utils/dateUtils.js';
+import { overtimeAfterCutoffMinutes } from '../services/salaryReportService.js';
 import { env } from '../config/env.js';
 import {
   VIRTUAL_EMPLOYEE_ID,
@@ -229,7 +230,10 @@ export const getMyAttendanceHistory = asyncHandler(async (req, res) => {
     Attendance.countDocuments(filter),
   ]);
 
-  sendSuccess(res, { data: records, meta: { total, page: pageNum, limit: limitNum } });
+  // Display-only: minutes worked after 7:00 PM from the recorded check-out, the
+  // same calculation as the Salary Report (null when there is no check-out). Not stored.
+  const data = records.map((r) => ({ ...r.toJSON(), overtimeAfter7Minutes: overtimeAfterCutoffMinutes(r.date, r.checkOut?.timestamp) }));
+  sendSuccess(res, { data, meta: { total, page: pageNum, limit: limitNum } });
 });
 
 export const listAttendance = asyncHandler(async (req, res) => {

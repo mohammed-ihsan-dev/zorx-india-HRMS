@@ -22,6 +22,7 @@ export function Leave() {
   const [summary, setSummary] = useState(null);
   const [loading, setLoading] = useState(true);
   const [requestDate, setRequestDate] = useState(null);
+  const [requestSession, setRequestSession] = useState(null); // preset when booking the other half of a date
   const [detailLeave, setDetailLeave] = useState(null);
   const [cancelTarget, setCancelTarget] = useState(null);
   const [cancelling, setCancelling] = useState(false);
@@ -77,13 +78,39 @@ export function Leave() {
     }
   };
 
+  // An upcoming active half day whose other session is still free can be topped up
+  // with the other half (the server re-checks overlap and balance either way).
+  const otherHalfFor = (leave) => {
+    if (leave?.duration !== 'HALF_DAY' || !['PENDING', 'APPROVED'].includes(leave.status)) return null;
+    const day = new Date(leave.startDate).toISOString().slice(0, 10);
+    const today = new Date();
+    const todayKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    if (day < todayKey) return null;
+    const other = leave.halfDaySession === 'MORNING' ? 'EVENING' : 'MORNING';
+    const taken = leaves.some(
+      (l) => l._id !== leave._id && ['PENDING', 'APPROVED'].includes(l.status) && new Date(l.startDate).toISOString().slice(0, 10) <= day && new Date(l.endDate).toISOString().slice(0, 10) >= day && (l.duration !== 'HALF_DAY' || l.halfDaySession === other)
+    );
+    return taken ? null : { day, session: other };
+  };
+  const requestOtherHalf = (leave) => {
+    const next = otherHalfFor(leave);
+    if (!next) return;
+    setDetailLeave(null);
+    setRequestSession(next.session);
+    setRequestDate(next.day);
+  };
+
   // Request, detail and cancel dialogs — shared by both layouts (they portal to <body>).
   const dialogs = (
     <>
       <LeaveRequestModal
         open={Boolean(requestDate)}
-        onClose={() => setRequestDate(null)}
+        onClose={() => {
+          setRequestDate(null);
+          setRequestSession(null);
+        }}
         initialDate={requestDate}
+        initialHalfDaySession={requestSession}
         onSubmitted={load}
         leaves={leaves}
         summary={summary}
@@ -94,6 +121,7 @@ export function Leave() {
         onClose={() => setDetailLeave(null)}
         leave={detailLeave}
         onRequestCancel={(leave) => setCancelTarget(leave)}
+        onRequestOtherHalf={otherHalfFor(detailLeave) ? requestOtherHalf : undefined}
       />
 
       <ConfirmDialog

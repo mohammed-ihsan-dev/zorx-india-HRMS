@@ -182,30 +182,34 @@ export function MobileDashboardView({ attendance, tasks, tasksLoading }) {
 
   return (
     <div className="space-y-4 max-w-md mx-auto">
-      {/* Header */}
-      <header className="flex items-center justify-between gap-3">
-        <div className="min-w-0">
-          <p className="text-xs font-medium text-zm-muted">Welcome back</p>
-          <h1 className="text-xl font-extrabold text-zm-text tracking-tight truncate">{name}</h1>
-        </div>
-        <Link
-          to="/notifications"
-          aria-label={unread > 0 ? `Notifications, ${unread} unread` : 'Notifications'}
-          className="relative w-11 h-11 shrink-0 rounded-full border border-zm-green/50 bg-zm-card text-zm-green-light flex items-center justify-center"
-        >
-          <Bell size={20} aria-hidden="true" />
-          {unread > 0 && (
-            <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 rounded-full bg-rose-600 text-white text-[10px] font-bold flex items-center justify-center">
-              {unread > 9 ? '9+' : unread}
-            </span>
-          )}
-        </Link>
-      </header>
+      {/* Header + date stay pinned to the top of the shell's scroll area (Home only).
+          The bleed (-mx/px, -mt/pt, pb/-mb) keeps the spacing unchanged and the
+          opaque background stops cards showing through while they scroll under it. */}
+      <div className="sticky -top-3 z-10 -mx-4 px-4 pt-3 pb-2 -mt-3 -mb-2 bg-zm-bg space-y-4">
+        <header className="flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-xs font-medium text-zm-muted">Welcome back</p>
+            <h1 className="text-xl font-extrabold text-zm-text tracking-tight truncate">{name}</h1>
+          </div>
+          <Link
+            to="/notifications"
+            aria-label={unread > 0 ? `Notifications, ${unread} unread` : 'Notifications'}
+            className="relative w-11 h-11 shrink-0 rounded-full border border-zm-green/50 bg-zm-card text-zm-green-light flex items-center justify-center"
+          >
+            <Bell size={20} aria-hidden="true" />
+            {unread > 0 && (
+              <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 rounded-full bg-rose-600 text-white text-[10px] font-bold flex items-center justify-center">
+                {unread > 9 ? '9+' : unread}
+              </span>
+            )}
+          </Link>
+        </header>
 
-      {/* Date */}
-      <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-zm-card border border-zm-border text-xs font-semibold text-zm-text">
-        <CalendarDays size={14} className="text-zm-green-light" aria-hidden="true" />
-        {formatDate(new Date(), { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' })}
+        {/* Date */}
+        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-zm-card border border-zm-border text-xs font-semibold text-zm-text">
+          <CalendarDays size={14} className="text-zm-green-light" aria-hidden="true" />
+          {formatDate(new Date(), { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' })}
+        </div>
       </div>
 
       {/* Working hours — primary card */}

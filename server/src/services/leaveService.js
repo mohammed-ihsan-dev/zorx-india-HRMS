@@ -4,6 +4,8 @@ import { LeaveLock } from '../models/LeaveLock.js';
 import {
   LEAVE_TYPE,
   LEAVE_STATUS,
+  LEAVE_DURATION,
+  HALF_DAY_DAYS,
   MONTHLY_LEAVE_ALLOWANCE,
   SICK_LEAVE_ELIGIBILITY_MONTHS,
   CASUAL_LEAVE_ACCRUAL,
@@ -12,6 +14,18 @@ import { ApiError } from '../utils/ApiError.js';
 
 const ACTIVE_STATUSES = [LEAVE_STATUS.PENDING, LEAVE_STATUS.APPROVED];
 const TYPE_LABEL = { [LEAVE_TYPE.CASUAL]: 'Casual Leave', [LEAVE_TYPE.SICK]: 'Sick Leave', [LEAVE_TYPE.PAID]: 'Paid Leave' };
+
+/**
+ * Days a request consumes, computed on the server only: 0.5 for a half day
+ * (validated to be a single date), else the inclusive calendar-day count.
+ */
+export function leaveDaysFor({ startDate, endDate, duration }) {
+  if (duration === LEAVE_DURATION.HALF_DAY) {
+    if (calculateLeaveDays(startDate, endDate) !== 1) throw ApiError.badRequest('A half-day leave must start and end on the same date.');
+    return HALF_DAY_DAYS;
+  }
+  return calculateLeaveDays(startDate, endDate);
+}
 
 export function calculateLeaveDays(startDate, endDate) {
   const start = new Date(startDate);
@@ -27,9 +41,10 @@ export function calculateLeaveDays(startDate, endDate) {
 /**
  * Throws if the employee already has a pending or approved leave request that
  * overlaps the given date range. Rejected/cancelled requests never block a
- * new request for the same dates.
+ * new request for the same dates. The one exception: two half days of the same
+ * date in opposite sessions (Morning + Evening) don't overlap.
  */
-export async function assertNoOverlap(employeeId, startDate, endDate, excludeLeaveId = null) {
+export async function assertNoOverlap(employeeId, startDate, endDate, excludeLeaveId = null, halfDaySession = null) {
   const filter = {
     employeeId,
     status: { $in: ACTIVE_STATUSES },
@@ -38,9 +53,16 @@ export async function assertNoOverlap(employeeId, startDate, endDate, excludeLea
   };
   if (excludeLeaveId) filter._id = { $ne: excludeLeaveId };
 
-  const overlapping = await Leave.findOne(filter);
-  if (overlapping) {
-    throw ApiError.badRequest('This date range overlaps with an existing leave request.');
+  const overlapping = await Leave.find(filter).select('duration halfDaySession').lean();
+  const clash = overlapping.find(
+    (l) => !(halfDaySession && l.duration === LEAVE_DURATION.HALF_DAY && l.halfDaySession && l.halfDaySession !== halfDaySession)
+  );
+  if (clash) {
+    throw ApiError.badRequest(
+      clash.duration === LEAVE_DURATION.HALF_DAY && halfDaySession
+        ? 'You already have a half-day leave for this session on this date.'
+        : 'This date range overlaps with an existing leave request.'
+    );
   }
 }
 
@@ -138,7 +160,7 @@ export async function assertLeaveAllowed(employee, leaveType, startDate, days, e
     if (days > available) {
       const { label } = monthWindow(startDate);
       throw ApiError.badRequest(
-        `Not enough Casual Leave: ${available} day${available === 1 ? '' : 's'} available for ${label}, ${days} requested ` +
+        `Not enough Casual Leave: ${available} day${available === 1 || available === 0.5 ? '' : 's'} available for ${label}, ${days} requested ` +
           `(short by ${days - available}). You can choose Paid Leave instead.`,
         { leaveType, available, requested: days, shortfall: days - available }
       );

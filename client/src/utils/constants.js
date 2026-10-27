@@ -1,4 +1,8 @@
-export const APP_VERSION = 'v2.0.0';
+// From package.json at build time (vite.config.js), so it always matches the deploy.
+/* global __APP_VERSION__, __APP_BUILD__ */
+export const APP_VERSION_NUMBER = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '2.0.0';
+export const APP_VERSION = `v${APP_VERSION_NUMBER}`;
+export const APP_BUILD = typeof __APP_BUILD__ !== 'undefined' ? __APP_BUILD__ : 'dev';
 
 export const ROLES = {
   SUPER_ADMIN: 'SUPER_ADMIN',

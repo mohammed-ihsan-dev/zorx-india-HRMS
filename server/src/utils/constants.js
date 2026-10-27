@@ -125,6 +125,12 @@ export const CASUAL_LEAVE_ACCRUAL = Object.freeze({
 
 export const SICK_LEAVE_ELIGIBILITY_MONTHS = 3;
 
+// Half-day leave: a duration of one single date, not a leave category. Leave
+// records created before this have no `duration` and are FULL_DAY.
+export const LEAVE_DURATION = Object.freeze({ FULL_DAY: 'FULL_DAY', HALF_DAY: 'HALF_DAY' });
+export const HALF_DAY_SESSION = Object.freeze({ MORNING: 'MORNING', EVENING: 'EVENING' });
+export const HALF_DAY_DAYS = 0.5;
+
 export const LEAVE_STATUS = Object.freeze({
   PENDING: 'PENDING',
   APPROVED: 'APPROVED',

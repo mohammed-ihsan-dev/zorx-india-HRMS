@@ -9,6 +9,7 @@ import { useToast } from '../../hooks/useToast.js';
 import { getErrorMessage } from '../../services/apiClient.js';
 import { countDaysInclusive } from '../../utils/calendarDate.js';
 import { formatDate } from '../../utils/formatters.js';
+import { formatLeaveDays } from './leaveFormat.js';
 
 const LEAVE_OPTIONS = [
   { type: 'CASUAL', label: 'Casual Leave' },
@@ -18,6 +19,39 @@ const LEAVE_OPTIONS = [
 const MONTHLY_ALLOWANCE = { SICK: 1 };
 const ACTIVE_STATUSES = ['PENDING', 'APPROVED'];
 const ALLOWED_TYPES = ['application/pdf', 'image/jpeg', 'image/png'];
+const DURATIONS = [
+  { value: 'FULL_DAY', label: 'Full Day' },
+  { value: 'HALF_DAY', label: 'Half Day' },
+];
+const SESSIONS = [
+  { value: 'MORNING', label: 'Morning' },
+  { value: 'EVENING', label: 'Evening' },
+];
+
+/** Compact segmented radio group, styled with the same tokens as the form fields. */
+function Segmented({ label, name, options, value, onChange }) {
+  return (
+    <fieldset>
+      <legend className="text-[15px] font-semibold text-slate-800 tracking-tight mb-2">{label}</legend>
+      <div role="radiogroup" aria-label={label} className="grid grid-cols-2 gap-1 p-1 rounded-xl bg-slate-100 border border-slate-200">
+        {options.map((o) => {
+          const active = value === o.value;
+          return (
+            <label
+              key={o.value}
+              className={`min-h-[42px] rounded-lg flex items-center justify-center text-sm font-semibold cursor-pointer transition-colors focus-within:ring-2 focus-within:ring-brand-200 ${
+                active ? 'bg-white text-brand-800 border border-brand-300 shadow-sm' : 'text-slate-600 border border-transparent'
+              }`}
+            >
+              <input type="radio" name={name} value={o.value} checked={active} onChange={() => onChange(o.value)} className="sr-only" />
+              {o.label}
+            </label>
+          );
+        })}
+      </div>
+    </fieldset>
+  );
+}
 const MAX_SIZE_BYTES = 5 * 1024 * 1024;
 
 const ymd = (value) => (value ? new Date(value).toISOString().slice(0, 10) : '');
@@ -25,9 +59,9 @@ const sameMonth = (a, b) => a && b && a.slice(0, 7) === b.slice(0, 7);
 const monthIdx = (value) => { const d = new Date(value); return d.getUTCFullYear() * 12 + d.getUTCMonth(); };
 const monthLabel = (value) => formatDate(value, { month: 'long', year: 'numeric', timeZone: 'UTC' });
 
-export function LeaveRequestModal({ open, onClose, initialDate, onSubmitted, leaves = [], summary = null }) {
+export function LeaveRequestModal({ open, onClose, initialDate, initialHalfDaySession = null, onSubmitted, leaves = [], summary = null }) {
   const toast = useToast();
-  const [form, setForm] = useState({ leaveType: 'CASUAL', startDate: '', endDate: '', reason: '' });
+  const [form, setForm] = useState({ leaveType: 'CASUAL', duration: 'FULL_DAY', halfDaySession: '', startDate: '', endDate: '', reason: '' });
   const [file, setFile] = useState(null);
   const [fileError, setFileError] = useState('');
   const [error, setError] = useState('');
@@ -82,19 +116,29 @@ export function LeaveRequestModal({ open, onClose, initialDate, onSubmitted, lea
         return;
       }
       const defaultDate = initialDate && initialDate >= todayYMD ? initialDate : todayYMD;
-      setForm({ leaveType: 'CASUAL', startDate: defaultDate, endDate: defaultDate, reason: '' });
+      setForm({
+        leaveType: 'CASUAL',
+        // Opened as "request the other half" of a date: start as that half day.
+        duration: initialHalfDaySession ? 'HALF_DAY' : 'FULL_DAY',
+        halfDaySession: initialHalfDaySession || '',
+        startDate: defaultDate,
+        endDate: defaultDate,
+        reason: '',
+      });
       setFile(null);
       setFileError('');
       setError('');
     }
-  }, [open, initialDate, todayYMD, onClose]);
+  }, [open, initialDate, initialHalfDaySession, todayYMD, onClose]);
 
-  const days = countDaysInclusive(form.startDate, form.endDate);
+  // A half day is always one date and counts 0.5 (the server computes the same).
+  const isHalf = form.duration === 'HALF_DAY';
+  const days = isHalf ? (form.startDate ? 0.5 : 0) : countDaysInclusive(form.startDate, form.endDate);
   // Notes for the types that are disabled for the chosen dates (shown even when not selected).
   const blockedNotes = LEAVE_OPTIONS.map(({ type }) => unavailableReason(type)).filter(Boolean);
   const casualShortfall =
     form.leaveType === 'CASUAL' && casualAvailable !== null && days > casualAvailable
-      ? `Not enough Casual Leave: ${casualAvailable} day${casualAvailable === 1 ? '' : 's'} available for ${monthLabel(form.startDate)}, this request needs ${days} (short by ${days - casualAvailable}). You can choose Paid Leave instead.`
+      ? `Not enough Casual Leave: ${casualAvailable} day${casualAvailable === 1 || casualAvailable === 0.5 ? '' : 's'} available for ${monthLabel(form.startDate)}, this request needs ${days} (short by ${days - casualAvailable}). You can choose Paid Leave instead.`
       : '';
   // The selected type is never changed automatically — the request is just blocked with the reason.
   const blockingReason = unavailableReason(form.leaveType) || casualShortfall;
@@ -126,7 +170,8 @@ export function LeaveRequestModal({ open, onClose, initialDate, onSubmitted, lea
     if (!form.leaveType) return setError('Please select a leave type.');
     if (!form.startDate || !form.endDate) return setError('Please select an end date.');
     if (form.startDate < todayYMD) return setError('You cannot request leave for past dates.');
-    if (days < 1) return setError('End date must be on or after the start date.');
+    if (!isHalf && days < 1) return setError('End date must be on or after the start date.');
+    if (isHalf && !form.halfDaySession) return setError('Please choose Morning or Evening for a half-day leave.');
     if (blockingReason) return setError(blockingReason);
     if (MONTHLY_ALLOWANCE[form.leaveType] && usedInMonth[form.leaveType] + days > MONTHLY_ALLOWANCE[form.leaveType]) {
       return setError('Sick Leave is limited to 1 day per month. Please choose Paid Leave for longer leave.');
@@ -140,7 +185,15 @@ export function LeaveRequestModal({ open, onClose, initialDate, onSubmitted, lea
         const uploaded = await documentService.uploadDocument('MEDICAL_PROOF', file);
         supportingDocumentId = uploaded._id;
       }
-      await leaveService.createLeave({ ...form, supportingDocumentId });
+      await leaveService.createLeave({
+        leaveType: form.leaveType,
+        startDate: form.startDate,
+        endDate: isHalf ? form.startDate : form.endDate,
+        reason: form.reason,
+        duration: form.duration,
+        halfDaySession: isHalf ? form.halfDaySession : null,
+        supportingDocumentId,
+      });
       toast.success('Leave request submitted successfully.');
       onSubmitted();
       onClose();
@@ -179,7 +232,7 @@ export function LeaveRequestModal({ open, onClose, initialDate, onSubmitted, lea
           <div className="flex items-center gap-2 text-xs font-semibold text-brand-900 bg-brand-50 border border-brand-200 rounded-lg p-2.5">
             <Info size={16} className="text-brand-600 shrink-0" />
             <span>
-              {casualAvailable} Casual Leave day{casualAvailable === 1 ? '' : 's'} available for {monthLabel(form.startDate)}. Unused days carry forward.
+              {casualAvailable} Casual Leave day{casualAvailable === 1 || casualAvailable === 0.5 ? '' : 's'} available for {monthLabel(form.startDate)}. Unused days carry forward.
             </span>
           </div>
         )}
@@ -198,28 +251,45 @@ export function LeaveRequestModal({ open, onClose, initialDate, onSubmitted, lea
           </div>
         )}
 
-        <div className="grid grid-cols-2 gap-3">
+        <Segmented
+          label="Duration"
+          name="leave-duration"
+          options={DURATIONS}
+          value={form.duration}
+          onChange={(duration) =>
+            setForm((f) => ({ ...f, duration, halfDaySession: duration === 'HALF_DAY' ? f.halfDaySession : '', endDate: duration === 'HALF_DAY' ? f.startDate : f.endDate }))
+          }
+        />
+
+        {isHalf && (
+          <Segmented label="Half-Day Session" name="half-day-session" options={SESSIONS} value={form.halfDaySession} onChange={(halfDaySession) => setForm((f) => ({ ...f, halfDaySession }))} />
+        )}
+
+        <div className={isHalf ? '' : 'grid grid-cols-2 gap-3'}>
           <Input
             type="date"
-            label="Start Date"
+            label={isHalf ? 'Date' : 'Start Date'}
             min={todayYMD}
             value={form.startDate}
-            onChange={(e) => setForm((f) => ({ ...f, startDate: e.target.value }))}
+            onChange={(e) => setForm((f) => ({ ...f, startDate: e.target.value, endDate: f.duration === 'HALF_DAY' ? e.target.value : f.endDate }))}
             required
           />
-          <Input
-            type="date"
-            label="End Date"
-            min={form.startDate || todayYMD}
-            value={form.endDate}
-            onChange={(e) => setForm((f) => ({ ...f, endDate: e.target.value }))}
-            required
-          />
+          {!isHalf && (
+            <Input
+              type="date"
+              label="End Date"
+              min={form.startDate || todayYMD}
+              value={form.endDate}
+              onChange={(e) => setForm((f) => ({ ...f, endDate: e.target.value }))}
+              required
+            />
+          )}
         </div>
 
         {days > 0 && (
           <p className="text-sm font-semibold text-slate-500 -mt-2">
-            {days} day{days > 1 ? 's' : ''}
+            {formatLeaveDays(days)}
+            {isHalf && form.halfDaySession ? ` · ${form.halfDaySession === 'MORNING' ? 'Morning' : 'Evening'}` : ''}
           </p>
         )}
 

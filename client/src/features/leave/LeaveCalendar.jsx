@@ -3,6 +3,7 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { WEEKDAY_LABELS, MONTH_LABELS, buildMonthGrid, dayNumber, utcYMD, toDateInputValue } from '../../utils/calendarDate.js';
 import { STATUS_COLORS } from '../../utils/constants.js';
 import { titleCase } from '../../utils/formatters.js';
+import { isHalfDay } from './leaveFormat.js';
 
 const STATUS_CELL_STYLES = {
   green: 'bg-brand-100 border-brand-300 text-brand-900',
@@ -168,7 +169,12 @@ export function LeaveCalendar({ leaves, onDayClick }) {
                       <span className={`text-base sm:text-lg font-bold ${isToday && !leave ? 'text-brand-800' : ''}`}>
                         {cell.day}
                       </span>
-                      {leave && <span className="text-[11px] font-semibold leading-none">{titleCase(leave.leaveType)}</span>}
+                      {leave && (
+                        <span className="text-[11px] font-semibold leading-none">
+                          {titleCase(leave.leaveType)}
+                          {isHalfDay(leave) && ` ½ ${leave.halfDaySession === 'EVENING' ? 'PM' : 'AM'}`}
+                        </span>
+                      )}
                     </button>
                   );
                 })}

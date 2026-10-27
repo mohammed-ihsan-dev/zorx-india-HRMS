@@ -4,8 +4,9 @@ import { Button } from '../../components/Button.jsx';
 import { StatusBadge } from '../../components/StatusBadge.jsx';
 import * as documentService from '../../services/documentService.js';
 import { formatDate, titleCase } from '../../utils/formatters.js';
+import { leaveDurationLabel, formatLeaveDays } from './leaveFormat.js';
 
-export function LeaveDetailModal({ open, onClose, leave, onRequestCancel }) {
+export function LeaveDetailModal({ open, onClose, leave, onRequestCancel, onRequestOtherHalf }) {
   if (!leave) return null;
 
   const canCancel = ['PENDING', 'APPROVED'].includes(leave.status);
@@ -36,8 +37,8 @@ export function LeaveDetailModal({ open, onClose, leave, onRequestCancel }) {
           </div>
           <div className="flex justify-between py-2.5">
             <dt className="text-sm font-semibold text-slate-500">Duration</dt>
-            <dd className="text-base font-medium text-slate-800">
-              {leave.days} day{leave.days > 1 ? 's' : ''}
+            <dd className="text-base font-medium text-slate-800 text-right">
+              {leaveDurationLabel(leave)} · {formatLeaveDays(leave.days)}
             </dd>
           </div>
           <div className="py-2.5">
@@ -73,6 +74,11 @@ export function LeaveDetailModal({ open, onClose, leave, onRequestCancel }) {
           <Button variant="outline" onClick={onClose}>
             Close
           </Button>
+          {onRequestOtherHalf && (
+            <Button variant="outline" onClick={() => onRequestOtherHalf(leave)}>
+              Request {leave.halfDaySession === 'MORNING' ? 'Evening' : 'Morning'} Half
+            </Button>
+          )}
           {canCancel && (
             <Button variant="danger" onClick={() => onRequestCancel(leave)}>
               Cancel Leave

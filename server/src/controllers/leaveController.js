@@ -6,7 +6,7 @@ import { asyncHandler } from '../utils/asyncHandler.js';
 import { sendSuccess } from '../utils/ApiResponse.js';
 import { ApiError } from '../utils/ApiError.js';
 import {
-  calculateLeaveDays,
+  leaveDaysFor,
   assertNoOverlap,
   assertLeaveAllowed,
   getLeaveSummary,
@@ -15,7 +15,7 @@ import {
 import { notify } from '../services/notificationService.js';
 import { recordAudit } from '../services/auditService.js';
 import { VIRTUAL_EMPLOYEE_ID } from '../utils/virtualTestUser.js';
-import { LEAVE_STATUS, NOTIFICATION_TYPE, BACK_OFFICE_ROLES } from '../utils/constants.js';
+import { LEAVE_STATUS, LEAVE_DURATION, NOTIFICATION_TYPE, BACK_OFFICE_ROLES } from '../utils/constants.js';
 
 function requireEmployee(req) {
   const employeeId = req.user.employeeId?._id;
@@ -27,14 +27,15 @@ function requireEmployee(req) {
 
 export const createLeave = asyncHandler(async (req, res) => {
   const employeeId = requireEmployee(req);
-  const { leaveType, startDate, endDate, reason, supportingDocumentId } = req.body;
+  const { leaveType, startDate, endDate, reason, supportingDocumentId, duration } = req.body;
+  const halfDaySession = duration === LEAVE_DURATION.HALF_DAY ? req.body.halfDaySession : null;
 
   // Virtual test account — simulate a submission without touching Leave,
-  // LeaveBalance, notifications, or audit logs. calculateLeaveDays is the
+  // LeaveBalance, notifications, or audit logs. leaveDaysFor is the
   // same real pure function real submissions use, so the day-count and
   // date-order validation behave identically; nothing else here persists.
   if (req.user.isVirtualTestUser) {
-    const days = calculateLeaveDays(startDate, endDate);
+    const days = leaveDaysFor({ startDate, endDate, duration });
     const simulatedLeave = {
       _id: 'virtual-leave-request',
       employeeId: VIRTUAL_EMPLOYEE_ID,
@@ -42,6 +43,8 @@ export const createLeave = asyncHandler(async (req, res) => {
       startDate: new Date(startDate),
       endDate: new Date(endDate),
       days,
+      duration,
+      halfDaySession,
       reason,
       supportingDocumentId: null,
       status: LEAVE_STATUS.PENDING,
@@ -68,7 +71,8 @@ export const createLeave = asyncHandler(async (req, res) => {
     throw ApiError.badRequest('Leave request start date cannot be before today.');
   }
 
-  const days = calculateLeaveDays(startDate, endDate);
+  // Always computed here — never taken from the request.
+  const days = leaveDaysFor({ startDate, endDate, duration });
 
   if (supportingDocumentId) {
     const document = await ProfileDocument.findOne({ _id: supportingDocumentId, employeeId });
@@ -81,13 +85,15 @@ export const createLeave = asyncHandler(async (req, res) => {
   // requests can't both spend the same remaining balance or overlap.
   const leave = await withEmployeeLeaveLock(employeeId, async () => {
     await assertLeaveAllowed(req.user.employeeId, leaveType, startDate, days);
-    await assertNoOverlap(employeeId, startDate, endDate);
+    await assertNoOverlap(employeeId, startDate, endDate, null, halfDaySession);
     return Leave.create({
       employeeId,
       leaveType,
       startDate,
       endDate,
       days,
+      duration,
+      halfDaySession,
       reason,
       supportingDocumentId: supportingDocumentId || null,
     });
@@ -100,7 +106,7 @@ export const createLeave = asyncHandler(async (req, res) => {
         userId: u._id,
         type: NOTIFICATION_TYPE.LEAVE_SUBMITTED,
         title: 'New leave request',
-        message: `${req.user.employeeId.firstName} ${req.user.employeeId.lastName} submitted a ${leaveType.toLowerCase()} leave request.`,
+        message: `${req.user.employeeId.firstName} ${req.user.employeeId.lastName} submitted a ${halfDaySession ? `half-day (${halfDaySession.toLowerCase()}) ` : ''}${leaveType.toLowerCase()} leave request.`,
         link: '/admin/leaves',
       })
     )

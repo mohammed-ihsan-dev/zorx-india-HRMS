@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { beginSave, endSave } from '../pwa/updateGuard.js';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
@@ -7,6 +8,11 @@ export const apiClient = axios.create({
 });
 
 apiClient.interceptors.request.use((config) => {
+  // Requests that change data hold off automatic app updates until they finish.
+  if ((config.method || 'get').toLowerCase() !== 'get') {
+    config.zmSave = true;
+    beginSave();
+  }
   const token = localStorage.getItem('zorx_token');
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
@@ -15,8 +21,12 @@ apiClient.interceptors.request.use((config) => {
 });
 
 apiClient.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    if (response.config?.zmSave) endSave();
+    return response;
+  },
   (error) => {
+    if (error.config?.zmSave) endSave();
     if (error.response?.status === 401) {
       localStorage.removeItem('zorx_token');
       if (!window.location.pathname.startsWith('/login')) {

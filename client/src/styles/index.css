@@ -254,3 +254,6 @@ body {
   padding-bottom: max(1rem, calc(env(safe-area-inset-bottom, 0px) + 0.5rem));
 }
 
+/* The update toast sits above the phone bottom navigation. */
+html[data-zm-chrome='dark'] .zm-update-toast { bottom: calc(env(safe-area-inset-bottom, 0px) + 92px); }
+

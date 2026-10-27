@@ -1,5 +1,5 @@
 import mongoose from 'mongoose';
-import { LEAVE_TYPE, LEAVE_STATUS } from '../utils/constants.js';
+import { LEAVE_TYPE, LEAVE_STATUS, LEAVE_DURATION, HALF_DAY_SESSION } from '../utils/constants.js';
 
 const leaveSchema = new mongoose.Schema(
   {
@@ -8,6 +8,10 @@ const leaveSchema = new mongoose.Schema(
     startDate: { type: Date, required: true },
     endDate: { type: Date, required: true },
     days: { type: Number, required: true, min: 0.5 },
+    // Optional and backward compatible: missing means FULL_DAY. No schema
+    // default on purpose, so saving an older record never rewrites it.
+    duration: { type: String, enum: Object.values(LEAVE_DURATION) },
+    halfDaySession: { type: String, enum: [...Object.values(HALF_DAY_SESSION), null] },
     reason: { type: String, required: true, trim: true },
     // Optional supporting proof (e.g. medical certificate) — reuses the existing
     // ProfileDocument storage/authorization mechanism rather than a separate one.

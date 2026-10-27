@@ -3,6 +3,7 @@ import { ClipboardList, History as HistoryIcon, Plus, CalendarDays, Trash2, Sear
 import { MobileStatusPill } from '../../components/MobileStatusPill.jsx';
 import { formatDate, titleCase } from '../../utils/formatters.js';
 import { balanceTone } from './balanceTone.js';
+import { leaveTitle, formatLeaveDays } from './leaveFormat.js';
 
 const LEAVE_TYPE_ORDER = ['CASUAL', 'SICK', 'PAID'];
 
@@ -83,7 +84,7 @@ export function MobileLeaveView({ leaves, summary, loading, onOpenRequest, onOpe
             <article key={l._id} className="rounded-2xl bg-zm-card border border-zm-border">
               <button type="button" onClick={() => onOpenDetail?.(l)} className="w-full text-left p-4 space-y-2">
                 <span className="flex items-center justify-between gap-2">
-                  <span className="font-bold text-zm-text text-sm">{titleCase(l.leaveType)} Leave</span>
+                  <span className="font-bold text-zm-text text-sm">{leaveTitle(l)}</span>
                   <MobileStatusPill status={l.status} />
                 </span>
                 <span className="flex items-center gap-2 text-xs text-zm-muted">
@@ -91,7 +92,7 @@ export function MobileLeaveView({ leaves, summary, loading, onOpenRequest, onOpe
                   {formatDate(l.startDate)}
                   {l.startDate !== l.endDate && ` – ${formatDate(l.endDate)}`}
                   <span aria-hidden="true">·</span>
-                  {l.days} day{l.days > 1 ? 's' : ''}
+                  {formatLeaveDays(l.days)}
                 </span>
                 {l.reason && <span className="block text-xs text-zm-muted line-clamp-1">{l.reason}</span>}
               </button>
