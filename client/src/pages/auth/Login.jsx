@@ -48,7 +48,7 @@ export function Login() {
   }
 
   return (
-    <div className={mobile ? 'zm-mobile min-h-[100dvh] flex font-sans pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]' : 'min-h-screen flex bg-slate-50 font-sans'}>
+    <div className={mobile ? 'zm-mobile zm-viewport-min-h flex font-sans pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]' : 'min-h-screen flex bg-slate-50 font-sans'}>
       {/* Left Branding Panel (Dark Deep Green Background) */}
       <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-brand-950 via-brand-900 to-brand-800 text-white flex-col justify-between p-12 lg:p-16 relative overflow-hidden shadow-2xl">
         <div className="absolute -right-24 -top-24 w-96 h-96 rounded-full bg-white/5 blur-xl pointer-events-none" />

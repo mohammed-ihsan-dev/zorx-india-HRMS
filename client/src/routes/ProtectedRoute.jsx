@@ -10,7 +10,7 @@ export function ProtectedRoute() {
   if (loading) return <Loader fullScreen label="Loading ZORX INDIA…" />;
   if (authError) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-4 bg-white px-4 text-center">
+      <div className="zm-loading-surface min-h-screen flex flex-col items-center justify-center gap-4 bg-white px-4 text-center">
         <p className="text-base font-semibold text-slate-800">Couldn&apos;t reach ZORX INDIA right now.</p>
         <p className="text-sm text-slate-500">You&apos;re still signed in. Check your connection and try again.</p>
         <Button onClick={retryAuth}>Try again</Button>

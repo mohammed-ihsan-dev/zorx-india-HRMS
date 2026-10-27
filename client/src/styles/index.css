@@ -218,3 +218,39 @@ input, select, textarea {
 :root:has(.zm-mobile) .zm-toaster > .bg-red-50 { background-color: #3a1d26; border-color: rgb(253 164 175 / 0.4); color: #fecdd3; }
 :root:has(.zm-mobile) .zm-toaster > .bg-white { background-color: #222e38; border-color: #2b3943; color: #f4f7f5; }
 :root:has(.zm-mobile) .zm-toaster p { color: inherit; }
+
+/* ------------------------------------------------------------------------- */
+/* Phone page chrome. <html data-zm-chrome="dark"> is set for the dark phone  */
+/* app (src/pwa/mobileChrome.js + the boot script in index.html). iOS paints  */
+/* the page background behind the status bar and in overscroll, so the page   */
+/* itself — not an overlay — must be dark. Never set on tablet/desktop.        */
+/* ------------------------------------------------------------------------- */
+html[data-zm-chrome='dark'],
+html[data-zm-chrome='dark'] body,
+html[data-zm-chrome='dark'] #root {
+  background-color: #101418;
+  color-scheme: dark;
+}
+html[data-zm-chrome='dark'] .zm-loading-surface { background-color: #101418; }
+html[data-zm-chrome='dark'] .zm-loading-surface p { color: #a6b2bc; }
+/* Toasts clear the status bar / notch. */
+html[data-zm-chrome='dark'] .zm-toaster { top: calc(env(safe-area-inset-top, 0px) + 1rem); }
+
+/* Landscape phones (which get the tablet layout) keep content out of the notch.
+   env() is 0 on every device without one, so desktop/tablet are unchanged. */
+body {
+  padding-left: env(safe-area-inset-left, 0px);
+  padding-right: env(safe-area-inset-right, 0px);
+}
+
+/* Full-height phone shell: dynamic viewport where supported (tracks the
+   browser bar collapsing/expanding), plain 100vh fallback elsewhere. */
+.zm-viewport-h { height: 100vh; height: 100dvh; }
+.zm-viewport-min-h { min-height: 100vh; min-height: 100dvh; }
+
+/* Phone modals stay inside the safe area; the panel's max-h-full then fits. */
+.zm-modal-safe {
+  padding-top: max(1rem, calc(env(safe-area-inset-top, 0px) + 0.5rem));
+  padding-bottom: max(1rem, calc(env(safe-area-inset-bottom, 0px) + 0.5rem));
+}
+

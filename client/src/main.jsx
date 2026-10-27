@@ -7,6 +7,7 @@ import { ToastProvider } from './context/ToastContext.jsx';
 import { OfflineBanner } from './pwa/OfflineBanner.jsx';
 import { UpdateToast } from './pwa/UpdateToast.jsx';
 import { InstallPrompt } from './pwa/InstallPrompt.jsx';
+import { MobileChromeSync } from './pwa/MobileChromeSync.jsx';
 import './styles/index.css';
 
 ReactDOM.createRoot(document.getElementById('root')).render(
@@ -14,6 +15,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
     <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <ToastProvider>
         <AuthProvider>
+          <MobileChromeSync />
           <OfflineBanner />
           <App />
           <UpdateToast />

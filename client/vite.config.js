@@ -20,7 +20,8 @@ export default defineConfig({
         display: 'standalone',
         orientation: 'portrait-primary',
         theme_color: '#1f5138',
-        background_color: '#ffffff',
+        // Launch splash: the dark phone app's background, so it doesn't flash white.
+        background_color: '#101418',
         icons: [
           { src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' },
           { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png' },

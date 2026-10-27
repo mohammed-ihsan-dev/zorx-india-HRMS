@@ -23,7 +23,7 @@ export function EmployeeLayout() {
   if (isMobile) {
     return (
       <MobileShellProvider active>
-        <div className="zm-mobile h-[100dvh] w-full flex flex-col overflow-hidden pt-[env(safe-area-inset-top)]">
+        <div className="zm-mobile zm-viewport-h w-full flex flex-col overflow-hidden pt-[env(safe-area-inset-top)]">
           <MobileSubpageHeader />
           <main className="flex-1 overflow-y-auto w-full px-4 pt-3 pb-[calc(env(safe-area-inset-bottom,0px)+96px)]">
             <Outlet />

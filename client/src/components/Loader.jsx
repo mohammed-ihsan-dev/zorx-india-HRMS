@@ -9,7 +9,7 @@ export function Loader({ label = 'Loading…', fullScreen = false }) {
   );
 
   if (fullScreen) {
-    return <div className="min-h-screen flex items-center justify-center bg-white">{content}</div>;
+    return <div className="zm-loading-surface min-h-screen flex items-center justify-center bg-white">{content}</div>;
   }
   return content;
 }
