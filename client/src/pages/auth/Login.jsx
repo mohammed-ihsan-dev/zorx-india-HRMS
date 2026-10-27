@@ -5,6 +5,7 @@ import { Button } from '../../components/Button.jsx';
 import { Input } from '../../components/Input.jsx';
 import { ZorxLogo } from '../../components/ZorxLogo.jsx';
 import { useAuth } from '../../hooks/useAuth.js';
+import { useMediaQuery, MOBILE_QUERY } from '../../context/MobileShellContext.jsx';
 import { getErrorMessage } from '../../services/apiClient.js';
 import { BACK_OFFICE_ROLES, APP_VERSION } from '../../utils/constants.js';
 
@@ -16,6 +17,8 @@ export function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  // Phones get the dark green app theme (the `.zm-mobile` layer); 768px+ is unchanged.
+  const mobile = useMediaQuery(MOBILE_QUERY);
 
   const expired = searchParams.get('expired') === '1';
 
@@ -45,7 +48,7 @@ export function Login() {
   }
 
   return (
-    <div className="min-h-screen flex bg-slate-50 font-sans">
+    <div className={mobile ? 'zm-mobile min-h-[100dvh] flex font-sans pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]' : 'min-h-screen flex bg-slate-50 font-sans'}>
       {/* Left Branding Panel (Dark Deep Green Background) */}
       <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-brand-950 via-brand-900 to-brand-800 text-white flex-col justify-between p-12 lg:p-16 relative overflow-hidden shadow-2xl">
         <div className="absolute -right-24 -top-24 w-96 h-96 rounded-full bg-white/5 blur-xl pointer-events-none" />
@@ -78,11 +81,17 @@ export function Login() {
       </div>
 
       {/* Right Login Form (Light Background) */}
-      <div className="flex-1 flex items-center justify-center p-6 sm:p-12">
-        <div className="w-full max-w-md bg-white p-8 sm:p-10 rounded-3xl border border-slate-200/90 shadow-card-lg">
+      <div className={`flex-1 flex items-center justify-center ${mobile ? 'px-4 py-8' : 'p-6 sm:p-12'}`}>
+        <div
+          className={
+            mobile
+              ? 'w-full max-w-md bg-zm-card px-5 py-8 rounded-3xl border border-zm-border shadow-xl shadow-black/30'
+              : 'w-full max-w-md bg-white p-8 sm:p-10 rounded-3xl border border-slate-200/90 shadow-card-lg'
+          }
+        >
           <div className="flex flex-col items-center mb-8 text-center">
             {/* Official Green Logo on Light Background */}
-            <ZorxLogo variant="green" size="login" className="mb-4" />
+            <ZorxLogo variant={mobile ? 'white' : 'green'} size="login" className="mb-4" />
             <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight mt-2">Welcome Back</h1>
             <p className="text-base text-slate-600 mt-1.5">Sign in to access your ZORX INDIA workspace.</p>
           </div>

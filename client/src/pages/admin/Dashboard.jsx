@@ -244,7 +244,7 @@ export function AdminDashboard() {
         />
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 p-6 pt-0">
           <StatCard key={`stat-present-${data?.present}`} label="Present" value={data?.present ?? 0} icon={CheckCircle2} tone="green" />
-          <StatCard key={`stat-absent-${data?.absent}`} label="Absent" value={data?.absent ?? 0} icon={AlertTriangle} tone="red" />
+          <StatCard key={`stat-absent-${data?.absent}`} label="Absent" value={data?.absent ?? 0} icon={AlertTriangle} tone="red" hint={data?.holidayToday ? `Holiday · ${data.holidayToday}` : undefined} />
           <StatCard key={`stat-late-${data?.late}`} label="Late" value={data?.late ?? 0} icon={Clock3} tone="amber" />
           <StatCard key={`stat-halfday-${data?.halfDay}`} label="Half Day" value={data?.halfDay ?? 0} icon={Clock} tone="blue" />
           <StatCard key={`stat-leave-${data?.onLeave}`} label="Leave Taken" value={data?.onLeave ?? 0} icon={CalendarClock} tone="slate" />

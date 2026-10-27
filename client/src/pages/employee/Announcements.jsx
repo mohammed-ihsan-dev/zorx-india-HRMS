@@ -8,9 +8,12 @@ import * as announcementService from '../../services/announcementService.js';
 import { formatDate, titleCase } from '../../utils/formatters.js';
 import { useToast } from '../../hooks/useToast.js';
 import { getErrorMessage } from '../../services/apiClient.js';
+import { useMobileShell } from '../../context/MobileShellContext.jsx';
+import { MobileAnnouncementsView } from '../../features/announcements/MobileAnnouncementsView.jsx';
 
 export function Announcements() {
   const toast = useToast();
+  const mobile = useMobileShell();
   const [announcements, setAnnouncements] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -21,6 +24,10 @@ export function Announcements() {
       .catch((err) => toast.error(getErrorMessage(err)))
       .finally(() => setLoading(false));
   }, [toast]);
+
+  if (mobile) {
+    return <MobileAnnouncementsView announcements={announcements} loading={loading} />;
+  }
 
   if (loading) {
     return (

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import { MapPin, House, Wifi, CheckCircle2, LoaderCircle, AlertTriangle, Radio, Clock, Coffee, LogOut, Play, RotateCcw } from 'lucide-react';
 import { Card } from '../../components/Card.jsx';
 import { ConfirmDialog } from '../../components/ConfirmDialog.jsx';
@@ -11,13 +11,7 @@ import { useAuth } from '../../hooks/useAuth.js';
 import { useToast } from '../../hooks/useToast.js';
 import { WfhTodayBanner } from '../workFromHome/WfhTodayBanner.jsx';
 import { NetworkStatusBanner } from './NetworkStatusBanner.jsx';
-import {
-  isGandhiJayantiToday,
-  hasCelebratedThisSession,
-  markCelebratedThisSession,
-  resetCelebratedThisSession,
-  triggerGandhiCelebration,
-} from '../gandhiJayanti/gandhiJayantiConfig.js';
+import { useCheckInCelebration } from '../gandhiJayanti/useCheckInCelebration.js';
 
 export function AttendanceWidget({ data }) {
   const { user } = useAuth();
@@ -43,13 +37,11 @@ export function AttendanceWidget({ data }) {
   const wifiMode = verificationMode === 'WIFI' && !defaultWfh;
   const PunchIcon = defaultWfh ? House : wifiMode ? Wifi : MapPin;
 
-  // Gandhi Jayanti celebration trigger — observes genuine check-in success and
-  // triggers the shared celebration. Never touches the attendance logic itself.
-  const checkInAttemptedRef = useRef(false);
-  const hadCheckInRef = useRef(Boolean(record?.checkIn));
+  // Gandhi Jayanti celebration trigger — see useCheckInCelebration.
+  const celebration = useCheckInCelebration(record);
 
   const handleCheckInClick = () => {
-    checkInAttemptedRef.current = true;
+    celebration.markCheckInAttempt();
     checkIn(); // existing, unmodified check-in action
   };
 
@@ -58,9 +50,7 @@ export function AttendanceWidget({ data }) {
     try {
       setResetting(true);
       await data.resetVirtualAttendance?.();
-      hadCheckInRef.current = false;
-      checkInAttemptedRef.current = false;
-      resetCelebratedThisSession();
+      celebration.resetForTestUser();
       toast.success('Test check-in reset. Ready to test check-in again.');
     } catch {
       toast.error('Failed to reset test check-in.');
@@ -68,21 +58,6 @@ export function AttendanceWidget({ data }) {
       setResetting(false);
     }
   };
-
-  useEffect(() => {
-    const hasCheckInNow = Boolean(record?.checkIn);
-    // Only a genuine transition from "no check-in" to "has check-in" that was
-    // directly preceded by a click on the Check-In button counts as success —
-    // never the initial fetch on mount/refresh revealing an already-checked-in record.
-    if (checkInAttemptedRef.current && !hadCheckInRef.current && hasCheckInNow) {
-      if (isGandhiJayantiToday() && !hasCelebratedThisSession()) {
-        markCelebratedThisSession();
-        triggerGandhiCelebration();
-      }
-    }
-    checkInAttemptedRef.current = false;
-    hadCheckInRef.current = hasCheckInNow;
-  }, [record]);
 
   if (loading) {
     return <Card className="h-full min-h-[360px] animate-pulse bg-slate-100" />;

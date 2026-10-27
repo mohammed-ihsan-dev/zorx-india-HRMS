@@ -17,6 +17,20 @@ export default {
           900: '#173d29',
           950: '#0d2417',
         },
+        // Mobile employee shell only (see MobileShellContext) — new names, so
+        // nothing on tablet/desktop uses them.
+        zm: {
+          bg: '#101418',
+          card: '#19232C',
+          elev: '#222E38',
+          border: '#2B3943',
+          text: '#F4F7F5',
+          muted: '#A6B2BC',
+          green: '#16834A',
+          'green-dark': '#116B3A',
+          'green-light': '#5CC98A', // accent text/icons on dark surfaces
+          pista: '#DDF3E4',
+        },
       },
       fontFamily: {
         sans: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],

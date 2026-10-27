@@ -15,6 +15,9 @@ const profileDocumentSchema = new mongoose.Schema(
     reviewedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     reviewedAt: { type: Date },
     rejectionReason: { type: String, default: '' },
+    // PAYSLIP only: the pay month as 'YYYY-MM'. Not indexed on purpose (indexes are
+    // built on startup); payslip lookups are always scoped to one employee.
+    payslipPeriod: { type: String, default: null },
   },
   { timestamps: true }
 );

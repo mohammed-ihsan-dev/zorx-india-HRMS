@@ -45,6 +45,8 @@ export function createApp() {
         return callback(null, false);
       },
       credentials: true,
+      // Lets the browser read export filenames (reports CSV/PDF) across origins.
+      exposedHeaders: ['Content-Disposition'],
       optionsSuccessStatus: 204,
     })
   );

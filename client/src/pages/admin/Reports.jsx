@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Download, CalendarClock, Users, ListChecks, AlertTriangle, FileBarChart } from 'lucide-react';
+import { Download, CalendarClock, Users, ListChecks, AlertTriangle, FileBarChart, Wallet } from 'lucide-react';
 import { Card, CardHeader } from '../../components/Card.jsx';
 import { Input, Select } from '../../components/Input.jsx';
 import { Button } from '../../components/Button.jsx';
@@ -14,6 +14,9 @@ import {
   downloadReportCsv,
 } from '../../services/reportService.js';
 import { useToast } from '../../hooks/useToast.js';
+import { useAuth } from '../../hooks/useAuth.js';
+import { BACK_OFFICE_ROLES } from '../../utils/constants.js';
+import { SalaryReport } from '../../features/reports/SalaryReport.jsx';
 
 const REPORT_TABS = [
   { key: 'attendance', label: 'Attendance', icon: CalendarClock },
@@ -21,6 +24,8 @@ const REPORT_TABS = [
   { key: 'leave', label: 'Leave', icon: CalendarClock },
   { key: 'tasks', label: 'Tasks', icon: ListChecks },
 ];
+// Super Admin and HR (Admin) only; the API enforces the same roles.
+const SALARY_TAB = { key: 'salary', label: 'Salary', icon: Wallet };
 
 const LEAVE_STATUS_OPTIONS = ['', 'PENDING', 'APPROVED', 'REJECTED', 'CANCELLED'];
 const LEAVE_TYPE_OPTIONS = ['', 'CASUAL', 'SICK', 'PAID'];
@@ -36,7 +41,11 @@ const REPORT_CONFIG = {
 
 export function Reports() {
   const toast = useToast();
+  const { user } = useAuth();
+  const canSeeSalary = BACK_OFFICE_ROLES.includes(user?.role);
+  const tabs = canSeeSalary ? [...REPORT_TABS, SALARY_TAB] : REPORT_TABS;
   const [activeTab, setActiveTab] = useState('attendance');
+  const isSalary = activeTab === 'salary';
   const [departments, setDepartments] = useState([]);
 
   const [filters, setFilters] = useState({
@@ -53,9 +62,10 @@ export function Reports() {
     departmentService.listDepartments().then(setDepartments).catch(() => {});
   }, []);
 
-  const activeFilters = filters[activeTab];
+  const activeFilters = filters[activeTab] || {};
 
   useEffect(() => {
+    if (isSalary) return undefined; // the Salary tab loads on "Generate Report"
     let cancelled = false;
     setPreview({ loading: true, error: '', count: null });
 
@@ -75,7 +85,7 @@ export function Reports() {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab, JSON.stringify(activeFilters)]);
+  }, [activeTab, isSalary, JSON.stringify(activeFilters)]);
 
   const setFilter = (field) => (e) => {
     const value = e.target.value;
@@ -105,8 +115,13 @@ export function Reports() {
       </div>
 
       <Card padded={false} className="p-4 sm:p-5">
-        <Tabs tabs={REPORT_TABS} active={activeTab} onChange={setActiveTab} />
+        <Tabs tabs={tabs} active={activeTab} onChange={setActiveTab} />
 
+        {isSalary ? (
+          <div className="pt-6">
+            <SalaryReport />
+          </div>
+        ) : (
         <div className="pt-6">
           <CardHeader title={REPORT_CONFIG[activeTab].label} subtitle="Filters apply directly to the exported data." />
 
@@ -226,6 +241,7 @@ export function Reports() {
             />
           )}
         </div>
+        )}
       </Card>
     </div>
   );

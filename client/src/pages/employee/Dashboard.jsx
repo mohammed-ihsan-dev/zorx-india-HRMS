@@ -13,6 +13,8 @@ import { useLiveClock } from '../../hooks/useLiveClock.js';
 import * as taskService from '../../services/taskService.js';
 import * as announcementService from '../../services/announcementService.js';
 import { formatDate } from '../../utils/formatters.js';
+import { useMobileShell } from '../../context/MobileShellContext.jsx';
+import { MobileDashboardView } from '../../features/dashboard/MobileDashboardView.jsx';
 
 function greeting() {
   const hour = new Date().getHours();
@@ -56,8 +58,15 @@ function PunchStation() {
   );
 }
 
+// Phone layout: owns its own useTodayAttendance, so only one copy runs.
+function MobileDashboard({ tasks, tasksLoading }) {
+  const attendance = useTodayAttendance();
+  return <MobileDashboardView attendance={attendance} tasks={tasks} tasksLoading={tasksLoading} />;
+}
+
 export function Dashboard() {
   const { user } = useAuth();
+  const mobile = useMobileShell();
   const employee = user?.employee;
   const isSuperAdmin = user?.role === 'SUPER_ADMIN';
 
@@ -84,6 +93,10 @@ export function Dashboard() {
   // direct navigation (their sidebar never links here).
   if (isSuperAdmin) {
     return <Navigate to="/admin" replace />;
+  }
+
+  if (mobile) {
+    return <MobileDashboard tasks={tasks} tasksLoading={tasksLoading} />;
   }
 
   return (

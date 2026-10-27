@@ -9,11 +9,15 @@ import * as leaveService from '../../services/leaveService.js';
 import { formatDate, titleCase } from '../../utils/formatters.js';
 import { useToast } from '../../hooks/useToast.js';
 import { getErrorMessage } from '../../services/apiClient.js';
+import { useMobileShell } from '../../context/MobileShellContext.jsx';
+import { MobileLeaveView } from '../../features/leave/MobileLeaveView.jsx';
+import { toDateInputValue } from '../../utils/calendarDate.js';
 
 const LEAVE_TYPE_ORDER = ['CASUAL', 'SICK', 'PAID'];
 
 export function Leave() {
   const toast = useToast();
+  const mobile = useMobileShell();
   const [leaves, setLeaves] = useState([]);
   const [summary, setSummary] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -72,6 +76,55 @@ export function Leave() {
       setCancelling(false);
     }
   };
+
+  // Request, detail and cancel dialogs — shared by both layouts (they portal to <body>).
+  const dialogs = (
+    <>
+      <LeaveRequestModal
+        open={Boolean(requestDate)}
+        onClose={() => setRequestDate(null)}
+        initialDate={requestDate}
+        onSubmitted={load}
+        leaves={leaves}
+        summary={summary}
+      />
+
+      <LeaveDetailModal
+        open={Boolean(detailLeave)}
+        onClose={() => setDetailLeave(null)}
+        leave={detailLeave}
+        onRequestCancel={(leave) => setCancelTarget(leave)}
+      />
+
+      <ConfirmDialog
+        open={Boolean(cancelTarget)}
+        onClose={() => setCancelTarget(null)}
+        onConfirm={handleCancel}
+        loading={cancelling}
+        title="Cancel leave request?"
+        description="This will cancel your leave request. Its day will count as unused again for that month."
+        confirmLabel="Cancel Leave"
+        variant="danger"
+      />
+    </>
+  );
+
+  if (mobile) {
+    const today = new Date();
+    return (
+      <>
+        <MobileLeaveView
+          leaves={leaves}
+          summary={summary}
+          loading={loading}
+          onOpenRequest={() => setRequestDate(toDateInputValue(today.getFullYear(), today.getMonth(), today.getDate()))}
+          onOpenDetail={setDetailLeave}
+          onRequestCancel={setCancelTarget}
+        />
+        {dialogs}
+      </>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -134,32 +187,7 @@ export function Leave() {
         {loading ? <Loader label="Loading leave calendar…" /> : <LeaveCalendar leaves={leaves} onDayClick={handleDayClick} />}
       </Card>
 
-      <LeaveRequestModal
-        open={Boolean(requestDate)}
-        onClose={() => setRequestDate(null)}
-        initialDate={requestDate}
-        onSubmitted={load}
-        leaves={leaves}
-        summary={summary}
-      />
-
-      <LeaveDetailModal
-        open={Boolean(detailLeave)}
-        onClose={() => setDetailLeave(null)}
-        leave={detailLeave}
-        onRequestCancel={(leave) => setCancelTarget(leave)}
-      />
-
-      <ConfirmDialog
-        open={Boolean(cancelTarget)}
-        onClose={() => setCancelTarget(null)}
-        onConfirm={handleCancel}
-        loading={cancelling}
-        title="Cancel leave request?"
-        description="This will cancel your leave request. Its day will count as unused again for that month."
-        confirmLabel="Cancel Leave"
-        variant="danger"
-      />
+      {dialogs}
     </div>
   );
 }

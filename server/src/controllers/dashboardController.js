@@ -1,6 +1,7 @@
 import { Employee } from '../models/Employee.js';
 import { Attendance } from '../models/Attendance.js';
 import { Leave } from '../models/Leave.js';
+import { Holiday } from '../models/Holiday.js';
 import { Task } from '../models/Task.js';
 import { Announcement } from '../models/Announcement.js';
 import { AuditLog } from '../models/AuditLog.js';
@@ -189,7 +190,9 @@ export const getAdminDashboard = asyncHandler(async (req, res) => {
   // definition already used for `totalEmployees`) minus anyone with a valid
   // attendance record today and minus anyone on approved leave today — an
   // employee on approved leave is never also counted as absent.
-  const absent = Math.max(0, totalEmployees - attendedCount - onLeaveToday);
+  // On a company holiday nobody is expected to work, so nobody is absent.
+  const holidayToday = await Holiday.findOne({ date: today }).select('name').lean();
+  const absent = holidayToday ? 0 : Math.max(0, totalEmployees - attendedCount - onLeaveToday);
 
   const taskStatusMap = Object.fromEntries(taskStats.map((t) => [t._id, t.count]));
 
@@ -270,6 +273,7 @@ export const getAdminDashboard = asyncHandler(async (req, res) => {
       currentlyWorking,
       onLeave: onLeaveToday,
       absent,
+      holidayToday: holidayToday ? holidayToday.name : null,
       late,
       halfDay,
       attendanceDate: today.toISOString().slice(0, 10),

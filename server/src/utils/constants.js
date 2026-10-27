@@ -214,4 +214,7 @@ export const DOCUMENT_TYPE = Object.freeze({
   EDUCATIONAL_CERTIFICATE: 'EDUCATIONAL_CERTIFICATE',
   MEDICAL_PROOF: 'MEDICAL_PROOF',
   OTHER: 'OTHER',
+  // Uploaded by HR/Admin only, for one employee and month (payslipPeriod); never
+  // part of the employee's profile documents or the document approval queue.
+  PAYSLIP: 'PAYSLIP',
 });

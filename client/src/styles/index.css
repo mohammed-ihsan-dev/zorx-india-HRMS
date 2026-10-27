@@ -57,3 +57,164 @@ input, select, textarea {
 .shadow-card-lg {
   box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.05), 0 8px 10px -6px rgba(15, 23, 42, 0.03);
 }
+
+/* ------------------------------------------------------------------------- */
+/* Mobile employee shell (phones only).                                      */
+/* `.zm-mobile` is added by EmployeeLayout below 768px, so tablet/desktop and */
+/* every admin layout keep their original light styling. These rules re-map   */
+/* the light utilities used by pages that have no dedicated mobile view       */
+/* (Profile, Tasks, WFH, Notifications, Settings, Content Calendar) onto the  */
+/* dark green palette. Status hues are kept (green/amber/red/sky/purple) so   */
+/* their meaning never changes — only their light tints become dark tints.    */
+/* Modals portal out of the shell and re-add `.zm-mobile` themselves (Modal), */
+/* and toasts follow while the shell is mounted (`.zm-toaster` below).        */
+/* ------------------------------------------------------------------------- */
+.zm-mobile {
+  --zm-bg: #101418;
+  --zm-card: #19232c;
+  --zm-elev: #222e38;
+  --zm-border: #2b3943;
+  --zm-text: #f4f7f5;
+  --zm-text-2: #d3dbe1;
+  --zm-muted: #a6b2bc;
+  --zm-green: #16834a;
+  --zm-green-light: #5cc98a;
+  color: var(--zm-text);
+  background-color: var(--zm-bg);
+  color-scheme: dark;
+}
+/* A modal's full-screen wrapper only carries the theme; its backdrop stays. */
+.zm-mobile.zm-portal { background-color: transparent; }
+/* Focus-ring offsets default to white, which shows as a halo on dark cards. */
+.zm-mobile,
+.zm-mobile * { --tw-ring-offset-color: var(--zm-card); }
+
+/* Surfaces */
+.zm-mobile .bg-white,
+.zm-mobile .bg-white\/90,
+.zm-mobile .bg-white\/80 { background-color: var(--zm-card); }
+.zm-mobile .bg-slate-50,
+.zm-mobile .bg-slate-50\/50,
+.zm-mobile .bg-slate-50\/60,
+.zm-mobile .bg-slate-50\/80,
+.zm-mobile .bg-slate-50\/90,
+.zm-mobile .bg-slate-100,
+.zm-mobile .bg-slate-100\/80 { background-color: var(--zm-elev); }
+.zm-mobile .bg-slate-200,
+.zm-mobile .bg-slate-300 { background-color: #33424e; }
+.zm-mobile .from-white { --tw-gradient-from: var(--zm-card) var(--tw-gradient-from-position); --tw-gradient-to: rgb(25 35 44 / 0) var(--tw-gradient-to-position); --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to); }
+.zm-mobile .via-white { --tw-gradient-to: rgb(25 35 44 / 0) var(--tw-gradient-to-position); --tw-gradient-stops: var(--tw-gradient-from), var(--zm-card) var(--tw-gradient-via-position), var(--tw-gradient-to); }
+.zm-mobile .to-white,
+.zm-mobile .to-brand-50\/20 { --tw-gradient-to: var(--zm-card) var(--tw-gradient-to-position); }
+.zm-mobile .hover\:bg-slate-50:hover,
+.zm-mobile .hover\:bg-slate-100:hover,
+.zm-mobile .hover\:bg-slate-100\/80:hover,
+.zm-mobile .hover\:bg-slate-200:hover,
+.zm-mobile .hover\:bg-slate-200\/50:hover,
+.zm-mobile .hover\:bg-slate-200\/70:hover { background-color: #2a3742; }
+.zm-mobile .focus\:bg-white:focus { background-color: var(--zm-elev); }
+
+/* Text */
+/* `:where()` on purpose: the base h1/h2/h3/p/input rules above `@apply` these
+   classes, and @apply copies every rule naming them — as `.zm-mobile p` etc.
+   that would out-rank any colour class on those elements. With :where the
+   copies stay at element specificity, while these still win by source order. */
+:where(.zm-mobile) .text-slate-900,
+:where(.zm-mobile) .text-slate-800,
+:where(.zm-mobile) .text-slate-700,
+:where(.zm-mobile) .hover\:text-slate-900:hover,
+:where(.zm-mobile) .hover\:text-slate-800:hover,
+:where(.zm-mobile) .hover\:text-slate-700:hover { color: var(--zm-text); }
+:where(.zm-mobile) .text-slate-600,
+:where(.zm-mobile) .hover\:text-slate-600:hover { color: var(--zm-text-2); }
+.zm-mobile .text-slate-500,
+.zm-mobile .text-slate-400 { color: var(--zm-muted); }
+.zm-mobile .placeholder\:text-slate-400::placeholder { color: #7d8a95; }
+
+/* Borders & dividers */
+.zm-mobile .border-slate-100,
+.zm-mobile .border-slate-100\/80,
+.zm-mobile .border-slate-200,
+.zm-mobile .border-slate-200\/60,
+.zm-mobile .border-slate-200\/80,
+.zm-mobile .border-slate-200\/90,
+.zm-mobile .border-slate-300,
+.zm-mobile .hover\:border-slate-300:hover { border-color: var(--zm-border); }
+.zm-mobile .divide-slate-100 > :not([hidden]) ~ :not([hidden]),
+.zm-mobile .divide-slate-200 > :not([hidden]) ~ :not([hidden]) { border-color: var(--zm-border); }
+.zm-mobile .ring-slate-300 { --tw-ring-color: var(--zm-border); }
+
+/* Brand (green) accents: lighter on dark so they stay readable */
+.zm-mobile .text-brand-700,
+.zm-mobile .text-brand-800,
+.zm-mobile .text-brand-900,
+.zm-mobile .hover\:text-brand-700:hover,
+.zm-mobile .hover\:text-brand-800:hover,
+.zm-mobile .hover\:text-brand-900:hover,
+.zm-mobile .group:hover .group-hover\:text-brand-700 { color: var(--zm-green-light); }
+.zm-mobile .bg-brand-50,
+.zm-mobile .bg-brand-50\/40,
+.zm-mobile .bg-brand-50\/50,
+.zm-mobile .bg-brand-50\/60,
+.zm-mobile .hover\:bg-brand-50:hover,
+.zm-mobile .hover\:bg-brand-50\/30:hover { background-color: rgb(22 131 74 / 0.14); }
+.zm-mobile .bg-brand-100,
+.zm-mobile .bg-brand-100\/90,
+.zm-mobile .hover\:bg-brand-100:hover,
+.zm-mobile .bg-brand-200,
+.zm-mobile .hover\:bg-brand-200:hover { background-color: rgb(22 131 74 / 0.24); }
+.zm-mobile .border-brand-100,
+.zm-mobile .border-brand-200,
+.zm-mobile .border-brand-200\/60,
+.zm-mobile .border-brand-200\/80,
+.zm-mobile .border-brand-300 { border-color: rgb(92 201 138 / 0.35); }
+.zm-mobile .bg-brand-800,
+.zm-mobile .bg-brand-700 { background-color: var(--zm-green); }
+.zm-mobile .hover\:bg-brand-900:hover { background-color: #116b3a; }
+.zm-mobile .focus\:ring-brand-200:focus,
+.zm-mobile .focus\:ring-brand-500\/20:focus { --tw-ring-color: rgb(92 201 138 / 0.35); }
+.zm-mobile .focus\:border-brand-500:focus,
+.zm-mobile .focus\:border-brand-600:focus { border-color: var(--zm-green-light); }
+.zm-mobile .text-brand-600 { color: var(--zm-green-light); }
+.zm-mobile .hover\:border-brand-400:hover { border-color: var(--zm-green-light); }
+.zm-mobile .bg-brand-800\/50,
+.zm-mobile .disabled\:bg-brand-800\/50:disabled { background-color: rgb(22 131 74 / 0.45); }
+
+/* Semantic status tints — same hue, dark tint */
+.zm-mobile .bg-emerald-50, .zm-mobile .bg-emerald-50\/20, .zm-mobile .bg-emerald-100, .zm-mobile .bg-emerald-100\/80 { background-color: rgb(16 185 129 / 0.14); }
+.zm-mobile .bg-amber-50, .zm-mobile .bg-amber-50\/70, .zm-mobile .bg-amber-100, .zm-mobile .bg-amber-100\/80, .zm-mobile .bg-amber-100\/90 { background-color: rgb(245 158 11 / 0.14); }
+.zm-mobile .bg-red-50, .zm-mobile .bg-red-100\/90, .zm-mobile .bg-rose-50, .zm-mobile .bg-rose-100, .zm-mobile .bg-rose-100\/80, .zm-mobile .hover\:bg-rose-50:hover { background-color: rgb(244 63 94 / 0.14); }
+.zm-mobile .bg-sky-50, .zm-mobile .bg-sky-100\/80, .zm-mobile .bg-sky-100\/90, .zm-mobile .hover\:bg-sky-100:hover, .zm-mobile .bg-blue-50\/20 { background-color: rgb(14 165 233 / 0.14); }
+.zm-mobile .text-emerald-700, .zm-mobile .text-emerald-800, .zm-mobile .text-emerald-900, .zm-mobile .text-emerald-950 { color: #6ee7b7; }
+.zm-mobile .text-amber-700, .zm-mobile .text-amber-800, .zm-mobile .text-amber-900, .zm-mobile .text-amber-950 { color: #fcd34d; }
+.zm-mobile .text-red-600, .zm-mobile .text-red-800, .zm-mobile .text-red-900, .zm-mobile .text-rose-600, .zm-mobile .text-rose-800, .zm-mobile .text-rose-900, .zm-mobile .text-rose-950, .zm-mobile .hover\:text-rose-600:hover, .zm-mobile .hover\:text-rose-800:hover { color: #fda4af; }
+.zm-mobile .text-sky-800, .zm-mobile .text-sky-900, .zm-mobile .text-sky-950 { color: #7dd3fc; }
+.zm-mobile .border-emerald-200, .zm-mobile .border-emerald-200\/80, .zm-mobile .border-emerald-200\/90 { border-color: rgb(110 231 183 / 0.3); }
+.zm-mobile .border-amber-200, .zm-mobile .border-amber-200\/90, .zm-mobile .border-amber-300, .zm-mobile .border-amber-300\/80 { border-color: rgb(252 211 77 / 0.3); }
+.zm-mobile .border-red-400, .zm-mobile .focus\:border-red-500:focus { border-color: #fb7185; }
+.zm-mobile .focus\:ring-red-100:focus { --tw-ring-color: rgb(251 113 133 / 0.3); }
+.zm-mobile .text-red-700 { color: #fda4af; }
+.zm-mobile .border-red-200, .zm-mobile .border-red-300, .zm-mobile .border-rose-200, .zm-mobile .border-rose-200\/90 { border-color: rgb(253 164 175 / 0.3); }
+.zm-mobile .border-sky-200, .zm-mobile .border-sky-200\/90, .zm-mobile .border-sky-300 { border-color: rgb(125 211 252 / 0.3); }
+.zm-mobile .via-emerald-50\/40, .zm-mobile .via-amber-50\/40, .zm-mobile .via-rose-50\/40, .zm-mobile .via-sky-50\/40 { --tw-gradient-stops: var(--tw-gradient-from), transparent var(--tw-gradient-via-position), var(--tw-gradient-to); }
+.zm-mobile .from-emerald-50\/70, .zm-mobile .from-rose-50\/70 { --tw-gradient-from: transparent var(--tw-gradient-from-position); --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to); }
+
+/* Base element colours (the h1/h2/h3/p/input rules above). `:where()` keeps
+   these at element specificity, so any explicit colour class still wins. */
+:where(.zm-mobile) h1,
+:where(.zm-mobile) h2,
+:where(.zm-mobile) h3,
+:where(.zm-mobile) input,
+:where(.zm-mobile) select,
+:where(.zm-mobile) textarea { color: var(--zm-text); }
+:where(.zm-mobile) p { color: var(--zm-text-2); }
+
+/* Keyboard focus stays visible on dark surfaces */
+.zm-mobile :focus-visible { outline: 2px solid var(--zm-green-light); outline-offset: 2px; }
+
+/* Toasts render outside every layout; while the phone shell is mounted they
+   take its dark tones (same hue per type). Nothing else ever has `.zm-mobile`. */
+:root:has(.zm-mobile) .zm-toaster > .bg-brand-50 { background-color: #14301f; border-color: rgb(92 201 138 / 0.4); color: #c9f0d8; }
+:root:has(.zm-mobile) .zm-toaster > .bg-red-50 { background-color: #3a1d26; border-color: rgb(253 164 175 / 0.4); color: #fecdd3; }
+:root:has(.zm-mobile) .zm-toaster > .bg-white { background-color: #222e38; border-color: #2b3943; color: #f4f7f5; }
+:root:has(.zm-mobile) .zm-toaster p { color: inherit; }

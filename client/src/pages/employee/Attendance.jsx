@@ -13,6 +13,8 @@ import { useAuth } from '../../hooks/useAuth.js';
 import { getErrorMessage } from '../../services/apiClient.js';
 import { useTodayAttendance } from '../../features/attendance/useTodayAttendance.js';
 import { TodayAttendanceTimeline } from '../../features/attendance/TodayAttendanceTimeline.jsx';
+import { MobileCalendarView } from '../../features/attendance/MobileCalendarView.jsx';
+import { useMobileShell } from '../../context/MobileShellContext.jsx';
 
 const STATUS_OPTIONS = ['', 'PRESENT', 'LATE', 'HALF_DAY', 'ABSENT', 'LEAVE'];
 
@@ -27,6 +29,7 @@ export function Attendance() {
   const toast = useToast();
   const { user } = useAuth();
   const isSuperAdmin = user?.role === 'SUPER_ADMIN';
+  const mobile = useMobileShell();
   const [records, setRecords] = useState([]);
   const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState('');
@@ -35,6 +38,7 @@ export function Attendance() {
 
   useEffect(() => {
     if (isSuperAdmin) return; // administrative-only — no personal attendance to load
+    if (mobile) return; // the phone calendar loads its own month
     setLoading(true);
     const params = {
       status: status || undefined,
@@ -46,12 +50,16 @@ export function Attendance() {
       .then((res) => setRecords(res.data))
       .catch((err) => toast.error(getErrorMessage(err)))
       .finally(() => setLoading(false));
-  }, [selectedDate, status, toast, isSuperAdmin]);
+  }, [selectedDate, status, toast, isSuperAdmin, mobile]);
 
   // Super Admin's attendance is an administrative monitoring view only
   // (/admin/attendance) — they never see or use a personal punch history page.
   if (isSuperAdmin) {
     return <Navigate to="/admin/attendance" replace />;
+  }
+
+  if (mobile) {
+    return <MobileCalendarView />;
   }
 
   const summary = records.reduce(

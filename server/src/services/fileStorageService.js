@@ -68,6 +68,14 @@ export const documentUpload = multer({
   limits: { fileSize: MAX_SIZE_BYTES.DEFAULT },
 }).single('file');
 
+// Payslips: PDF only, same private directory, random names and 5MB limit as other documents.
+export const payslipUpload = multer({
+  storage,
+  fileFilter: (req, file, cb) =>
+    file.mimetype === 'application/pdf' ? cb(null, true) : cb(ApiError.badRequest('Payslips must be PDF files.')),
+  limits: { fileSize: MAX_SIZE_BYTES.DEFAULT },
+}).single('file');
+
 /** Enforces the per-document-type size limit after multer's generic limit has already passed. */
 export function assertWithinSizeLimit(documentType, sizeBytes) {
   const limit = MAX_SIZE_BYTES[documentType] || MAX_SIZE_BYTES.DEFAULT;

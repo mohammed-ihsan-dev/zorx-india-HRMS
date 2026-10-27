@@ -4,6 +4,7 @@ import { useAuth } from '../../hooks/useAuth.js';
 import { useToast } from '../../hooks/useToast.js';
 import * as attendanceService from '../../services/attendanceService.js';
 import { ROLES } from '../../utils/constants.js';
+import { useMobileShell } from '../../context/MobileShellContext.jsx';
 import {
   BREAK_REMINDER,
   createBreakReminderScheduler,
@@ -71,6 +72,7 @@ const getStore = () => {
  * browser/tab is closed). Super Admins don't record attendance and are skipped.
  */
 export function BreakReminderWatcher() {
+  const inMobileShell = useMobileShell(); // keep the banner above the phone bottom nav
   const { user } = useAuth();
   const toast = useToast();
   const [overNotice, setOverNotice] = useState(false);
@@ -151,7 +153,9 @@ export function BreakReminderWatcher() {
   if (!overNotice) return null;
   const { title, message } = REMINDER_TEXT[BREAK_REMINDER.TIME_OVER];
   return (
-    <div className="fixed bottom-4 right-4 left-4 sm:left-auto z-[90] sm:w-96 rounded-xl border border-rose-200 bg-rose-50 text-rose-900 shadow-popover p-4 flex items-start gap-3 animate-in" role="alert" aria-live="assertive">
+    <div className={`fixed ${inMobileShell ? 'bottom-[calc(env(safe-area-inset-bottom,0px)+92px)]' : 'bottom-4'} right-4 left-4 sm:left-auto z-[90] sm:w-96 rounded-xl border shadow-popover p-4 flex items-start gap-3 animate-in ${
+        inMobileShell ? 'border-rose-400/50 bg-[#3a1d26] text-rose-50' : 'border-rose-200 bg-rose-50 text-rose-900'
+      }`} role="alert" aria-live="assertive">
       <AlarmClock size={22} className="shrink-0 text-rose-600 mt-0.5" aria-hidden="true" />
       <div className="flex-1">
         <p className="font-bold">{title}</p>

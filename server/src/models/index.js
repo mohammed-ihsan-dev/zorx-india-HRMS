@@ -14,3 +14,4 @@ export { OfficeSettings } from './OfficeSettings.js';
 export { EditRequest } from './EditRequest.js';
 export { ProfileDocument } from './ProfileDocument.js';
 export { WorkFromHome } from './WorkFromHome.js';
+export { Holiday } from './Holiday.js';

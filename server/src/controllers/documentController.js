@@ -9,6 +9,9 @@ import { notify } from '../services/notificationService.js';
 import { assertWithinSizeLimit, absolutePathFor, deleteStoredFile } from '../services/fileStorageService.js';
 import { DOCUMENT_TYPE, BACK_OFFICE_ROLES, NOTIFICATION_TYPE } from '../utils/constants.js';
 
+// Payslips share this storage but are managed only through payslipController.
+const NOT_PAYSLIP = { documentType: { $ne: DOCUMENT_TYPE.PAYSLIP } };
+
 function requireEmployee(req) {
   const employeeId = req.user.employeeId?._id;
   if (!employeeId) throw ApiError.forbidden('Only employees can perform this action.');
@@ -24,7 +27,7 @@ export const uploadDocument = asyncHandler(async (req, res) => {
   }
 
   const { documentType } = req.body;
-  if (!Object.values(DOCUMENT_TYPE).includes(documentType)) {
+  if (!Object.values(DOCUMENT_TYPE).includes(documentType) || documentType === DOCUMENT_TYPE.PAYSLIP) {
     deleteStoredFile(req.file.filename);
     throw ApiError.badRequest('Invalid document type.');
   }
@@ -74,7 +77,7 @@ export const uploadDocument = asyncHandler(async (req, res) => {
 });
 
 export const approveDocument = asyncHandler(async (req, res) => {
-  const document = await ProfileDocument.findById(req.params.id).populate('employeeId');
+  const document = await ProfileDocument.findOne({ _id: req.params.id, ...NOT_PAYSLIP }).populate('employeeId');
   if (!document) throw ApiError.notFound('Document not found.');
 
   document.status = 'APPROVED';
@@ -105,7 +108,7 @@ export const approveDocument = asyncHandler(async (req, res) => {
 });
 
 export const rejectDocument = asyncHandler(async (req, res) => {
-  const document = await ProfileDocument.findById(req.params.id).populate('employeeId');
+  const document = await ProfileDocument.findOne({ _id: req.params.id, ...NOT_PAYSLIP }).populate('employeeId');
   if (!document) throw ApiError.notFound('Document not found.');
 
   document.status = 'REJECTED';
@@ -138,7 +141,7 @@ export const rejectDocument = asyncHandler(async (req, res) => {
 
 export const listAllDocuments = asyncHandler(async (req, res) => {
   const { status, page = 1, limit = 30 } = req.query;
-  const filter = {};
+  const filter = { ...NOT_PAYSLIP };
   if (status) filter.status = status;
 
   const pageNum = Number(page) || 1;
@@ -158,12 +161,12 @@ export const listAllDocuments = asyncHandler(async (req, res) => {
 
 export const listMyDocuments = asyncHandler(async (req, res) => {
   const employeeId = requireEmployee(req);
-  const documents = await ProfileDocument.find({ employeeId }).sort({ createdAt: -1 });
+  const documents = await ProfileDocument.find({ employeeId, ...NOT_PAYSLIP }).sort({ createdAt: -1 });
   sendSuccess(res, { data: documents });
 });
 
 export const listDocumentsForEmployee = asyncHandler(async (req, res) => {
-  const documents = await ProfileDocument.find({ employeeId: req.params.employeeId }).sort({ createdAt: -1 });
+  const documents = await ProfileDocument.find({ employeeId: req.params.employeeId, ...NOT_PAYSLIP }).sort({ createdAt: -1 });
   sendSuccess(res, { data: documents });
 });
 

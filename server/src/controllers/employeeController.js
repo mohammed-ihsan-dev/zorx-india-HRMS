@@ -8,6 +8,7 @@ import { ApiError } from '../utils/ApiError.js';
 import { recordAudit } from '../services/auditService.js';
 import { notify } from '../services/notificationService.js';
 import { profilePicturePublicPath, deleteProfilePicture } from '../services/fileStorageService.js';
+import { isCloudinaryEnabled, uploadImageFile, ownedPublicIdFromUrl, destroyImage } from '../services/cloudinaryService.js';
 import { TASK_STATUS, ATTENDANCE_STATUS, USER_STATUS, NOTIFICATION_TYPE } from '../utils/constants.js';
 
 export async function generateEmployeeCode() {
@@ -212,15 +213,32 @@ export const uploadProfilePicture = asyncHandler(async (req, res) => {
   }
 
   const previousImage = employee.profileImage;
-  const rawProtocol = req.headers['x-forwarded-proto'] || req.protocol || 'https';
-  const host = req.get('host');
-  const scheme = (rawProtocol === 'http' && !host.includes('localhost')) ? 'https' : rawProtocol;
-  employee.profileImage = `${scheme}://${host}${profilePicturePublicPath(req.file.filename)}`;
+  if (isCloudinaryEnabled()) {
+    // Cloudinary is the permanent store; the local multer file is only temporary.
+    let uploaded;
+    try {
+      uploaded = await uploadImageFile(req.file.path, { subfolder: 'profile-pictures', mimeType: req.file.mimetype });
+    } catch (err) {
+      console.error(`[cloudinary] profile picture upload failed: ${err.message}`);
+      throw new ApiError(502, 'Could not store the image right now. Please try again.');
+    } finally {
+      deleteProfilePicture(req.file.filename);
+    }
+    employee.profileImage = uploaded.url;
+  } else {
+    const rawProtocol = req.headers['x-forwarded-proto'] || req.protocol || 'https';
+    const host = req.get('host');
+    const scheme = (rawProtocol === 'http' && !host.includes('localhost')) ? 'https' : rawProtocol;
+    employee.profileImage = `${scheme}://${host}${profilePicturePublicPath(req.file.filename)}`;
+  }
   await employee.save();
 
-  // Only remove the old file if it was one of our own uploads (not a static
-  // seed-data asset served from the frontend's public/ folder).
-  if (previousImage && previousImage.includes('/uploads/profile-pictures/')) {
+  // Only remove the old image if it was one of our own uploads (never a static
+  // seed-data asset from the frontend's public/ folder or someone else's URL).
+  const previousPublicId = ownedPublicIdFromUrl(previousImage);
+  if (previousPublicId) {
+    await destroyImage(previousPublicId);
+  } else if (previousImage && previousImage.includes('/uploads/profile-pictures/')) {
     deleteProfilePicture(previousImage.split('/uploads/profile-pictures/').pop());
   }
 

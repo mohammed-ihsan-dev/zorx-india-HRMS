@@ -10,3 +10,9 @@ process.env.WORKING_END_TIME = '18:00';
 process.env.BREAK_DURATION_MINUTES = '60';
 process.env.LATE_THRESHOLD_MINUTES = '15';
 process.env.HALF_DAY_THRESHOLD_MINUTES = '240';
+// Never use the real Cloudinary account from tests (server/.env is loaded by
+// dotenv, which does not override variables that are already set).
+process.env.CLOUDINARY_URL = '';
+process.env.CLOUDINARY_CLOUD_NAME = '';
+process.env.CLOUDINARY_API_KEY = '';
+process.env.CLOUDINARY_API_SECRET = '';

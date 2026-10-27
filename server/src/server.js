@@ -12,6 +12,11 @@ async function main() {
     console.log(`[server] ZORX INDIA API listening on port ${env.port} (${env.nodeEnv})`);
     console.log(`[mail] provider: ${getMailProvider() || 'none'}`);
     for (const w of mailConfigWarnings()) console.warn(`[mail] WARNING: ${w}`);
+    console.log(
+      env.cloudinary.enabled
+        ? `[images] Cloudinary (cloud "${env.cloudinary.cloudName}", folder "${env.cloudinary.folder}")`
+        : '[images] WARNING: Cloudinary not configured — profile pictures are stored on local disk'
+    );
   });
 }
 

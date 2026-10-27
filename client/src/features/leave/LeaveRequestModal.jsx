@@ -11,9 +11,9 @@ import { countDaysInclusive } from '../../utils/calendarDate.js';
 import { formatDate } from '../../utils/formatters.js';
 
 const LEAVE_OPTIONS = [
-  { type: 'CASUAL', label: 'Casual Leave (+1 per month, carries forward)' },
-  { type: 'SICK', label: 'Sick Leave (1 per month)' },
-  { type: 'PAID', label: "Paid Leave (User's Risk)" },
+  { type: 'CASUAL', label: 'Casual Leave' },
+  { type: 'SICK', label: 'Sick Leave' },
+  { type: 'PAID', label: 'Paid Leave' },
 ];
 const MONTHLY_ALLOWANCE = { SICK: 1 };
 const ACTIVE_STATUSES = ['PENDING', 'APPROVED'];
@@ -164,7 +164,6 @@ export function LeaveRequestModal({ open, onClose, initialDate, onSubmitted, lea
           {LEAVE_OPTIONS.map(({ type, label }) => (
             <option key={type} value={type} disabled={Boolean(unavailableReason(type))}>
               {label}
-              {unavailableReason(type) ? ' — not available' : ''}
             </option>
           ))}
         </Select>

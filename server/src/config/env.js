@@ -26,6 +26,30 @@ const parsedOrigins = process.env.CLIENT_ORIGIN
 
 const clientOrigins = Array.from(new Set([...defaultOrigins, ...parsedOrigins]));
 
+function parseCloudinary() {
+  let fromUrl = {};
+  try {
+    if (process.env.CLOUDINARY_URL) {
+      const u = new URL(process.env.CLOUDINARY_URL);
+      if (u.protocol === 'cloudinary:') {
+        fromUrl = { cloudName: u.hostname, apiKey: decodeURIComponent(u.username), apiSecret: decodeURIComponent(u.password) };
+      }
+    }
+  } catch {
+    // Malformed URL: treated as unconfigured (warned about at startup).
+  }
+  const cloudName = process.env.CLOUDINARY_CLOUD_NAME || fromUrl.cloudName || '';
+  const apiKey = process.env.CLOUDINARY_API_KEY || fromUrl.apiKey || '';
+  const apiSecret = process.env.CLOUDINARY_API_SECRET || fromUrl.apiSecret || '';
+  return {
+    cloudName,
+    apiKey,
+    apiSecret,
+    folder: (process.env.CLOUDINARY_FOLDER || 'zorx_hrms').replace(/^\/+|\/+$/g, ''),
+    enabled: Boolean(cloudName && apiKey && apiSecret),
+  };
+}
+
 export const env = {
   nodeEnv: process.env.NODE_ENV || 'development',
   port: Number(process.env.PORT) || 5000,
@@ -65,6 +89,10 @@ export const env = {
     // e.g. Render free instances). When set, it is used instead of SMTP.
     resendApiKey: process.env.RESEND_API_KEY || '',
   },
+  // Cloudinary image storage (profile pictures). CLOUDINARY_URL is
+  // cloudinary://<api_key>:<api_secret>@<cloud_name>; the separate variables
+  // override it. Unconfigured = images stay on the server's own disk.
+  cloudinary: parseCloudinary(),
   // Public URL of the frontend, used to build the reset link.
   appUrl: (process.env.APP_URL || 'http://localhost:5173').replace(/\/+$/, ''),
 

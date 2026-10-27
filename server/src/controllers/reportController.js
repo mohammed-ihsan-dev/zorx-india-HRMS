@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import { Attendance } from '../models/Attendance.js';
 import { Leave } from '../models/Leave.js';
 import { Employee } from '../models/Employee.js';
@@ -6,6 +7,10 @@ import { Task } from '../models/Task.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { sendSuccess } from '../utils/ApiResponse.js';
 import { getZonedParts } from '../utils/dateUtils.js';
+import { ApiError } from '../utils/ApiError.js';
+import { env } from '../config/env.js';
+import { buildTablePdf } from '../utils/simplePdf.js';
+import { buildSalaryRows, monthRange, employeeDisplayName, slugify, SALARY_COLUMNS, OVERTIME_CUTOFF } from '../services/salaryReportService.js';
 import { ROLES } from '../utils/constants.js';
 
 function toCsv(rows, columns) {
@@ -204,4 +209,67 @@ export const taskReport = asyncHandler(async (req, res) => {
     return sendCsv(res, `task-report${rangeSuffix(from, to)}.csv`, toCsv(records, columns));
   }
   sendSuccess(res, { data: records });
+});
+
+/**
+ * GET /reports/salary?month=YYYY-MM[&employeeId=...][&format=csv|pdf]
+ * Back office only (router-level requireRole). Read-only: attendance days with
+ * a recorded check-in in that month, with overtime worked after 7:00 PM.
+ */
+export const salaryReport = asyncHandler(async (req, res) => {
+  const { employeeId, format } = req.query;
+  const now = getZonedParts(new Date());
+  const month = req.query.month || `${now.year}-${String(now.month).padStart(2, '0')}`;
+  const range = monthRange(month);
+  if (!range) throw ApiError.badRequest('Please choose a valid month (YYYY-MM).');
+  if (format && !['csv', 'pdf'].includes(format)) throw ApiError.badRequest('Unsupported export format.');
+
+  let employee = null;
+  if (employeeId) {
+    if (!mongoose.isValidObjectId(employeeId)) throw ApiError.badRequest('Invalid employee.');
+    employee = await Employee.findById(employeeId).select('firstName lastName employeeCode').lean();
+    if (!employee) throw ApiError.notFound('Employee not found.');
+  }
+
+  const filter = { date: { $gte: range.start, $lt: range.end }, 'checkIn.timestamp': { $ne: null } };
+  if (employee) filter.employeeId = employee._id;
+  const records = await Attendance.find(filter)
+    .select('employeeId date checkIn.timestamp checkOut.timestamp')
+    .populate('employeeId', 'firstName lastName employeeCode')
+    .lean();
+  const rows = buildSalaryRows(records);
+  const scope = employee ? employeeDisplayName(employee) : 'All Employees';
+
+  if (!format) {
+    return sendSuccess(res, {
+      data: rows,
+      meta: { month, monthLabel: range.label, employee: scope, cutoff: OVERTIME_CUTOFF, total: rows.length },
+    });
+  }
+
+  if (!rows.length) throw ApiError.notFound(`No attendance records for ${scope} in ${range.label}.`);
+  const filename = `salary-report${employee ? `-${slugify(scope) || 'employee'}` : ''}-${month}`;
+
+  if (format === 'csv') {
+    return sendCsv(res, `${filename}.csv`, toCsv(rows, SALARY_COLUMNS));
+  }
+
+  const generated = formatIstTimestamp(new Date()).slice(0, 16);
+  const pdf = buildTablePdf({
+    brand: 'ZORX INDIA',
+    title: 'Salary Report',
+    meta: [`Month: ${range.label}`, `Employee: ${scope}`, `Generated: ${generated} (${env.timezone})`, `Overtime = time worked after 7:00 PM, from the recorded check-out · ${rows.length} record${rows.length === 1 ? '' : 's'}`],
+    columns: [
+      { label: 'Employee Name', width: 175 },
+      { label: 'Date', width: 85 },
+      { label: 'Check-in Time', width: 85 },
+      { label: 'Check-out Time', width: 85 },
+      { label: 'Overtime Used', width: 85 },
+    ],
+    rows: rows.map((r) => SALARY_COLUMNS.map((c) => c.value(r))),
+    footer: 'ZORX INDIA · Salary Report · Attendance-based, not a payroll statement',
+  });
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', `attachment; filename="${filename}.pdf"`);
+  return res.send(pdf);
 });

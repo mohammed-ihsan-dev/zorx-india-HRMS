@@ -10,11 +10,22 @@ export const getLeaveReport = (params) => fetchReport('/reports/leave', params);
 export const getEmployeeReport = (params) => fetchReport('/reports/employees', params);
 export const getTaskReport = (params) => fetchReport('/reports/tasks', params);
 
+/** Salary Report rows plus meta (month label, employee scope, total). */
+export async function getSalaryReport(params) {
+  const { data } = await apiClient.get('/reports/salary', { params });
+  return { rows: data.data, meta: data.meta };
+}
+
 export async function downloadReportCsv(path, params = {}) {
+  return downloadReportFile(path, params, 'csv');
+}
+
+/** Downloads a server-generated export (`format` = 'csv' | 'pdf'). */
+export async function downloadReportFile(path, params = {}, format = 'csv') {
   const token = localStorage.getItem('zorx_token');
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
   const cleanParams = Object.fromEntries(Object.entries(params).filter(([, v]) => v !== undefined && v !== ''));
-  const query = new URLSearchParams({ ...cleanParams, format: 'csv' }).toString();
+  const query = new URLSearchParams({ ...cleanParams, format }).toString();
   const url = `${API_URL}${path}?${query}`;
 
   const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
@@ -31,7 +42,7 @@ export async function downloadReportCsv(path, params = {}) {
 
   const disposition = res.headers.get('Content-Disposition') || '';
   const match = disposition.match(/filename="([^"]+)"/);
-  const filename = match ? match[1] : `${path.split('/').pop()}-report.csv`;
+  const filename = match ? match[1] : `${path.split('/').pop()}-report.${format}`;
 
   const blob = await res.blob();
   const link = document.createElement('a');

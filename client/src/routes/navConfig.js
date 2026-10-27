@@ -13,6 +13,8 @@ import {
   ShieldCheck,
   CalendarDays,
   House,
+  ReceiptText,
+  PartyPopper,
 } from 'lucide-react';
 import { ROLES } from '../utils/constants.js';
 
@@ -29,6 +31,9 @@ export const employeeNavItems = [
   { to: '/settings', label: 'Settings', icon: Settings },
 ];
 
+// Phone-only entries: shown in the mobile Menu, not in the tablet/desktop sidebar.
+export const employeeMobileMenuItems = [{ to: '/payslips', label: 'Payslips', icon: ReceiptText }];
+
 export const adminNavItems = [
   { to: '/admin', label: 'Dashboard', icon: LayoutDashboard, end: true },
   { to: '/admin/employees', label: 'Employees', icon: Users },
@@ -37,6 +42,8 @@ export const adminNavItems = [
   { to: '/admin/work-from-home', label: 'Work From Home', icon: House },
   { to: '/admin/tasks', label: 'Tasks', icon: ListChecks },
   { to: '/admin/content-calendar', label: 'Content Calendar', icon: CalendarDays },
+  { to: '/admin/payslips', label: 'Payslips', icon: ReceiptText },
+  { to: '/admin/holidays', label: 'Holidays', icon: PartyPopper },
   { to: '/admin/departments', label: 'Departments', icon: Building2 },
   { to: '/admin/announcements', label: 'Announcements', icon: Megaphone },
   { to: '/admin/reports', label: 'Reports', icon: FileBarChart },

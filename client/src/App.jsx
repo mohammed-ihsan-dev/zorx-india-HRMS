@@ -28,6 +28,10 @@ const Announcements = lazy(() => import('./pages/employee/Announcements.jsx').th
 const SettingsPage = lazy(() => import('./pages/employee/SettingsPage.jsx').then((m) => ({ default: m.SettingsPage })));
 // One shared implementation, mounted at two paths (see the component's own docblock).
 const ContentCalendar = lazy(() => import('./pages/ContentCalendar.jsx').then((m) => ({ default: m.ContentCalendar })));
+const MenuPage = lazy(() => import('./pages/employee/Menu.jsx').then((m) => ({ default: m.MenuPage })));
+const Payslips = lazy(() => import('./pages/employee/Payslips.jsx').then((m) => ({ default: m.Payslips })));
+const AdminPayslips = lazy(() => import('./pages/admin/AdminPayslips.jsx').then((m) => ({ default: m.AdminPayslips })));
+const AdminHolidays = lazy(() => import('./pages/admin/AdminHolidays.jsx').then((m) => ({ default: m.AdminHolidays })));
 
 const AdminDashboard = lazy(() => import('./pages/admin/Dashboard.jsx').then((m) => ({ default: m.AdminDashboard })));
 const Employees = lazy(() => import('./pages/admin/Employees.jsx').then((m) => ({ default: m.Employees })));
@@ -71,6 +75,8 @@ export default function App() {
             <Route path="/notifications" element={<Notifications />} />
             <Route path="/announcements" element={<Announcements />} />
             <Route path="/settings" element={<SettingsPage />} />
+            <Route path="/menu" element={<MenuPage />} />
+            <Route path="/payslips" element={<Payslips />} />
           </Route>
 
           <Route element={<RoleRoute roles={MANAGEMENT_ROLES} />}>
@@ -91,6 +97,8 @@ export default function App() {
                 <Route path="/admin/audit-logs" element={<AuditLogs />} />
                 <Route path="/admin/edit-requests" element={<EditRequests />} />
                 <Route path="/admin/work-from-home" element={<AdminWorkFromHome />} />
+                <Route path="/admin/payslips" element={<AdminPayslips />} />
+                <Route path="/admin/holidays" element={<AdminHolidays />} />
                 <Route path="/admin/settings/office" element={<OfficeSettings />} />
               </Route>
             </Route>
