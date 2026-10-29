@@ -5,7 +5,7 @@ import { asyncHandler } from '../utils/asyncHandler.js';
 import { sendSuccess } from '../utils/ApiResponse.js';
 import { ApiError } from '../utils/ApiError.js';
 import { getStartOfDayUTC } from '../utils/dateUtils.js';
-import { dateKeyFromInput, isDefaultWfhEmployee } from '../services/wfhService.js';
+import { dateKeyFromInput, isDefaultWfhEmployee, recurringWfhPolicyFor, recurringWfhRuleFor } from '../services/wfhService.js';
 import { notify } from '../services/notificationService.js';
 import { recordAudit } from '../services/auditService.js';
 import { WFH_STATUS, NOTIFICATION_TYPE, BACK_OFFICE_ROLES } from '../utils/constants.js';
@@ -75,10 +75,21 @@ export const getMyWfh = asyncHandler(async (req, res) => {
 export const getMyWfhToday = asyncHandler(async (req, res) => {
   const employeeId = req.user.employeeId?._id;
   const defaultWfh = await isDefaultWfhEmployee(employeeId);
-  const request = employeeId && !defaultWfh
-    ? await WorkFromHome.findOne({ employeeId, date: getStartOfDayUTC(), status: WFH_STATUS.APPROVED })
+  const today = getStartOfDayUTC();
+  const recurring = !defaultWfh && Boolean(recurringWfhPolicyFor(employeeId, today));
+  const request = employeeId && !defaultWfh && !recurring
+    ? await WorkFromHome.findOne({ employeeId, date: today, status: WFH_STATUS.APPROVED })
     : null;
-  sendSuccess(res, { data: { approved: defaultWfh || Boolean(request), defaultWfh, request } });
+  sendSuccess(res, {
+    data: {
+      approved: defaultWfh || recurring || Boolean(request),
+      defaultWfh,
+      request,
+      // Today is a recurring WFH day, and the rule itself (calendar display only).
+      recurringToday: recurring,
+      recurringRule: employeeId ? recurringWfhRuleFor(employeeId) : null,
+    },
+  });
 });
 
 export const listWfh = asyncHandler(async (req, res) => {

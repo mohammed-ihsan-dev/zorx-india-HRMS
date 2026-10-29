@@ -11,7 +11,7 @@ import {
 import { ATTENDANCE_STATUS, ATTENDANCE_MODE, ATTENDANCE_VERIFICATION_MODE, BREAK_TYPE } from '../utils/constants.js';
 import { env } from '../config/env.js';
 import { parseAllowlist, isIpAllowed } from '../utils/networkAllowlist.js';
-import { resolveWfhSource, WFH_SOURCE } from './wfhService.js';
+import { resolveWfhSource, WFH_SOURCE, recurringWfhPolicyFor } from './wfhService.js';
 
 /**
  * Distance in meters between a device coordinate and the configured office.
@@ -159,10 +159,13 @@ export function totalCompletedBreakMinutes(attendance) {
  * check-in time (Employee.workingStartTime) in place of the office's when set.
  * The grace period, working hours, overtime and half-day rules stay the office's.
  */
-async function lateRulesFor(employeeId, officeSettings) {
-  const employee = await Employee.findById(employeeId).select('workingStartTime').lean();
-  if (!employee?.workingStartTime) return officeSettings;
-  return { ...(officeSettings.toObject?.() ?? officeSettings), workingStartTime: employee.workingStartTime };
+async function lateRulesFor(employeeId, officeSettings, dateKey = null) {
+  // A recurring WFH policy day uses that policy's scheduled start.
+  const policy = recurringWfhPolicyFor(employeeId, dateKey);
+  const employee = policy ? null : await Employee.findById(employeeId).select('workingStartTime').lean();
+  const start = policy?.workingStartTime || employee?.workingStartTime;
+  if (!start) return officeSettings;
+  return { ...(officeSettings.toObject?.() ?? officeSettings), workingStartTime: start };
 }
 
 /** Minutes late relative to the configured working start time, 0 if on time. */
@@ -205,7 +208,7 @@ export async function performCheckIn(employeeId, coords, { clientIp } = {}) {
   const existing = await Attendance.findOne({ employeeId, date: dateKey });
   canCheckIn(existing);
 
-  const lateMinutes = calculateLateMinutes(now, await lateRulesFor(employeeId, officeSettings));
+  const lateMinutes = calculateLateMinutes(now, await lateRulesFor(employeeId, officeSettings, dateKey));
   const status = lateMinutes > 0 ? ATTENDANCE_STATUS.LATE : ATTENDANCE_STATUS.PRESENT;
 
   const checkInPunch = { timestamp: now, ...location };

@@ -10,6 +10,7 @@ import * as wfhService from '../../services/wfhService.js';
 export function WfhTodayBanner({ record }) {
   const [approvedToday, setApprovedToday] = useState(false);
   const [defaultWfh, setDefaultWfh] = useState(false);
+  const [recurringToday, setRecurringToday] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -19,6 +20,7 @@ export function WfhTodayBanner({ record }) {
         if (cancelled) return;
         setApprovedToday(Boolean(data?.approved));
         setDefaultWfh(Boolean(data?.defaultWfh));
+        setRecurringToday(Boolean(data?.recurringToday));
       })
       .catch(() => {});
     return () => {
@@ -34,7 +36,11 @@ export function WfhTodayBanner({ record }) {
       <div>
         <p className="text-xs font-extrabold uppercase tracking-wider">Work From Home</p>
         <p className="text-sm font-medium mt-0.5">
-          {defaultWfh ? 'You are configured to work from home.' : 'You’re approved to work from home today.'}
+          {defaultWfh
+            ? 'You are configured to work from home.'
+            : recurringToday
+              ? 'Second Saturday — you work from home today (09:30 AM – 06:00 PM).'
+              : 'You’re approved to work from home today.'}
         </p>
       </div>
     </div>

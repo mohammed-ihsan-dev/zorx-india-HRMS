@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Navigate } from 'react-router-dom';
-import { CalendarX2, CheckCircle2, Clock, UserX, Clock3, Calendar, Search, RotateCcw } from 'lucide-react';
+import { CalendarX2, CheckCircle2, Clock, UserX, Clock3, Calendar, Search, RotateCcw, House } from 'lucide-react';
 import { Card } from '../../components/Card.jsx';
 import { Table } from '../../components/Table.jsx';
 import { StatusBadge } from '../../components/StatusBadge.jsx';
@@ -86,11 +86,20 @@ export function Attendance() {
       key: 'date',
       header: 'Date',
       render: (r) =>
-        r.overtimeAfter7Minutes > 0 ? (
-          // Worked after 7:00 PM (server value, from the recorded check-out).
-          <span className="inline-flex items-center gap-1.5 font-semibold text-slate-800" title="Overtime recorded">
+        r.overtimeAfter7Minutes > 0 || r.attendanceMode === 'WFH' ? (
+          // WFH day and/or worked after 7:00 PM (server values from the record).
+          <span className="inline-flex items-center gap-1.5 font-semibold text-slate-800">
             {formatDate(r.date)}
-            <Clock size={14} className="text-slate-400" aria-label="Overtime recorded" />
+            {r.attendanceMode === 'WFH' && (
+              <span title="Work from home">
+                <House size={14} className="text-slate-400" aria-label="Work from home" />
+              </span>
+            )}
+            {r.overtimeAfter7Minutes > 0 && (
+              <span title="Overtime recorded">
+                <Clock size={14} className="text-slate-400" aria-label="Overtime recorded" />
+              </span>
+            )}
           </span>
         ) : (
           <span className="font-semibold text-slate-800">{formatDate(r.date)}</span>

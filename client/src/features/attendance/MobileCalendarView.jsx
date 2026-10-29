@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
-import { CalendarDays, LayoutList, ChevronLeft, ChevronRight, AlertTriangle, PartyPopper, Clock } from 'lucide-react';
+import { CalendarDays, LayoutList, ChevronLeft, ChevronRight, AlertTriangle, PartyPopper, Clock, House } from 'lucide-react';
 import { MobileStatusPill } from '../../components/MobileStatusPill.jsx';
 import * as attendanceService from '../../services/attendanceService.js';
 import * as holidayService from '../../services/holidayService.js';
+import * as wfhService from '../../services/wfhService.js';
+import { isRecurringWfhDay } from '../workFromHome/recurringWfh.js';
 import { getErrorMessage } from '../../services/apiClient.js';
 import { useToast } from '../../hooks/useToast.js';
 import { MONTH_LABELS, toDateInputValue } from '../../utils/calendarDate.js';
@@ -63,6 +65,15 @@ export function MobileCalendarView() {
   const [selected, setSelected] = useState(todayKey);
   const [records, setRecords] = useState([]);
   const [holidays, setHolidays] = useState([]);
+  // Recurring WFH rule for this employee (e.g. SECOND_SATURDAY), from the server.
+  const [wfhRule, setWfhRule] = useState(null);
+
+  useEffect(() => {
+    wfhService
+      .getMyWfhToday()
+      .then((data) => setWfhRule(data?.recurringRule || null))
+      .catch(() => {}); // display only
+  }, []);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -189,6 +200,8 @@ export function MobileCalendarView() {
                     const r = byDay.get(key);
                     const missedOut = isMissedCheckout(r, todayKey);
                     const overtime = hasOvertime(r);
+                    // Recorded as WFH, or a recurring-policy WFH date (eligibility, even before a record).
+                    const wfh = r?.attendanceMode === 'WFH' || isRecurringWfhDay(wfhRule, key);
                     const holiday = holidayByDay.get(key);
                     const tone = r ? CELL_TONE[r.status] || NEUTRAL : holiday ? HOLIDAY_TONE : NEUTRAL;
                     const isToday = key === todayKey;
@@ -199,8 +212,8 @@ export function MobileCalendarView() {
                         type="button"
                         onClick={() => setSelected(key)}
                         aria-pressed={isSelected}
-                        aria-label={`${day} ${MONTH_LABELS[month]}${holiday ? `, holiday: ${holiday.name}` : ''}${r ? `, ${r.status.replace('_', ' ').toLowerCase()}` : ''}${missedOut ? ', missed check-out' : ''}${overtime ? ', overtime recorded' : ''}${isToday ? ', today' : ''}`}
-                        title={overtime ? 'Overtime recorded' : undefined}
+                        aria-label={`${day} ${MONTH_LABELS[month]}${holiday ? `, holiday: ${holiday.name}` : ''}${r ? `, ${r.status.replace('_', ' ').toLowerCase()}` : ''}${missedOut ? ', missed check-out' : ''}${overtime ? ', overtime recorded' : ''}${wfh ? ', work from home' : ''}${isToday ? ', today' : ''}`}
+                        title={[wfh && 'Work from home', overtime && 'Overtime recorded'].filter(Boolean).join(' · ') || undefined}
                         className={`relative aspect-square rounded-xl border text-sm font-bold flex items-center justify-center ${tone} ${
                           isSelected
                             ? 'ring-2 ring-zm-green-light ring-offset-2 ring-offset-zm-card'
@@ -213,6 +226,7 @@ export function MobileCalendarView() {
                         {missedOut && <AlertTriangle size={10} className="absolute bottom-1 right-1 text-amber-300" aria-hidden="true" />}
                         {/* Same size/placement as the triangle, opposite corner; takes the cell's own colour. */}
                         {overtime && <Clock size={10} className="absolute bottom-1 left-1" aria-hidden="true" />}
+                        {wfh && <House size={10} className="absolute top-1 right-1" aria-hidden="true" />}
                       </button>
                     );
                   })}
@@ -238,6 +252,9 @@ export function MobileCalendarView() {
             </li>
             <li className="flex items-center gap-1.5 h-7 px-2.5 rounded-full bg-zm-card border border-zm-border text-xs text-zm-muted">
               <Clock size={12} aria-hidden="true" /> Overtime after 7 PM
+            </li>
+            <li className="flex items-center gap-1.5 h-7 px-2.5 rounded-full bg-zm-card border border-zm-border text-xs text-zm-muted">
+              <House size={12} aria-hidden="true" /> Work from home
             </li>
           </ul>
 
@@ -278,6 +295,14 @@ export function MobileCalendarView() {
             {isMissedCheckout(selectedRecord, todayKey) && (
               <p className="flex items-start gap-2 text-xs font-semibold text-amber-200 bg-amber-500/10 border border-amber-400/30 p-2.5 rounded-xl">
                 <AlertTriangle size={14} className="shrink-0 mt-px" aria-hidden="true" /> No check-out was recorded for this day.
+              </p>
+            )}
+            {(selectedRecord?.attendanceMode === 'WFH' || isRecurringWfhDay(wfhRule, selected)) && (
+              <p className="flex items-center gap-2 text-xs font-semibold text-zm-muted">
+                <House size={14} className="shrink-0" aria-hidden="true" />
+                {isRecurringWfhDay(wfhRule, selected)
+                  ? `Work from home · Second Saturday policy (09:30 AM – 06:00 PM)${selectedRecord ? '' : ' · no attendance recorded'}`
+                  : 'Worked from home'}
               </p>
             )}
             {hasOvertime(selectedRecord) && (
@@ -328,6 +353,11 @@ export function MobileCalendarView() {
                     </span>
                     <span className="flex items-center gap-1.5">
                       {isMissedCheckout(r, todayKey) && <AlertTriangle size={14} className="text-amber-300" aria-label="Missed check-out" />}
+                      {r.attendanceMode === 'WFH' && (
+                        <span title="Work from home" className="text-zm-muted">
+                          <House size={14} aria-label="Work from home" />
+                        </span>
+                      )}
                       {hasOvertime(r) && (
                         <span title="Overtime recorded" className="text-zm-muted">
                           <Clock size={14} aria-label="Overtime recorded" />
