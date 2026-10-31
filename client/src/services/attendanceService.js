@@ -25,9 +25,19 @@ export async function endBreak() {
   return data.data;
 }
 
-export async function getMyAttendanceToday() {
-  const { data } = await apiClient.get('/attendance/me/today');
-  return data.data;
+// Components asking at the same moment (dashboard + break reminders) share one
+// request. Only while it is in flight — nothing is cached, so it is never stale.
+let todayInFlight = null;
+export function getMyAttendanceToday() {
+  if (!todayInFlight) {
+    todayInFlight = apiClient
+      .get('/attendance/me/today')
+      .then(({ data }) => data.data)
+      .finally(() => {
+        todayInFlight = null;
+      });
+  }
+  return todayInFlight;
 }
 
 export async function getMyAttendanceHistory(params = {}) {

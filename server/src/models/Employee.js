@@ -31,6 +31,28 @@ const employeeSchema = new mongoose.Schema(
     // Optional "HH:mm" official check-in time for this employee only, used for
     // late calculation. null = the office's workingStartTime.
     workingStartTime: { type: String, default: null },
+    // Optional personal schedule (HR/Admin only), all in the office timezone like
+    // workingStartTime; null = the office's. Used for remote staff in another timezone.
+    workingEndTime: { type: String, default: null },
+    dailyTargetMinutes: { type: Number, default: null, min: 60, max: 720 },
+    // Start of "overtime after N PM" for this employee (default 19:00 company time).
+    overtimeCutoffTime: { type: String, default: null },
+    // Optional own attendance site (HR/Admin only). When active, this employee's
+    // check-in/out is GPS-validated against it instead of the main office.
+    // Missing = the main office, as before (no default, older records unchanged).
+    attendanceLocation: {
+      type: new mongoose.Schema(
+        {
+          name: { type: String, required: true, trim: true, maxlength: 120 },
+          latitude: { type: Number, required: true, min: -90, max: 90 },
+          longitude: { type: Number, required: true, min: -180, max: 180 },
+          radiusMeters: { type: Number, required: true, min: 20, max: 5000 },
+          active: { type: Boolean, default: true },
+        },
+        { _id: false }
+      ),
+      default: undefined,
+    },
   },
   { timestamps: true }
 );

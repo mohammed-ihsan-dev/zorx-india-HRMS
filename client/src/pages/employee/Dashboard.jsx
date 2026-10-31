@@ -1,11 +1,10 @@
-import { useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import { Link, Navigate } from 'react-router-dom';
 import { Clock, CalendarDays, Megaphone } from 'lucide-react';
 import { AttendanceWidget } from '../../features/attendance/AttendanceWidget.jsx';
 import { WorkingHoursCard } from '../../features/attendance/WorkingHoursCard.jsx';
 import { useTodayAttendance } from '../../features/attendance/useTodayAttendance.js';
 import { TasksSummaryCard } from '../../features/tasks/TasksSummaryCard.jsx';
-import { TaskProgressChart } from '../../features/tasks/TaskProgressChart.jsx';
 import { Card, CardHeader } from '../../components/Card.jsx';
 import { EmptyState } from '../../components/EmptyState.jsx';
 import { useAuth } from '../../hooks/useAuth.js';
@@ -15,6 +14,10 @@ import * as announcementService from '../../services/announcementService.js';
 import { formatDate } from '../../utils/formatters.js';
 import { useMobileShell } from '../../context/MobileShellContext.jsx';
 import { MobileDashboardView } from '../../features/dashboard/MobileDashboardView.jsx';
+
+// The chart library is the app's largest download (~380 KB): load it only when
+// the desktop dashboard actually shows the chart, never on the phone Home.
+const TaskProgressChart = lazy(() => import('../../features/tasks/TaskProgressChart.jsx').then((m) => ({ default: m.TaskProgressChart })));
 
 function greeting() {
   const hour = new Date().getHours();
@@ -82,12 +85,17 @@ export function Dashboard() {
       .then(setTasks)
       .catch(() => {})
       .finally(() => setTasksLoading(false));
+  }, [isSuperAdmin]);
+
+  // Announcements are only shown on the tablet/desktop dashboard.
+  useEffect(() => {
+    if (isSuperAdmin || mobile) return;
     announcementService
       .listAnnouncements()
       .then(setAnnouncements)
       .catch(() => {})
       .finally(() => setAnnouncementsLoading(false));
-  }, [isSuperAdmin]);
+  }, [isSuperAdmin, mobile]);
 
   // Super Admin never sees the employee punch-station dashboard, even via
   // direct navigation (their sidebar never links here).
@@ -161,7 +169,10 @@ export function Dashboard() {
 
         {/* Task Progress Chart */}
         <div className="lg:col-span-3">
-          <TaskProgressChart tasks={tasks} loading={tasksLoading} />
+          {/* Fallback = the chart's own loading skeleton, so nothing shifts. */}
+          <Suspense fallback={<Card className="h-full min-h-[220px] animate-pulse" />}>
+            <TaskProgressChart tasks={tasks} loading={tasksLoading} />
+          </Suspense>
         </div>
       </div>
     </div>

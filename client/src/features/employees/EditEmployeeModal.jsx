@@ -28,6 +28,14 @@ export function EditEmployeeModal({ open, onClose, employee, departments, onUpda
     employmentType: 'FULL_TIME',
     workMode: 'OFFICE',
     workingStartTime: '',
+    workingEndTime: '',
+    dailyTargetHours: '',
+    overtimeCutoffTime: '',
+    siteMode: 'OFFICE', // OFFICE = main office location; OWN = this employee's own site
+    siteName: '',
+    siteLat: '',
+    siteLng: '',
+    siteRadius: '200',
     joiningDate: '',
     dateOfBirth: '',
     phone: '',
@@ -49,6 +57,14 @@ export function EditEmployeeModal({ open, onClose, employee, departments, onUpda
         employmentType: employee.employmentType || 'FULL_TIME',
         workMode: employee.workMode || 'OFFICE',
         workingStartTime: employee.workingStartTime || '',
+        workingEndTime: employee.workingEndTime || '',
+        dailyTargetHours: employee.dailyTargetMinutes ? String(employee.dailyTargetMinutes / 60) : '',
+        overtimeCutoffTime: employee.overtimeCutoffTime || '',
+        siteMode: employee.attendanceLocation?.active === false || !employee.attendanceLocation ? 'OFFICE' : 'OWN',
+        siteName: employee.attendanceLocation?.name || '',
+        siteLat: employee.attendanceLocation?.latitude ?? '',
+        siteLng: employee.attendanceLocation?.longitude ?? '',
+        siteRadius: String(employee.attendanceLocation?.radiusMeters ?? 200),
         joiningDate: employee.joiningDate ? new Date(employee.joiningDate).toISOString().split('T')[0] : '',
         dateOfBirth: employee.dateOfBirth ? new Date(employee.dateOfBirth).toISOString().split('T')[0] : '',
         phone: employee.phone || '',
@@ -111,6 +127,16 @@ export function EditEmployeeModal({ open, onClose, employee, departments, onUpda
         employmentType: form.employmentType,
         workMode: form.workMode,
         workingStartTime: form.workingStartTime || null,
+        workingEndTime: form.workingEndTime || null,
+        dailyTargetMinutes: form.dailyTargetHours ? Math.round(Number(form.dailyTargetHours) * 60) : null,
+        overtimeCutoffTime: form.overtimeCutoffTime || null,
+        // Own attendance site (validated again on the server); null = main office.
+        attendanceLocation:
+          form.siteMode === 'OWN'
+            ? { name: form.siteName.trim(), latitude: Number(form.siteLat), longitude: Number(form.siteLng), radiusMeters: Number(form.siteRadius), active: true }
+            : employee.attendanceLocation
+              ? null
+              : undefined,
         joiningDate: form.joiningDate ? new Date(form.joiningDate) : undefined,
         dateOfBirth: form.dateOfBirth ? new Date(form.dateOfBirth) : null,
         phone: form.phone.trim(),
@@ -257,6 +283,51 @@ export function EditEmployeeModal({ open, onClose, employee, departments, onUpda
             onChange={handleChange('workingStartTime')}
             hint="Leave empty to use the office start time. Late is counted after this time plus the office grace period."
           />
+          <Input
+            type="time"
+            label="Official Check-out Time (optional)"
+            value={form.workingEndTime}
+            onChange={handleChange('workingEndTime')}
+            hint="India time (IST). Leave empty to use the office end time."
+          />
+          <Input
+            type="number"
+            step="0.5"
+            min={1}
+            max={12}
+            label="Daily Working Target, hours (optional)"
+            value={form.dailyTargetHours}
+            onChange={handleChange('dailyTargetHours')}
+            hint="Net of breaks, e.g. 7. Leave empty for the office target."
+          />
+          <Input
+            type="time"
+            label="Overtime Starts After (optional)"
+            value={form.overtimeCutoffTime}
+            onChange={handleChange('overtimeCutoffTime')}
+            hint="India time (IST). Leave empty for 7:00 PM. For staff abroad, convert their local time (7 PM Dubai = 8:30 PM IST)."
+          />
+        </div>
+
+        <div className="space-y-3 pt-3 border-t border-slate-100">
+          <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Attendance Location</p>
+          <Select
+            label="Check-in / Check-out Location"
+            value={form.siteMode}
+            onChange={handleChange('siteMode')}
+            hint="Own site: this employee's GPS is checked against the site below instead of the main office. Only HR/Admin can change this."
+          >
+            <option value="OFFICE">Main office (Office Settings)</option>
+            <option value="OWN">Own site</option>
+          </Select>
+          {form.siteMode === 'OWN' && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <Input label="Site Name" value={form.siteName} onChange={handleChange('siteName')} placeholder="e.g. Dubai office" required />
+              <Input type="number" label="Allowed Radius (m)" min={20} max={5000} value={form.siteRadius} onChange={handleChange('siteRadius')} required />
+              <Input type="number" step="any" label="Latitude" value={form.siteLat} onChange={handleChange('siteLat')} placeholder="e.g. 25.2241" required />
+              <Input type="number" step="any" label="Longitude" value={form.siteLng} onChange={handleChange('siteLng')} placeholder="e.g. 55.2823" required />
+            </div>
+          )}
         </div>
 
         <div className="space-y-3 pt-3 border-t border-slate-100">

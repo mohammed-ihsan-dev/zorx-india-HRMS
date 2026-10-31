@@ -5,6 +5,7 @@ import { requireRole } from '../middleware/rbac.js';
 import { validateBody } from '../middleware/validate.js';
 import { punchSchema, startBreakSchema } from '../validators/attendanceValidators.js';
 import { isDefaultWfhEmployee } from '../services/wfhService.js';
+import { assignedLocationRules } from '../services/attendanceService.js';
 import { OfficeSettings } from '../models/OfficeSettings.js';
 import { BACK_OFFICE_ROLES, ATTENDANCE_VERIFICATION_MODE } from '../utils/constants.js';
 
@@ -16,12 +17,14 @@ const validatePunch = validateBody(punchSchema);
 // stored Employee.workMode) and everyone in Company Wi-Fi mode (per the
 // server-side Office Settings) punch without them, so the body is discarded —
 // nothing in the request can choose the mode. Otherwise: the existing
-// coordinate validation, unchanged.
+// coordinate validation, unchanged. An employee with their own active
+// attendance site always sends GPS (validated against that site), even in Wi-Fi mode.
 async function validatePunchBody(req, res, next) {
   try {
     const settings = await OfficeSettings.getSingleton();
+    const ownSite = Boolean(assignedLocationRules(req.user.employeeId));
     if (
-      settings.attendanceVerificationMode === ATTENDANCE_VERIFICATION_MODE.WIFI ||
+      (settings.attendanceVerificationMode === ATTENDANCE_VERIFICATION_MODE.WIFI && !ownSite) ||
       (await isDefaultWfhEmployee(req.user.employeeId?._id))
     ) {
       req.body = {};

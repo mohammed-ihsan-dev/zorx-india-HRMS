@@ -41,6 +41,19 @@ export const updateEmployeeSchema = z.object({
     .union([z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Use HH:mm, e.g. 10:00'), z.literal(''), z.null()])
     .transform((v) => v || null)
     .optional(),
+  // Personal schedule overrides (office timezone, HH:mm); empty/null = office default.
+  workingEndTime: z
+    .union([z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Use HH:mm, e.g. 18:00'), z.literal(''), z.null()])
+    .transform((v) => v || null)
+    .optional(),
+  overtimeCutoffTime: z
+    .union([z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Use HH:mm, e.g. 19:00'), z.literal(''), z.null()])
+    .transform((v) => v || null)
+    .optional(),
+  dailyTargetMinutes: z
+    .union([z.coerce.number().int().min(60, 'At least 1 hour.').max(720, 'At most 12 hours.'), z.literal(''), z.null()])
+    .transform((v) => (v === '' ? null : v))
+    .optional(),
   managerId: z.string().nullable().optional(),
   address: z.string().optional(),
   emergencyContact: z
@@ -51,8 +64,20 @@ export const updateEmployeeSchema = z.object({
     })
     .optional(),
   profileImage: z.string().optional(),
+  // HR/Admin only (this schema is only used on the back-office route); null removes it.
+  attendanceLocation: z
+    .object({
+      name: z.string().trim().min(2, 'Enter a location name.').max(120),
+      latitude: z.coerce.number().min(-90).max(90),
+      longitude: z.coerce.number().min(-180).max(180),
+      radiusMeters: z.coerce.number().int().min(20, 'Radius must be at least 20 m.').max(5000, 'Radius can be at most 5000 m.'),
+      active: z.boolean().default(true),
+    })
+    .nullable()
+    .optional(),
 });
 
+// Note: attendanceLocation is deliberately absent here — employees can never set their own site.
 export const updateOwnProfileSchema = z.object({
   phone: z.string().optional(),
   address: z.string().optional(),

@@ -82,10 +82,28 @@ export function verifyCompanyNetwork(clientIp) {
  *   only the office-radius check is skipped;
  * - GPS mode otherwise: exactly validateLocation, as before.
  */
+/**
+ * The employee's own attendance site as office-settings-shaped rules for
+ * validateLocation (same Haversine check, their own centre and radius), or
+ * null when they use the main office.
+ */
+export function assignedLocationRules(employee) {
+  const loc = employee?.attendanceLocation;
+  if (!loc || loc.active === false || !isValidCoordinate(loc.latitude, loc.longitude) || !(loc.radiusMeters > 0)) return null;
+  return { officeName: loc.name, latitude: loc.latitude, longitude: loc.longitude, attendanceRadius: loc.radiusMeters };
+}
+
 async function resolvePunchLocation(employeeId, coords, officeSettings, dateKey, clientIp) {
   const source = await resolveWfhSource(employeeId, dateKey);
   if (source === WFH_SOURCE.DEFAULT) {
     return { isWfh: true, location: NO_LOCATION };
+  }
+  // An employee with their own active site is always GPS-checked against it
+  // (never the main office, never the office Wi-Fi), on normal working days.
+  const own = source ? null : assignedLocationRules(await Employee.findById(employeeId).select('attendanceLocation').lean());
+  if (own) {
+    const distanceFromOffice = validateLocation(coords, own);
+    return { isWfh: false, location: { latitude: coords.latitude, longitude: coords.longitude, distanceFromOffice } };
   }
   if (getVerificationMode(officeSettings) === ATTENDANCE_VERIFICATION_MODE.WIFI) {
     if (!source) verifyCompanyNetwork(clientIp);
@@ -182,7 +200,27 @@ export function calculateWorkingMinutes(checkInTime, checkOutTime, breakMinutes)
   return Math.max(0, Math.round(rawMinutes - breakMinutes));
 }
 
-export function calculateOvertime(totalWorkingMinutes, officeSettings) {
+/**
+ * The schedule that applies to one employee: their personal overrides where set,
+ * otherwise the office's. Times are HH:mm in the office timezone.
+ */
+export function effectiveSchedule(employee, officeSettings) {
+  const start = employee?.workingStartTime || officeSettings.workingStartTime;
+  const end = employee?.workingEndTime || officeSettings.workingEndTime;
+  const officeTarget = Math.max(0, parseTimeToMinutes(officeSettings.workingEndTime) - parseTimeToMinutes(officeSettings.workingStartTime) - (officeSettings.breakDurationMinutes || 0));
+  return {
+    workingStartTime: start,
+    workingEndTime: end,
+    dailyTargetMinutes: employee?.dailyTargetMinutes || officeTarget,
+    overtimeCutoffTime: employee?.overtimeCutoffTime || '19:00',
+    personal: Boolean(employee?.workingStartTime || employee?.workingEndTime || employee?.dailyTargetMinutes || employee?.overtimeCutoffTime),
+  };
+}
+
+export function calculateOvertime(totalWorkingMinutes, officeSettings, dailyTargetMinutes = null) {
+  if (!officeSettings.overtimeEnabled) return 0;
+  // A personal daily target replaces the office's expected day for this employee only.
+  if (dailyTargetMinutes) return Math.max(0, Math.round(totalWorkingMinutes - dailyTargetMinutes));
   if (!officeSettings.overtimeEnabled) return 0;
   const startMinutes = parseTimeToMinutes(officeSettings.workingStartTime);
   const endMinutes = parseTimeToMinutes(officeSettings.workingEndTime);
@@ -251,7 +289,8 @@ export async function performCheckOut(employeeId, coords, { clientIp } = {}) {
   // allowance — the allowance is only used below to flag any excess.
   const breakMinutes = totalCompletedBreakMinutes(existing);
   const totalWorkingMinutes = calculateWorkingMinutes(existing.checkIn.timestamp, now, breakMinutes);
-  const overtimeMinutes = calculateOvertime(totalWorkingMinutes, officeSettings);
+  const personal = await Employee.findById(employeeId).select('dailyTargetMinutes').lean();
+  const overtimeMinutes = calculateOvertime(totalWorkingMinutes, officeSettings, personal?.dailyTargetMinutes);
   const status = deriveStatus(existing.lateMinutes, totalWorkingMinutes, officeSettings);
 
   existing.checkOut = { timestamp: now, ...location };

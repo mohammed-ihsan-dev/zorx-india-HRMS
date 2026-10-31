@@ -204,7 +204,13 @@ export const getMyAttendanceToday = asyncHandler(async (req, res) => {
     attendanceService.getTodayAttendance(employeeId),
     OfficeSettings.getSingleton(),
   ]);
-  sendSuccess(res, { data: { attendance, officeSettings } });
+  // Their own site's name and radius (if assigned), so the app requests GPS and
+  // shows the right radius. Coordinates are not needed by the client.
+  const own = attendanceService.assignedLocationRules(req.user.employeeId);
+  const attendanceLocation = own ? { name: own.officeName, radiusMeters: own.attendanceRadius } : null;
+  // This employee's own schedule (dashboard target, shift timing, overtime cutoff).
+  const schedule = attendanceService.effectiveSchedule(req.user.employeeId, officeSettings);
+  sendSuccess(res, { data: { attendance, officeSettings, attendanceLocation, schedule } });
 });
 
 export const getMyAttendanceHistory = asyncHandler(async (req, res) => {
@@ -232,7 +238,9 @@ export const getMyAttendanceHistory = asyncHandler(async (req, res) => {
 
   // Display-only: minutes worked after 7:00 PM from the recorded check-out, the
   // same calculation as the Salary Report (null when there is no check-out). Not stored.
-  const data = records.map((r) => ({ ...r.toJSON(), overtimeAfter7Minutes: overtimeAfterCutoffMinutes(r.date, r.checkOut?.timestamp) }));
+  // (Field name kept for compatibility: the cutoff is 7 PM unless this employee has their own.)
+  const cutoff = req.user.employeeId?.overtimeCutoffTime || undefined;
+  const data = records.map((r) => ({ ...r.toJSON(), overtimeAfter7Minutes: overtimeAfterCutoffMinutes(r.date, r.checkOut?.timestamp, { cutoff }) }));
   sendSuccess(res, { data, meta: { total, page: pageNum, limit: limitNum } });
 });
 

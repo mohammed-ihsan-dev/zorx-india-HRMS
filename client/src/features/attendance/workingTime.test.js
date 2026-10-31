@@ -90,3 +90,14 @@ test('overnight session (check-out after midnight) is counted correctly', () => 
 test('format is consistent: 6h 45m, 7h 30m, 8h 00m', () => {
   assert.deepEqual([405, 450, 480].map(formatMinutes), ['6h 45m', '7h 30m', '8h 00m']);
 });
+
+test('office (IST) schedule times shown in the viewer\'s own timezone', async () => {
+  const { officeClockToLocal } = await import('./workingTime.js');
+  const day = new Date('2026-11-02T06:00:00Z');
+  assert.equal(officeClockToLocal('11:30', 'Asia/Kolkata', day, 'Asia/Dubai'), '10:00 am');
+  assert.equal(officeClockToLocal('19:30', 'Asia/Kolkata', day, 'Asia/Dubai'), '06:00 pm');
+  assert.equal(officeClockToLocal('20:30', 'Asia/Kolkata', day, 'Asia/Dubai'), '07:00 pm');
+  assert.equal(officeClockToLocal('09:30', 'Asia/Kolkata', day, 'Asia/Kolkata'), '09:30 am'); // India staff: unchanged
+  assert.equal(officeClockToLocal('18:00', 'Asia/Kolkata', day, 'Asia/Kolkata'), '06:00 pm');
+  assert.equal(officeClockToLocal('', 'Asia/Kolkata', day, 'Asia/Dubai'), '');
+});

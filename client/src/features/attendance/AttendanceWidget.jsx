@@ -33,6 +33,7 @@ export function AttendanceWidget({ data }) {
     breakCountdownStr,
     defaultWfh,
     verificationMode,
+    retry,
   } = data;
   const wifiMode = verificationMode === 'WIFI' && !defaultWfh;
   const PunchIcon = defaultWfh ? House : wifiMode ? Wifi : MapPin;
@@ -108,12 +109,20 @@ export function AttendanceWidget({ data }) {
       </div>
 
       <div className="empty:hidden mb-4">
-        <WfhTodayBanner record={record} />
+        <WfhTodayBanner record={record} wfhToday={data.wfhToday} />
         {wifiMode && <NetworkStatusBanner />}
       </div>
 
       {/* Status Info Block */}
       <div className="mb-4">
+        {uiState === ATTENDANCE_UI_STATE.UNAVAILABLE && (
+          <StateBlock
+            icon={AlertTriangle}
+            iconTone="live"
+            title="Couldn't load today's attendance"
+            subtitle="Your check-in is safe on the server. Please retry before checking in or out."
+          />
+        )}
         {uiState === ATTENDANCE_UI_STATE.NOT_CHECKED_IN && (
           <StateBlock
             icon={PunchIcon}
@@ -153,6 +162,15 @@ export function AttendanceWidget({ data }) {
 
       {/* Round Circular Action Buttons */}
       <div className="mt-auto py-4 flex items-center justify-center min-h-[160px]">
+        {uiState === ATTENDANCE_UI_STATE.UNAVAILABLE && (
+          <button
+            type="button"
+            onClick={retry}
+            className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-5 py-3 text-base font-semibold text-slate-800 hover:bg-slate-50"
+          >
+            <RotateCcw size={18} /> Retry
+          </button>
+        )}
         {uiState === ATTENDANCE_UI_STATE.NOT_CHECKED_IN && (
           <button
             type="button"

@@ -25,6 +25,7 @@ import { MobileStatusPill } from '../../components/MobileStatusPill.jsx';
 import { ATTENDANCE_UI_STATE } from '../attendance/useTodayAttendance.js';
 import { BreakAlertSettings } from '../attendance/BreakReminderWatcher.jsx';
 import { breakTimeLeft, BREAK_TONE } from '../attendance/breakTimeLeft.js';
+import { officeClockToLocal } from '../attendance/workingTime.js';
 import { NetworkStatusBanner } from '../attendance/NetworkStatusBanner.jsx';
 import { WfhTodayBanner } from '../workFromHome/WfhTodayBanner.jsx';
 import { useCheckInCelebration } from '../gandhiJayanti/useCheckInCelebration.js';
@@ -33,14 +34,6 @@ import * as notificationService from '../../services/notificationService.js';
 import { formatDate, formatTime, formatMinutes } from '../../utils/formatters.js';
 
 const OPEN_TASK_STATUSES = ['TODO', 'IN_PROGRESS', 'IN_REVIEW'];
-
-/** "09:30" → "09:30 am" */
-function formatClock(hhmm) {
-  if (!hhmm) return '';
-  const [h, m = '00'] = hhmm.split(':');
-  const hour = Number(h);
-  return `${String(hour % 12 || 12).padStart(2, '0')}:${m} ${hour >= 12 ? 'pm' : 'am'}`;
-}
 
 /** Unread count from the existing notifications API (same source as the desktop bell). */
 function useUnreadCount() {
@@ -137,6 +130,8 @@ export function MobileDashboardView({ attendance, tasks, tasksLoading }) {
     startBreak,
     endBreak,
     resetVirtualAttendance,
+    retry,
+    schedule,
   } = attendance;
 
   const celebration = useCheckInCelebration(record);
@@ -150,9 +145,12 @@ export function MobileDashboardView({ attendance, tasks, tasksLoading }) {
   const mm = String(Math.floor((totalSeconds % 3600) / 60)).padStart(2, '0');
   const ss = String(totalSeconds % 60).padStart(2, '0');
 
-  // The employee's own official start time when set (e.g. 10:00), else the office's.
-  const startTime = employee?.workingStartTime || officeSettings?.workingStartTime;
-  const shiftTiming = startTime && officeSettings?.workingEndTime ? `${formatClock(startTime)} – ${formatClock(officeSettings.workingEndTime)}` : '—';
+  // The employee's own schedule (or the office's), shown in this device's timezone:
+  // 11:30–19:30 IST reads "10:00 am – 06:00 pm" on a phone in Dubai.
+  const startTime = schedule?.workingStartTime || employee?.workingStartTime || officeSettings?.workingStartTime;
+  const endTime = schedule?.workingEndTime || officeSettings?.workingEndTime;
+  const officeTz = officeSettings?.timezone || 'Asia/Kolkata';
+  const shiftTiming = startTime && endTime ? `${officeClockToLocal(startTime, officeTz)} – ${officeClockToLocal(endTime, officeTz)}` : '—';
 
   const name = employee?.firstName ? `${employee.firstName} ${employee.lastName || ''}`.trim() : user?.email;
   const openTasks = (tasks || []).filter((t) => OPEN_TASK_STATUSES.includes(t.status)).length;
@@ -281,7 +279,7 @@ export function MobileDashboardView({ attendance, tasks, tasksLoading }) {
       {!loading && (
         <section aria-label="Attendance actions" className="rounded-3xl bg-zm-card border border-zm-border p-4 space-y-3">
           <div className="empty:hidden space-y-2">
-            <WfhTodayBanner record={record} />
+            <WfhTodayBanner record={record} wfhToday={attendance.wfhToday} />
             {wifiMode && <NetworkStatusBanner />}
           </div>
 
@@ -306,6 +304,20 @@ export function MobileDashboardView({ attendance, tasks, tasksLoading }) {
                 <p className="text-[11px] font-semibold uppercase tracking-wide text-zm-muted">Check Out</p>
                 <p className="text-base font-bold text-zm-text">{record?.checkOut ? formatTime(record.checkOut.timestamp) : '—'}</p>
               </div>
+            </div>
+          )}
+
+          {uiState === ATTENDANCE_UI_STATE.UNAVAILABLE && (
+            <div role="alert" className="space-y-3 text-center">
+              <p className="text-sm font-semibold text-zm-text">Couldn&apos;t load today&apos;s attendance</p>
+              <p className="text-xs text-zm-muted">Your check-in is safe on the server. Please retry before checking in or out.</p>
+              <button
+                type="button"
+                onClick={retry}
+                className="w-full h-12 rounded-2xl border border-zm-border bg-zm-elev text-zm-text font-bold flex items-center justify-center gap-2"
+              >
+                <RotateCcw size={18} aria-hidden="true" /> Retry
+              </button>
             </div>
           )}
 

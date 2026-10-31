@@ -10,9 +10,18 @@ export async function getMyWfh() {
   return data.data;
 }
 
-export async function getMyWfhToday() {
-  const { data } = await apiClient.get('/work-from-home/my/today');
-  return data.data;
+// Shared while in flight only (dashboard hook + WFH banner ask together); never cached.
+let todayInFlight = null;
+export function getMyWfhToday() {
+  if (!todayInFlight) {
+    todayInFlight = apiClient
+      .get('/work-from-home/my/today')
+      .then(({ data }) => data.data)
+      .finally(() => {
+        todayInFlight = null;
+      });
+  }
+  return todayInFlight;
 }
 
 export async function listWfh(params = {}) {

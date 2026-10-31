@@ -235,7 +235,7 @@ export const salaryReport = asyncHandler(async (req, res) => {
   if (employee) filter.employeeId = employee._id;
   const records = await Attendance.find(filter)
     .select('employeeId date checkIn.timestamp checkOut.timestamp')
-    .populate('employeeId', 'firstName lastName employeeCode')
+    .populate('employeeId', 'firstName lastName employeeCode overtimeCutoffTime')
     .lean();
   const rows = buildSalaryRows(records);
   const scope = employee ? employeeDisplayName(employee) : 'All Employees';
@@ -258,7 +258,7 @@ export const salaryReport = asyncHandler(async (req, res) => {
   const pdf = buildTablePdf({
     brand: 'ZORX INDIA',
     title: 'Salary Report',
-    meta: [`Month: ${range.label}`, `Employee: ${scope}`, `Generated: ${generated} (${env.timezone})`, `Overtime = time worked after 7:00 PM, from the recorded check-out · ${rows.length} record${rows.length === 1 ? '' : 's'}`],
+    meta: [`Month: ${range.label}`, `Employee: ${scope}`, `Generated: ${generated} (${env.timezone})`, `Overtime = time worked after 7:00 PM IST (or the employee's own cutoff where set), from the recorded check-out · ${rows.length} record${rows.length === 1 ? '' : 's'}`],
     columns: [
       { label: 'Employee Name', width: 175 },
       { label: 'Date', width: 85 },

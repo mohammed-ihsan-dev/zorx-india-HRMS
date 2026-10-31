@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useGeolocation, LOCATION_STATUS } from '../../hooks/useGeolocation.js';
 import { useToast } from '../../hooks/useToast.js';
 import * as attendanceService from '../../services/attendanceService.js';
@@ -9,12 +9,9 @@ import { announceAttendanceRecord } from './BreakReminderWatcher.jsx';
 import { breakAllowanceUsage } from './breakReminders.js';
 import { netWorkedMinutes, requiredWorkingMinutes, progressPercent as toProgressPercent } from './workingTime.js';
 
-export const ATTENDANCE_UI_STATE = {
-  NOT_CHECKED_IN: 'NOT_CHECKED_IN',
-  WORKING: 'WORKING',
-  ON_BREAK: 'ON_BREAK',
-  COMPLETED: 'COMPLETED',
-};
+import { ATTENDANCE_UI_STATE, deriveAttendanceUiState, isRetryableLoadError, RESYNC_MIN_GAP_MS, RETRY_DELAY_MS } from './attendanceUiState.js';
+
+export { ATTENDANCE_UI_STATE };
 
 /**
  * Single source of truth for the dashboard's attendance card and working-hours
@@ -42,25 +39,74 @@ export function useTodayAttendance() {
   // hint only — the backend independently decides from the employee record.
   // If this lookup fails, the normal location flow is used.
   const [defaultWfh, setDefaultWfh] = useState(false);
+  // The full /work-from-home/my/today answer, shared with the WFH banner (no second request).
+  const [wfhToday, setWfhToday] = useState(undefined);
+  // This employee's own attendance site { name, radiusMeters }, or null for the main office.
+  const [attendanceLocation, setAttendanceLocation] = useState(null);
+  // This employee's effective schedule (personal overrides or the office's), from the server.
+  const [schedule, setSchedule] = useState(null);
 
-  const refresh = useCallback(async () => {
-    try {
-      const [data, wfhToday] = await Promise.all([
-        attendanceService.getMyAttendanceToday(),
-        wfhService.getMyWfhToday().catch(() => null),
-      ]);
-      setRecord(data.attendance);
-      setOfficeSettings(data.officeSettings);
-      setDefaultWfh(Boolean(wfhToday?.defaultWfh));
-    } catch (err) {
-      toast.error(getErrorMessage(err, 'Could not load attendance status.'));
-    } finally {
-      setLoading(false);
-    }
-  }, [toast, setRecord]);
+  // True once the server has answered; until then a failure means "unknown", never "not checked in".
+  const [loaded, setLoaded] = useState(false);
+  const [loadError, setLoadError] = useState(false);
+  const lastSyncRef = useRef(0);
+
+  const refresh = useCallback(
+    async ({ quiet = false } = {}) => {
+      lastSyncRef.current = Date.now();
+      const load = () =>
+        Promise.all([attendanceService.getMyAttendanceToday(), wfhService.getMyWfhToday().catch(() => null)]);
+      try {
+        let result;
+        try {
+          result = await load();
+        } catch (err) {
+          if (!isRetryableLoadError(err)) throw err;
+          await new Promise((r) => setTimeout(r, RETRY_DELAY_MS)); // e.g. the API waking up
+          result = await load();
+        }
+        const [data, wfhToday] = result;
+        setRecord(data.attendance);
+        setOfficeSettings(data.officeSettings);
+        setAttendanceLocation(data.attendanceLocation || null);
+        setSchedule(data.schedule || null);
+        setDefaultWfh(Boolean(wfhToday?.defaultWfh));
+        setWfhToday(wfhToday);
+        setLoaded(true);
+        setLoadError(false);
+      } catch (err) {
+        // Keep whatever the server last said; never fall back to "not checked in".
+        setLoadError(true);
+        if (!quiet) toast.error(getErrorMessage(err, 'Could not load attendance status.'));
+      } finally {
+        setLoading(false);
+      }
+    },
+    [toast, setRecord]
+  );
 
   useEffect(() => {
     refresh();
+  }, [refresh]);
+
+  // Re-sync from the server when coming back to the tab/app or reconnecting
+  // (e.g. opened in the morning, checked out from the same page in the evening).
+  useEffect(() => {
+    const resync = () => {
+      if (document.visibilityState !== 'visible') return;
+      if (Date.now() - lastSyncRef.current < RESYNC_MIN_GAP_MS) return;
+      refresh({ quiet: true });
+    };
+    document.addEventListener('visibilitychange', resync);
+    window.addEventListener('focus', resync);
+    window.addEventListener('online', resync);
+    window.addEventListener('pageshow', resync);
+    return () => {
+      document.removeEventListener('visibilitychange', resync);
+      window.removeEventListener('focus', resync);
+      window.removeEventListener('online', resync);
+      window.removeEventListener('pageshow', resync);
+    };
   }, [refresh]);
 
   const hasCheckedIn = Boolean(record?.checkIn);
@@ -74,13 +120,7 @@ export function useTodayAttendance() {
     return last && !last.endTime ? last : null;
   }, [record]);
 
-  const uiState = !hasCheckedIn
-    ? ATTENDANCE_UI_STATE.NOT_CHECKED_IN
-    : hasCheckedOut
-    ? ATTENDANCE_UI_STATE.COMPLETED
-    : activeBreak
-    ? ATTENDANCE_UI_STATE.ON_BREAK
-    : ATTENDANCE_UI_STATE.WORKING;
+  const uiState = deriveAttendanceUiState({ loaded, record });
 
   // Live tick while working — ticks every 1s when on break for real-time countdown, or 10s while working
   useEffect(() => {
@@ -94,7 +134,8 @@ export function useTodayAttendance() {
   // backend applies at checkout, so the live value matches the final total.
   const workedMinutes = useMemo(() => netWorkedMinutes(record, tick), [record, tick]);
 
-  const requiredMinutes = useMemo(() => requiredWorkingMinutes(officeSettings), [officeSettings]);
+  // A personal daily target (e.g. 7h) wins over the office-derived one.
+  const requiredMinutes = useMemo(() => schedule?.dailyTargetMinutes ?? requiredWorkingMinutes(officeSettings), [schedule, officeSettings]);
 
   const remainingMinutes = requiredMinutes === null ? null : Math.max(0, requiredMinutes - workedMinutes);
   const overtimeMinutes = requiredMinutes === null ? 0 : Math.max(0, workedMinutes - requiredMinutes);
@@ -115,20 +156,23 @@ export function useTodayAttendance() {
   const breakRemainingMinutes = Math.max(0, maxBreakMinutes - breakMinutesUsed);
 
   // Persistent, real location status derived from the last stored punch — not a fake/ephemeral value.
+  // Radius that applies to this employee: their own site's, else the main office's.
+  const allowedRadius = attendanceLocation?.radiusMeters ?? officeSettings?.attendanceRadius;
   const locationStatus = useMemo(() => {
     const punch = record?.checkOut || record?.checkIn || null;
     if (!punch || !officeSettings) return null;
     return {
       distance: punch.distanceFromOffice,
-      radius: officeSettings.attendanceRadius,
-      inside: punch.distanceFromOffice <= officeSettings.attendanceRadius,
+      radius: allowedRadius,
+      inside: punch.distanceFromOffice <= allowedRadius,
     };
-  }, [record, officeSettings]);
+  }, [record, officeSettings, allowedRadius]);
 
   // Location is only collected in GPS mode for office staff. Display/flow hint
   // only — the backend independently enforces the Admin-selected mode.
   const verificationMode = officeSettings?.attendanceVerificationMode === 'WIFI' ? 'WIFI' : 'GPS';
-  const locationFree = defaultWfh || verificationMode === 'WIFI';
+  // An employee with their own site always sends GPS (the server checks it against that site).
+  const locationFree = defaultWfh || (verificationMode === 'WIFI' && !attendanceLocation);
 
   const punch = useCallback(
     async (kind) => {
@@ -138,12 +182,14 @@ export function useTodayAttendance() {
         const coords = locationFree ? {} : await geolocation.request();
         const result = kind === 'in' ? await attendanceService.checkIn(coords) : await attendanceService.checkOut(coords);
         const thisPunch = kind === 'in' ? result.checkIn : result.checkOut;
-        setLastVerification({ distance: thisPunch.distanceFromOffice, radius: officeSettings?.attendanceRadius });
+        setLastVerification({ distance: thisPunch.distanceFromOffice, radius: allowedRadius });
         setRecord(result);
         toast.success(kind === 'in' ? 'Checked in successfully.' : 'Checked out successfully.');
       } catch (err) {
         if (err?.response) {
           toast.error(getErrorMessage(err));
+          // The server refused (e.g. "already checked in"): show what it actually has.
+          refresh({ quiet: true });
         } else if (err?.message) {
           toast.error(err.message);
         } else {
@@ -153,7 +199,7 @@ export function useTodayAttendance() {
         setSubmitting(false);
       }
     },
-    [geolocation, officeSettings, toast, locationFree, setRecord]
+    [geolocation, toast, locationFree, setRecord, refresh, allowedRadius]
   );
 
   const [breakSubmitting, setBreakSubmitting] = useState(false);
@@ -228,6 +274,12 @@ export function useTodayAttendance() {
     endBreak,
     resetVirtualAttendance,
     refresh,
+    loaded,
+    loadError,
+    wfhToday,
+    attendanceLocation,
+    schedule,
+    retry: () => refresh(),
     LOCATION_STATUS,
   };
 }

@@ -81,7 +81,9 @@ export function monthRange(month) {
 export function buildSalaryRows(records, timeZone = env.timezone) {
   return records
     .map((r) => {
-      const overtimeMinutes = overtimeAfterCutoffMinutes(r.date, r.checkOut?.timestamp, { timeZone });
+      // The employee's own cutoff if HR set one (e.g. 7 PM in their timezone), else 7 PM.
+      const cutoff = r.employeeId?.overtimeCutoffTime || OVERTIME_CUTOFF;
+      const overtimeMinutes = overtimeAfterCutoffMinutes(r.date, r.checkOut?.timestamp, { timeZone, cutoff });
       return {
         employeeName: employeeDisplayName(r.employeeId),
         employeeCode: r.employeeId?.employeeCode || '',

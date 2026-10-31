@@ -7,26 +7,27 @@ import * as wfhService from '../../services/wfhService.js';
  * the office-radius check is skipped (approved WFH for today); a failed lookup
  * here just hides the banner and never affects check-in.
  */
-export function WfhTodayBanner({ record }) {
-  const [approvedToday, setApprovedToday] = useState(false);
-  const [defaultWfh, setDefaultWfh] = useState(false);
-  const [recurringToday, setRecurringToday] = useState(false);
+export function WfhTodayBanner({ record, wfhToday }) {
+  const [fetched, setFetched] = useState(null);
+  // The dashboard already has this answer (wfhToday); fetch only when it wasn't passed.
+  const data = wfhToday !== undefined ? wfhToday : fetched;
+  const approvedToday = Boolean(data?.approved);
+  const defaultWfh = Boolean(data?.defaultWfh);
+  const recurringToday = Boolean(data?.recurringToday);
 
   useEffect(() => {
+    if (wfhToday !== undefined) return undefined;
     let cancelled = false;
     wfhService
       .getMyWfhToday()
-      .then((data) => {
-        if (cancelled) return;
-        setApprovedToday(Boolean(data?.approved));
-        setDefaultWfh(Boolean(data?.defaultWfh));
-        setRecurringToday(Boolean(data?.recurringToday));
+      .then((result) => {
+        if (!cancelled) setFetched(result);
       })
       .catch(() => {});
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [wfhToday]);
 
   if (!approvedToday && record?.attendanceMode !== 'WFH') return null;
 

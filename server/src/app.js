@@ -50,6 +50,12 @@ export function createApp() {
       optionsSuccessStatus: 204,
     })
   );
+  // API responses are private, live data (attendance, leave balances…): never
+  // let a browser, proxy or CDN reuse one. /uploads stays cacheable (served below).
+  app.use('/api', (req, res, next) => {
+    res.setHeader('Cache-Control', 'no-store');
+    next();
+  });
   app.use(express.json({ limit: '2mb' }));
   app.use(cookieParser());
   app.use(mongoSanitize());

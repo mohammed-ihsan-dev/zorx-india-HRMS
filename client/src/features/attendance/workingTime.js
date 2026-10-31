@@ -58,3 +58,31 @@ export function progressPercent(workedMinutes, requiredMinutes) {
   if (!requiredMinutes || !Number.isFinite(workedMinutes)) return 0;
   return Math.min(100, Math.max(0, (workedMinutes / requiredMinutes) * 100));
 }
+
+/** Minutes the zone `timeZone` is ahead of UTC at instant `ms` (e.g. Asia/Kolkata → 330). */
+function zoneOffsetMinutes(timeZone, ms) {
+  const parts = Object.fromEntries(
+    new Intl.DateTimeFormat('en-US', { timeZone, hourCycle: 'h23', year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric', minute: 'numeric' })
+      .formatToParts(new Date(ms))
+      .map((p) => [p.type, p.value])
+  );
+  return Math.round((Date.UTC(+parts.year, +parts.month - 1, +parts.day, +parts.hour % 24, +parts.minute) - ms) / 60000);
+}
+
+/**
+ * An office-timezone "HH:mm" (how schedules are stored) shown in the viewer's
+ * own timezone, as "hh:mm am" — 11:30 IST reads "10:00 am" on a phone in Dubai
+ * and "11:30 am" in India. `localTimeZone` defaults to the device's.
+ */
+export function officeClockToLocal(hhmm, officeTimeZone = 'Asia/Kolkata', now = new Date(), localTimeZone = undefined) {
+  const [h, m] = String(hhmm || '').split(':').map(Number);
+  if (!Number.isFinite(h) || !Number.isFinite(m)) return '';
+  const day = Object.fromEntries(
+    new Intl.DateTimeFormat('en-US', { timeZone: officeTimeZone, year: 'numeric', month: 'numeric', day: 'numeric' }).formatToParts(now).map((p) => [p.type, p.value])
+  );
+  const guess = Date.UTC(+day.year, +day.month - 1, +day.day, h, m);
+  const instant = guess - zoneOffsetMinutes(officeTimeZone, guess) * 60000;
+  return new Date(instant)
+    .toLocaleTimeString('en-US', { timeZone: localTimeZone, hour: '2-digit', minute: '2-digit', hour12: true })
+    .toLowerCase();
+}
