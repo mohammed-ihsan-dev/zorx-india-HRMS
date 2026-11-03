@@ -47,8 +47,8 @@ function localTodayKey() {
 /** A past day that was checked into but never checked out. */
 const isMissedCheckout = (r, todayKey) => Boolean(r?.checkIn && !r.checkOut && recordKey(r) < todayKey);
 
-/** Worked after 7:00 PM, per the server (overtimeAfter7Minutes; null without a check-out). */
-const hasOvertime = (r) => r?.overtimeAfter7Minutes > 0;
+/** Overtime per the server's rule (check-out after 7 PM, counted from 6 PM); null without a check-out. */
+const hasOvertime = (r) => r?.overtimeMinutes > 0;
 
 /**
  * Phone attendance calendar. Loads one month at a time from the existing
@@ -251,7 +251,7 @@ export function MobileCalendarView() {
               <AlertTriangle size={12} className="text-amber-300" aria-hidden="true" /> Missed check-out
             </li>
             <li className="flex items-center gap-1.5 h-7 px-2.5 rounded-full bg-zm-card border border-zm-border text-xs text-zm-muted">
-              <Clock size={12} aria-hidden="true" /> Overtime after 7 PM
+              <Clock size={12} aria-hidden="true" /> Overtime
             </li>
             <li className="flex items-center gap-1.5 h-7 px-2.5 rounded-full bg-zm-card border border-zm-border text-xs text-zm-muted">
               <House size={12} aria-hidden="true" /> Work from home
@@ -307,7 +307,7 @@ export function MobileCalendarView() {
             )}
             {hasOvertime(selectedRecord) && (
               <p className="flex items-center gap-2 text-xs font-semibold text-zm-muted">
-                <Clock size={14} className="shrink-0" aria-hidden="true" /> Overtime recorded · {formatMinutes(selectedRecord.overtimeAfter7Minutes)} after 7:00 PM
+                <Clock size={14} className="shrink-0" aria-hidden="true" /> Overtime · {formatMinutes(selectedRecord.overtimeMinutes)} (check-out after 7 PM, counted from 6 PM)
               </p>
             )}
           </section>

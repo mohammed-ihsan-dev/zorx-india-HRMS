@@ -1,37 +1,15 @@
-// Salary Report (attendance-based, read-only): check-in, check-out and time
-// worked after the 7:00 PM cutoff. Not payroll — it never changes attendance,
-// and the "overtime after 7 PM" figure is separate from Attendance.overtimeMinutes.
+// Salary Report (attendance-based, read-only): a monthly calendar of check-in,
+// check-out and overtime per employee. Not payroll — it never changes attendance.
+// Overtime comes only from overtimeService (the app's one overtime rule).
 import { getZonedParts } from '../utils/dateUtils.js';
 import { env } from '../config/env.js';
-
-export const OVERTIME_CUTOFF = '19:00';
-const DAY_MS = 86_400_000;
+import { overtimeForRecord } from './overtimeService.js';
 
 const toValidDate = (value) => {
   if (!value) return null;
   const d = value instanceof Date ? value : new Date(value);
   return Number.isFinite(d.getTime()) ? d : null;
 };
-
-/**
- * Minutes worked after the cutoff on the attendance day, from the RECORDED
- * checkout only. `attendanceDate` is the record's day key (UTC midnight of the
- * office-timezone day). Returns null when it can't be determined (no or invalid
- * checkout, or a checkout before the attendance day) — never guessed.
- * A checkout after midnight counts all the way from that day's cutoff.
- */
-export function overtimeAfterCutoffMinutes(attendanceDate, checkOutAt, { timeZone = env.timezone, cutoff = OVERTIME_CUTOFF } = {}) {
-  const day = toValidDate(attendanceDate);
-  const out = toValidDate(checkOutAt);
-  if (!day || !out) return null;
-  const [ch, cm] = cutoff.split(':').map(Number);
-  const local = getZonedParts(out, timeZone);
-  const localDay = Date.UTC(local.year, local.month - 1, local.day);
-  const dayOffset = Math.round((localDay - Date.UTC(day.getUTCFullYear(), day.getUTCMonth(), day.getUTCDate())) / DAY_MS);
-  if (dayOffset < 0) return null;
-  const minutesAfterCutoff = dayOffset * 1440 + local.hour * 60 + local.minute + local.second / 60 - (ch * 60 + cm);
-  return Math.max(0, Math.floor(minutesAfterCutoff));
-}
 
 /** 75 → "01h 15m"; null → "—". */
 export function formatOvertime(minutes) {
@@ -75,15 +53,14 @@ export function monthRange(month) {
 }
 
 /**
- * Report rows from attendance records (employeeId populated), sorted by date,
- * then employee name. These exact rows feed the table, the CSV and the PDF.
+ * Report rows (days with a check-in) from attendance records (employeeId
+ * populated), sorted by date, then employee name. They feed the table and CSV.
  */
-export function buildSalaryRows(records, timeZone = env.timezone) {
+export function buildSalaryRows(records, officeSettings = null, timeZone = env.timezone) {
   return records
+    .filter((r) => r.checkIn?.timestamp)
     .map((r) => {
-      // The employee's own cutoff if HR set one (e.g. 7 PM in their timezone), else 7 PM.
-      const cutoff = r.employeeId?.overtimeCutoffTime || OVERTIME_CUTOFF;
-      const overtimeMinutes = overtimeAfterCutoffMinutes(r.date, r.checkOut?.timestamp, { timeZone, cutoff });
+      const overtimeMinutes = overtimeForRecord(r, r.employeeId, officeSettings, timeZone);
       return {
         employeeName: employeeDisplayName(r.employeeId),
         employeeCode: r.employeeId?.employeeCode || '',
@@ -96,6 +73,68 @@ export function buildSalaryRows(records, timeZone = env.timezone) {
       };
     })
     .sort((a, b) => a.dateKey.localeCompare(b.dateKey) || a.employeeName.localeCompare(b.employeeName));
+}
+
+const STATUS_LABEL = { PRESENT: 'Present', LATE: 'Late', HALF_DAY: 'Half day', ABSENT: 'Absent', LEAVE: 'Leave', HOLIDAY: 'Holiday', WEEKEND: 'Weekend' };
+
+/**
+ * One employee's month as calendar weeks (Monday first), shared by the screen
+ * and the PDF. Each in-month cell is one of:
+ *   record     — has a check-in: In / Out ("—" = missing check-out) / OT
+ *   status     — a record without a check-in (e.g. Leave, Absent): its status
+ *   no-record  — a past or current day with no attendance record
+ *   upcoming   — a future day (left empty)
+ * Sundays and holidays are flagged so they can be shaded; nothing is invented.
+ */
+export function buildCalendarMonth({ range, records, employee, holidays = [], officeSettings = null, today = new Date(), timeZone = env.timezone }) {
+  const byDay = new Map(records.map((r) => [new Date(r.date).toISOString().slice(0, 10), r]));
+  const holidayByDay = new Map(holidays.map((h) => [new Date(h.date).toISOString().slice(0, 10), h.name]));
+  const t = getZonedParts(today, timeZone);
+  const todayKey = `${t.year}-${String(t.month).padStart(2, '0')}-${String(t.day).padStart(2, '0')}`;
+  const y = range.start.getUTCFullYear();
+  const m = range.start.getUTCMonth();
+  const daysInMonth = new Date(Date.UTC(y, m + 1, 0)).getUTCDate();
+  const lead = (range.start.getUTCDay() + 6) % 7; // Monday = 0
+  const cells = Array(lead).fill(null);
+  let daysWithRecords = 0;
+  let totalOvertimeMinutes = 0;
+  for (let d = 1; d <= daysInMonth; d += 1) {
+    const dateKey = `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    const weekday = new Date(Date.UTC(y, m, d)).getUTCDay();
+    const r = byDay.get(dateKey);
+    const cell = { day: d, dateKey, isSunday: weekday === 0, holiday: holidayByDay.get(dateKey) || null };
+    if (r?.checkIn?.timestamp) {
+      const overtimeMinutes = overtimeForRecord(r, employee, officeSettings, timeZone);
+      daysWithRecords += 1;
+      totalOvertimeMinutes += overtimeMinutes || 0;
+      Object.assign(cell, {
+        kind: 'record',
+        checkIn: formatClockTime(r.checkIn.timestamp, timeZone),
+        checkOut: r.checkOut?.timestamp ? formatClockTime(r.checkOut.timestamp, timeZone) : null,
+        overtimeMinutes,
+        overtime: formatOvertime(overtimeMinutes),
+        status: r.status,
+      });
+    } else if (r) {
+      daysWithRecords += 1;
+      Object.assign(cell, { kind: 'status', status: r.status, statusLabel: STATUS_LABEL[r.status] || r.status });
+    } else {
+      cell.kind = dateKey > todayKey ? 'upcoming' : 'no-record';
+    }
+    cells.push(cell);
+  }
+  while (cells.length % 7) cells.push(null);
+  const weeks = Array.from({ length: cells.length / 7 }, (_, i) => cells.slice(i * 7, i * 7 + 7));
+  return {
+    employeeId: employee?._id ? String(employee._id) : null,
+    employeeName: employeeDisplayName(employee),
+    employeeCode: employee?.employeeCode || '',
+    monthLabel: range.label,
+    weeks,
+    daysWithRecords,
+    totalOvertimeMinutes,
+    totalOvertime: formatOvertime(totalOvertimeMinutes),
+  };
 }
 
 export const SALARY_COLUMNS = [

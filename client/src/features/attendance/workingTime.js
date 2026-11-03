@@ -86,3 +86,27 @@ export function officeClockToLocal(hhmm, officeTimeZone = 'Asia/Kolkata', now = 
     .toLocaleTimeString('en-US', { timeZone: localTimeZone, hour: '2-digit', minute: '2-digit', hour12: true })
     .toLowerCase();
 }
+
+/**
+ * Live mirror of the server's overtime rule (server/src/services/overtimeService.js)
+ * for the dashboard: 0 until the time passes `threshold` (7 PM), then counted from
+ * `start` (6 PM) — in the company timezone, never the device's. `attendanceDate` is
+ * the record's day key; `atMs` the recorded check-out (or "now" while checked in).
+ */
+export function overtimeMinutesAt(attendanceDate, atMs, { threshold = '19:00', start = '18:00', officeTimeZone = 'Asia/Kolkata' } = {}) {
+  const day = attendanceDate ? new Date(attendanceDate) : null;
+  if (!day || !Number.isFinite(day.getTime()) || !Number.isFinite(atMs)) return 0;
+  const p = Object.fromEntries(
+    new Intl.DateTimeFormat('en-US', { timeZone: officeTimeZone, hourCycle: 'h23', year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric', minute: 'numeric' })
+      .formatToParts(new Date(atMs))
+      .map((x) => [x.type, x.value])
+  );
+  const dayOffset = Math.round((Date.UTC(+p.year, +p.month - 1, +p.day) - Date.UTC(day.getUTCFullYear(), day.getUTCMonth(), day.getUTCDate())) / 86400000);
+  if (dayOffset < 0) return 0;
+  const minute = dayOffset * 1440 + (+p.hour % 24) * 60 + +p.minute;
+  const toMin = (hhmm) => {
+    const [h, m] = String(hhmm).split(':').map(Number);
+    return h * 60 + m;
+  };
+  return minute <= toMin(threshold) ? 0 : Math.max(0, minute - toMin(start));
+}

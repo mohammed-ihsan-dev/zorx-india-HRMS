@@ -121,6 +121,11 @@ export function buildTablePdf({ brand, title, meta = [], columns, rows, footer =
     p.push(`BT /F1 8 Tf ${rgb(MUTED)} rg ${(PAGE_W - MARGIN - textWidth(label, 8)).toFixed(2)} ${MARGIN - 14} Td ${pdfString(label)} Tj ET`);
   });
 
+  return assemblePdf(pages, PAGE_W, PAGE_H);
+}
+
+/** Turns per-page content streams into a PDF file (Helvetica + Helvetica-Bold, WinAnsi). */
+function assemblePdf(pages, pageW, pageH) {
   // Objects: 1 catalog, 2 pages, 3/4 fonts, then (page, content) pairs.
   const objects = [];
   const pageIds = pages.map((_, i) => 5 + i * 2);
@@ -131,7 +136,7 @@ export function buildTablePdf({ brand, title, meta = [], columns, rows, footer =
   pages.forEach((p, i) => {
     const content = p.join('\n');
     objects[pageIds[i]] =
-      `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${PAGE_W} ${PAGE_H}] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents ${pageIds[i] + 1} 0 R >>`;
+      `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${pageW} ${pageH}] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents ${pageIds[i] + 1} 0 R >>`;
     objects[pageIds[i] + 1] = `<< /Length ${Buffer.byteLength(content, 'latin1')} >>\nstream\n${content}\nendstream`;
   });
 
@@ -146,4 +151,97 @@ export function buildTablePdf({ brand, title, meta = [], columns, rows, footer =
   for (let id = 1; id < objects.length; id += 1) pdf += `${String(offsets[id]).padStart(10, '0')} 00000 n \n`;
   pdf += `trailer\n<< /Size ${objects.length} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF\n`;
   return Buffer.from(pdf, 'latin1');
+}
+
+// ---- Monthly calendar (A4 landscape, one page per employee) ----
+
+const A4_LANDSCAPE = { w: 841.89, h: 595.28 }; // 297 × 210 mm
+const GRID = [203, 213, 225];
+const SUNDAY = [246, 247, 249];
+const OUTSIDE = [250, 250, 251];
+const HOLIDAY = [237, 233, 254];
+const WEEKDAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+
+/**
+ * One A4-landscape page per calendar (salaryReportService.buildCalendarMonth),
+ * always one page per month: rows shrink to fit 5 or 6 weeks.
+ * @param {{ brand: string, title: string, calendars: object[], lines: (cal) => string[], footer: string }} spec
+ */
+export function buildCalendarPdf({ brand, title, calendars, lines = () => [], footer = '' }) {
+  const { w: W, h: H } = A4_LANDSCAPE;
+  const M = 28;
+  const pages = calendars.map((cal) => {
+    const ops = [];
+    const text = (x, y, str, { size = 8.5, bold = false, color = TEXT } = {}) =>
+      ops.push(`BT /${bold ? 'F2' : 'F1'} ${size} Tf ${rgb(color)} rg ${x.toFixed(2)} ${y.toFixed(2)} Td ${pdfString(str)} Tj ET`);
+    const rect = (x, y, rw, rh, color) => ops.push(`${rgb(color)} rg ${x.toFixed(2)} ${y.toFixed(2)} ${rw.toFixed(2)} ${rh.toFixed(2)} re f`);
+    const stroke = (x, y, rw, rh) => ops.push(`${rgb(GRID)} RG 0.6 w ${x.toFixed(2)} ${y.toFixed(2)} ${rw.toFixed(2)} ${rh.toFixed(2)} re S`);
+
+    // Header: brand + title, month on the right, employee, summary line.
+    let y = H - M - 14;
+    text(M, y, brand, { size: 16, bold: true, color: BRAND });
+    text(M + textWidth(brand, 16, true) + 10, y, title, { size: 13, bold: true });
+    const month = cal.monthLabel;
+    text(W - M - textWidth(month, 14, true), y, month, { size: 14, bold: true, color: BRAND });
+    y -= 19;
+    text(M, y, fitText(`${cal.employeeName}${cal.employeeCode ? `  (${cal.employeeCode})` : ''}`, 12, W - 2 * M, true), { size: 12, bold: true });
+    for (const line of lines(cal)) {
+      y -= 13;
+      text(M, y, fitText(line, 8.5, W - 2 * M), { size: 8.5, color: MUTED });
+    }
+    y -= 10;
+
+    // Weekday header row.
+    const colW = (W - 2 * M) / 7;
+    const headH = 17;
+    rect(M, y - headH, W - 2 * M, headH, PISTA);
+    WEEKDAYS.forEach((d, i) => text(M + i * colW + 6, y - 12, d, { size: 9, bold: true, color: BRAND }));
+    stroke(M, y - headH, W - 2 * M, headH);
+    y -= headH;
+
+    // Weeks: rows share the remaining height above the footer.
+    const bottom = M + 14;
+    const rowH = (y - bottom) / cal.weeks.length;
+    cal.weeks.forEach((week, wi) => {
+      const top = y - wi * rowH;
+      week.forEach((cell, ci) => {
+        const x = M + ci * colW;
+        if (!cell) rect(x, top - rowH, colW, rowH, OUTSIDE);
+        else if (cell.holiday) rect(x, top - rowH, colW, rowH, HOLIDAY);
+        else if (cell.isSunday) rect(x, top - rowH, colW, rowH, SUNDAY);
+        stroke(x, top - rowH, colW, rowH);
+        if (!cell) return;
+        const inner = colW - 12;
+        text(x + 6, top - 15, String(cell.day), { size: 12, bold: true });
+        if (cell.holiday) {
+          const tag = fitText(cell.holiday, 7.5, inner - 22, true);
+          text(x + colW - 6 - textWidth(tag, 7.5, true), top - 14, tag, { size: 7.5, bold: true, color: [91, 33, 182] });
+        }
+        let ly = top - 30;
+        const line = (str, opts) => {
+          if (ly < top - rowH + 4) return;
+          text(x + 6, ly, fitText(str, opts?.size || 8.5, inner, opts?.bold), opts);
+          ly -= 11.5;
+        };
+        if (cell.kind === 'record') {
+          line(`In: ${cell.checkIn}`);
+          line(`Out: ${cell.checkOut || '— (no check-out)'}`, cell.checkOut ? undefined : { color: [180, 83, 9] });
+          line(`OT: ${cell.overtime}`, cell.overtimeMinutes > 0 ? { bold: true, color: BRAND } : { color: MUTED });
+        } else if (cell.kind === 'status') {
+          line(cell.statusLabel, { bold: true });
+          line('No check-in', { color: MUTED });
+        } else if (cell.kind === 'no-record') {
+          line('No record', { color: MUTED });
+        }
+      });
+    });
+    return ops;
+  });
+
+  pages.forEach((p, i) => {
+    const label = `Page ${i + 1} of ${pages.length}`;
+    p.push(`BT /F1 8 Tf ${rgb(MUTED)} rg ${M} ${M} Td ${pdfString(footer)} Tj ET`);
+    p.push(`BT /F1 8 Tf ${rgb(MUTED)} rg ${(W - M - textWidth(label, 8)).toFixed(2)} ${M} Td ${pdfString(label)} Tj ET`);
+  });
+  return assemblePdf(pages, W, H);
 }

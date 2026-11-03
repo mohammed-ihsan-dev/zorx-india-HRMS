@@ -9,8 +9,11 @@ import { sendSuccess } from '../utils/ApiResponse.js';
 import { getZonedParts } from '../utils/dateUtils.js';
 import { ApiError } from '../utils/ApiError.js';
 import { env } from '../config/env.js';
-import { buildTablePdf } from '../utils/simplePdf.js';
-import { buildSalaryRows, monthRange, employeeDisplayName, slugify, SALARY_COLUMNS, OVERTIME_CUTOFF } from '../services/salaryReportService.js';
+import { buildCalendarPdf } from '../utils/simplePdf.js';
+import { buildSalaryRows, buildCalendarMonth, monthRange, employeeDisplayName, slugify, SALARY_COLUMNS } from '../services/salaryReportService.js';
+import { overtimeForRecord, OVERTIME_THRESHOLD, OVERTIME_START } from '../services/overtimeService.js';
+import { OfficeSettings } from '../models/OfficeSettings.js';
+import { Holiday } from '../models/Holiday.js';
 import { ROLES } from '../utils/constants.js';
 
 function toCsv(rows, columns) {
@@ -97,7 +100,10 @@ async function buildLeaveFilter({ from, to, employeeId, departmentId, status, le
 export const attendanceReport = asyncHandler(async (req, res) => {
   const { from, to } = req.query;
   const filter = await buildAttendanceFilter(req.query);
-  const records = await Attendance.find(filter).populate('employeeId', 'firstName lastName employeeCode').sort({ date: -1 });
+  const [records, officeSettings] = await Promise.all([
+    Attendance.find(filter).populate('employeeId', 'firstName lastName employeeCode workingEndTime overtimeCutoffTime').sort({ date: -1 }),
+    OfficeSettings.getSingleton(),
+  ]);
 
   const columns = [
     { label: 'Employee Code', value: (r) => r.employeeId?.employeeCode },
@@ -109,7 +115,8 @@ export const attendanceReport = asyncHandler(async (req, res) => {
     { label: 'Break Duration (min)', value: (r) => r.breakMinutes },
     { label: 'Extra Break (min)', value: (r) => r.extraBreakMinutes },
     { label: 'Late Minutes', value: (r) => r.lateMinutes },
-    { label: 'Overtime Minutes', value: (r) => r.overtimeMinutes },
+    // Recalculated with the current overtime rule from the recorded check-out (not the stored value).
+    { label: 'Overtime Minutes', value: (r) => overtimeForRecord(r, r.employeeId, officeSettings) ?? '' },
     { label: 'Status', value: (r) => r.status },
   ];
 
@@ -213,8 +220,9 @@ export const taskReport = asyncHandler(async (req, res) => {
 
 /**
  * GET /reports/salary?month=YYYY-MM[&employeeId=...][&format=csv|pdf]
- * Back office only (router-level requireRole). Read-only: attendance days with
- * a recorded check-in in that month, with overtime worked after 7:00 PM.
+ * Back office only (router-level requireRole). Read-only. JSON: list rows plus a
+ * monthly calendar per employee; CSV: the list; PDF: the calendar on A4
+ * landscape, one page per employee. Overtime: overtimeService (7 PM / 6 PM rule).
  */
 export const salaryReport = asyncHandler(async (req, res) => {
   const { employeeId, format } = req.query;
@@ -224,26 +232,42 @@ export const salaryReport = asyncHandler(async (req, res) => {
   if (!range) throw ApiError.badRequest('Please choose a valid month (YYYY-MM).');
   if (format && !['csv', 'pdf'].includes(format)) throw ApiError.badRequest('Unsupported export format.');
 
+  const EMPLOYEE_FIELDS = 'firstName lastName employeeCode workingEndTime overtimeCutoffTime';
   let employee = null;
   if (employeeId) {
     if (!mongoose.isValidObjectId(employeeId)) throw ApiError.badRequest('Invalid employee.');
-    employee = await Employee.findById(employeeId).select('firstName lastName employeeCode').lean();
+    employee = await Employee.findById(employeeId).select(EMPLOYEE_FIELDS).lean();
     if (!employee) throw ApiError.notFound('Employee not found.');
   }
 
-  const filter = { date: { $gte: range.start, $lt: range.end }, 'checkIn.timestamp': { $ne: null } };
+  const filter = { date: { $gte: range.start, $lt: range.end } };
   if (employee) filter.employeeId = employee._id;
-  const records = await Attendance.find(filter)
-    .select('employeeId date checkIn.timestamp checkOut.timestamp')
-    .populate('employeeId', 'firstName lastName employeeCode overtimeCutoffTime')
-    .lean();
-  const rows = buildSalaryRows(records);
+  const [records, officeSettings, holidays] = await Promise.all([
+    Attendance.find(filter).select('employeeId date status checkIn.timestamp checkOut.timestamp').populate('employeeId', EMPLOYEE_FIELDS).lean(),
+    OfficeSettings.getSingleton(),
+    Holiday.find({ date: { $gte: range.start, $lt: range.end } }).select('date name').lean(),
+  ]);
+  const rows = buildSalaryRows(records, officeSettings);
   const scope = employee ? employeeDisplayName(employee) : 'All Employees';
+
+  // One calendar per employee: the chosen one (even with no records), or everyone with records.
+  const byEmployee = new Map();
+  for (const r of records) {
+    if (!r.employeeId) continue;
+    const key = String(r.employeeId._id);
+    if (!byEmployee.has(key)) byEmployee.set(key, { employee: r.employeeId, records: [] });
+    byEmployee.get(key).records.push(r);
+  }
+  if (employee && !byEmployee.has(String(employee._id))) byEmployee.set(String(employee._id), { employee, records: [] });
+  const calendars = [...byEmployee.values()]
+    .map(({ employee: e, records: rs }) => buildCalendarMonth({ range, records: rs, employee: e, holidays, officeSettings }))
+    .sort((a, b) => a.employeeName.localeCompare(b.employeeName));
 
   if (!format) {
     return sendSuccess(res, {
       data: rows,
-      meta: { month, monthLabel: range.label, employee: scope, cutoff: OVERTIME_CUTOFF, total: rows.length },
+      // calendars: one monthly calendar per employee (see buildCalendarMonth).
+      meta: { month, monthLabel: range.label, employee: scope, overtimeRule: { threshold: OVERTIME_THRESHOLD, start: OVERTIME_START }, total: rows.length, calendars },
     });
   }
 
@@ -255,18 +279,14 @@ export const salaryReport = asyncHandler(async (req, res) => {
   }
 
   const generated = formatIstTimestamp(new Date()).slice(0, 16);
-  const pdf = buildTablePdf({
+  const pdf = buildCalendarPdf({
     brand: 'ZORX INDIA',
-    title: 'Salary Report',
-    meta: [`Month: ${range.label}`, `Employee: ${scope}`, `Generated: ${generated} (${env.timezone})`, `Overtime = time worked after 7:00 PM IST (or the employee's own cutoff where set), from the recorded check-out · ${rows.length} record${rows.length === 1 ? '' : 's'}`],
-    columns: [
-      { label: 'Employee Name', width: 175 },
-      { label: 'Date', width: 85 },
-      { label: 'Check-in Time', width: 85 },
-      { label: 'Check-out Time', width: 85 },
-      { label: 'Overtime Used', width: 85 },
+    title: 'Monthly Attendance Calendar',
+    calendars: calendars.filter((c) => c.daysWithRecords > 0),
+    lines: (cal) => [
+      `Days with attendance records: ${cal.daysWithRecords}  ·  Total overtime: ${cal.totalOvertime}  ·  Generated: ${generated} (${env.timezone})`,
+      `Overtime: check-out after 7:00 PM counts from 6:00 PM (company time; employee-specific times where HR set them). "No record" = no attendance that day.`,
     ],
-    rows: rows.map((r) => SALARY_COLUMNS.map((c) => c.value(r))),
     footer: 'ZORX INDIA · Salary Report · Attendance-based, not a payroll statement',
   });
   res.setHeader('Content-Type', 'application/pdf');

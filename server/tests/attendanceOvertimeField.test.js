@@ -6,8 +6,8 @@ import { Employee } from '../src/models/Employee.js';
 import { Attendance } from '../src/models/Attendance.js';
 import { ROLES } from '../src/utils/constants.js';
 
-// GET /attendance/me adds a display-only overtimeAfter7Minutes per record
-// (same rule as the Salary Report); nothing is written to the records.
+// GET /attendance/me recalculates overtime per record with the app's one rule
+// (after 7 PM counts from 6 PM); nothing is written to the records.
 const app = createApp();
 const PASSWORD = 'Test@12345';
 const ist = (ymd, hhmm) => new Date(`${ymd}T${hhmm}:00+05:30`);
@@ -31,13 +31,13 @@ beforeEach(async () => {
   await clearTestDb();
 });
 
-test('overtime after 7:00 PM per day, from the recorded check-out only; records unchanged', async () => {
+test('overtime per day from the recorded check-out (7 PM eligibility, counted from 6 PM); records unchanged', async () => {
   const { emp, token } = await employee();
   const cases = [
     ['2026-10-20', '18:00', 0],
     ['2026-10-21', '19:00', 0],
-    ['2026-10-22', '19:01', 1],
-    ['2026-10-26', '20:15', 75],
+    ['2026-10-22', '19:01', 61],
+    ['2026-10-26', '20:15', 135],
     ['2026-10-27', null, null],
   ];
   for (const [ymd, out] of cases) {
@@ -46,7 +46,8 @@ test('overtime after 7:00 PM per day, from the recorded check-out only; records 
   const before = await Attendance.find({}).sort({ _id: 1 }).lean();
   const res = await request(app).get('/api/attendance/me').set('Authorization', `Bearer ${token}`).query({ from: '2026-10-01', to: '2026-10-31', limit: 31 });
   expect(res.status).toBe(200);
-  const byDay = Object.fromEntries(res.body.data.map((r) => [r.date.slice(0, 10), r.overtimeAfter7Minutes]));
+  const byDay = Object.fromEntries(res.body.data.map((r) => [r.date.slice(0, 10), r.overtimeMinutes]));
+  expect(res.body.data.every((r) => r.overtimeAfter7Minutes === r.overtimeMinutes)).toBe(true); // compatibility alias
   expect(byDay).toEqual(Object.fromEntries(cases.map(([d, , m]) => [d, m])));
   // Existing fields are still returned as before.
   expect(res.body.data[0]).toMatchObject({ status: 'PRESENT', employeeId: emp._id.toString() });

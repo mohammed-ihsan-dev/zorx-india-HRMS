@@ -45,8 +45,8 @@ afterEach(() => jest.useRealTimers());
 
 test('effective schedule: personal values where set, office defaults otherwise', () => {
   const office = { workingStartTime: '09:30', workingEndTime: '18:00', breakDurationMinutes: 60 };
-  expect(effectiveSchedule({}, office)).toEqual({ workingStartTime: '09:30', workingEndTime: '18:00', dailyTargetMinutes: 450, overtimeCutoffTime: '19:00', personal: false });
-  expect(effectiveSchedule(DUBAI, office)).toEqual({ workingStartTime: '11:30', workingEndTime: '19:30', dailyTargetMinutes: 420, overtimeCutoffTime: '20:30', personal: true });
+  expect(effectiveSchedule({}, office)).toEqual({ workingStartTime: '09:30', workingEndTime: '18:00', dailyTargetMinutes: 450, overtimeCutoffTime: '19:00', overtimeStartTime: '18:00', personal: false });
+  expect(effectiveSchedule(DUBAI, office)).toEqual({ workingStartTime: '11:30', workingEndTime: '19:30', dailyTargetMinutes: 420, overtimeCutoffTime: '20:30', overtimeStartTime: '19:30', personal: true });
 });
 
 test('late is measured from 10:00 Dubai (11:30 IST) with the normal grace', async () => {
@@ -58,17 +58,17 @@ test('late is measured from 10:00 Dubai (11:30 IST) with the normal grace', asyn
   expect((await punch('rifan@zorx.test', 'in', SITE)).body.data).toMatchObject({ status: 'LATE', lateMinutes: 5 });
 });
 
-test('check-out overtime is measured against his 7h target; office staff still against 7h 30m', async () => {
+test('check-out overtime uses the 7 PM / 6 PM rule — his own pair in Dubai time (20:30 / 19:30 IST)', async () => {
   await setup('rifan@zorx.test', DUBAI);
   await setup('office@zorx.test');
   setNow(ist('2026-11-02', '11:30'));
   await punch('rifan@zorx.test', 'in', SITE);
   setNow(ist('2026-11-02', '09:30'));
   await punch('office@zorx.test', 'in', OFFICE);
-  setNow(ist('2026-11-02', '19:30')); // 6 PM Dubai; 8h elapsed for him
-  expect((await punch('rifan@zorx.test', 'out', SITE)).body.data).toMatchObject({ totalWorkingMinutes: 480, overtimeMinutes: 60 });
-  setNow(ist('2026-11-02', '17:30')); // 8h elapsed for the office employee too
-  expect((await punch('office@zorx.test', 'out', OFFICE)).body.data).toMatchObject({ totalWorkingMinutes: 480, overtimeMinutes: 30 });
+  setNow(ist('2026-11-02', '20:45')); // 7:15 PM Dubai: past his 7 PM → counted from 6 PM Dubai
+  expect((await punch('rifan@zorx.test', 'out', SITE)).body.data).toMatchObject({ overtimeMinutes: 75 });
+  setNow(ist('2026-11-02', '20:00')); // office employee: 8 PM IST → counted from 6 PM
+  expect((await punch('office@zorx.test', 'out', OFFICE)).body.data).toMatchObject({ overtimeMinutes: 120 });
 });
 
 test('dashboard schedule from the today endpoint', async () => {
@@ -79,7 +79,7 @@ test('dashboard schedule from the today endpoint', async () => {
   expect(await today('office@zorx.test')).toMatchObject({ workingStartTime: '09:30', workingEndTime: '18:00', dailyTargetMinutes: 450, overtimeCutoffTime: '19:00' });
 });
 
-test('"overtime after 7 PM" uses 7 PM Dubai (20:30 IST) for him only — calendar and Salary Report', async () => {
+test('the overtime rule uses his own pair (7 PM / 6 PM Dubai) only for him — calendar and Salary Report', async () => {
   const rifan = await setup('rifan@zorx.test', DUBAI);
   const office = await setup('office@zorx.test');
   const admin = await setup('hr@zorx.test', {}, ROLES.ADMIN);
@@ -87,10 +87,10 @@ test('"overtime after 7 PM" uses 7 PM Dubai (20:30 IST) for him only — calenda
     await Attendance.create({ employeeId: e.employee._id, date: new Date('2026-10-29T00:00:00.000Z'), checkIn: { timestamp: ist('2026-10-29', '11:30') }, checkOut: { timestamp: ist('2026-10-29', '20:45') }, status: 'PRESENT' });
   }
   const hist = async (email) => (await request(app).get('/api/attendance/me').set(auth(await login(email))).query({ from: '2026-10-01', to: '2026-10-31' })).body.data[0].overtimeAfter7Minutes;
-  expect(await hist('rifan@zorx.test')).toBe(15); // 20:30 → 20:45 IST
-  expect(await hist('office@zorx.test')).toBe(105); // 19:00 → 20:45 IST
+  expect(await hist('rifan@zorx.test')).toBe(75); // past 20:30 IST → from 19:30 IST (6 PM Dubai)
+  expect(await hist('office@zorx.test')).toBe(165); // past 19:00 → from 18:00 IST
   const report = (await request(app).get('/api/reports/salary').set(auth(await login(admin.email))).query({ month: '2026-10' })).body.data;
-  expect(Object.fromEntries(report.map((r) => [r.employeeName, r.overtime]))).toEqual({ 'rifan T': '00h 15m', 'office T': '01h 45m' });
+  expect(Object.fromEntries(report.map((r) => [r.employeeName, r.overtime]))).toEqual({ 'rifan T': '01h 15m', 'office T': '02h 45m' });
 });
 
 test('only HR/Admin can set it; values are validated; employees cannot change their own', async () => {

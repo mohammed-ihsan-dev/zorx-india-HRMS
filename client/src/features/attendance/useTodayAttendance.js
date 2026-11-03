@@ -7,7 +7,7 @@ import { getErrorMessage } from '../../services/apiClient.js';
 import { formatCountdownSeconds } from '../../utils/formatters.js';
 import { announceAttendanceRecord } from './BreakReminderWatcher.jsx';
 import { breakAllowanceUsage } from './breakReminders.js';
-import { netWorkedMinutes, requiredWorkingMinutes, progressPercent as toProgressPercent } from './workingTime.js';
+import { netWorkedMinutes, requiredWorkingMinutes, progressPercent as toProgressPercent, overtimeMinutesAt } from './workingTime.js';
 
 import { ATTENDANCE_UI_STATE, deriveAttendanceUiState, isRetryableLoadError, RESYNC_MIN_GAP_MS, RETRY_DELAY_MS } from './attendanceUiState.js';
 
@@ -138,7 +138,17 @@ export function useTodayAttendance() {
   const requiredMinutes = useMemo(() => schedule?.dailyTargetMinutes ?? requiredWorkingMinutes(officeSettings), [schedule, officeSettings]);
 
   const remainingMinutes = requiredMinutes === null ? null : Math.max(0, requiredMinutes - workedMinutes);
-  const overtimeMinutes = requiredMinutes === null ? 0 : Math.max(0, workedMinutes - requiredMinutes);
+  // Overtime = the company rule (after 7 PM → from 6 PM, or the employee's own pair):
+  // from the recorded check-out, or live from "now" while still checked in.
+  const overtimeMinutes = useMemo(() => {
+    if (!record?.checkIn) return 0;
+    const atMs = record.checkOut ? new Date(record.checkOut.timestamp).getTime() : tick;
+    return overtimeMinutesAt(record.date, atMs, {
+      threshold: schedule?.overtimeCutoffTime || '19:00',
+      start: schedule?.overtimeStartTime || '18:00',
+      officeTimeZone: officeSettings?.timezone || 'Asia/Kolkata',
+    });
+  }, [record, tick, schedule, officeSettings]);
   const progressPercent = toProgressPercent(workedMinutes, requiredMinutes);
 
   const maxBreakMinutes = officeSettings?.breakDurationMinutes || 60;

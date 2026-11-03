@@ -130,10 +130,6 @@ describe('attendanceService pure calculations', () => {
       .toBe(450);
   });
 
-  test('a full standard day (7h 30m net) is exactly on target: no overtime', () => {
-    const officeSettings = { workingStartTime: '09:30', workingEndTime: '18:00', breakDurationMinutes: 60, overtimeEnabled: true };
-    expect(attendanceService.calculateOvertime(450, officeSettings)).toBe(0);
-  });
 
   test('calculateWorkingMinutes never goes negative', () => {
     const t = new Date('2026-01-01T10:00:00Z');
@@ -141,24 +137,6 @@ describe('attendanceService pure calculations', () => {
     expect(attendanceService.calculateWorkingMinutes(t, new Date('2026-01-01T10:30:00Z'), 60)).toBe(0);
   });
 
-  test('calculateOvertime returns 0 when overtime disabled', () => {
-    const officeSettings = {
-      workingStartTime: '09:30',
-      workingEndTime: '18:00',
-      breakDurationMinutes: 60,
-      overtimeEnabled: false,
-    };
-    expect(attendanceService.calculateOvertime(600, officeSettings)).toBe(0);
-  });
-
-  test('calculateOvertime returns extra minutes worked beyond schedule', () => {
-    const officeSettings = {
-      workingStartTime: '09:30',
-      workingEndTime: '18:00',
-      breakDurationMinutes: 60,
-      overtimeEnabled: true,
-    };
-    // Expected working minutes = 8.5h - 1h = 450. Worked 500 -> 50 min overtime.
-    expect(attendanceService.calculateOvertime(500, officeSettings)).toBe(50);
-  });
+  // Overtime is no longer "minutes beyond the daily target": see overtimeService.test.js
+  // (check-out after 7:00 PM, counted from 6:00 PM).
 });

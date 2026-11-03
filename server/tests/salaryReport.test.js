@@ -5,7 +5,8 @@ import { User } from '../src/models/User.js';
 import { Employee } from '../src/models/Employee.js';
 import { Attendance } from '../src/models/Attendance.js';
 import { ROLES } from '../src/utils/constants.js';
-import { overtimeAfterCutoffMinutes, formatOvertime, formatClockTime, monthRange } from '../src/services/salaryReportService.js';
+import { Holiday } from '../src/models/Holiday.js';
+import { formatOvertime, formatClockTime, monthRange } from '../src/services/salaryReportService.js';
 
 const app = createApp();
 const PASSWORD = 'Test@12345';
@@ -49,32 +50,9 @@ beforeEach(async () => {
   await clearTestDb();
 });
 
-describe('overtime after 7:00 PM', () => {
-  const ot = (out) => overtimeAfterCutoffMinutes(dayKey('2026-10-20'), out, { timeZone: TZ });
-  test.each([
-    ['06:00 PM checkout', ist('2026-10-20', '18:00'), 0],
-    ['exactly 7:00 PM', ist('2026-10-20', '19:00'), 0],
-    ['7:00:59 PM (under a minute)', new Date('2026-10-20T19:00:59+05:30'), 0],
-    ['7:30 PM', ist('2026-10-20', '19:30'), 30],
-    ['8:15 PM', ist('2026-10-20', '20:15'), 75],
-    ['12:30 AM the next day', ist('2026-10-21', '00:30'), 330],
-  ])('%s', (_, out, minutes) => {
-    expect(ot(out)).toBe(minutes);
-  });
-
-  test('missing, invalid or impossible checkouts are never guessed', () => {
-    expect(ot(null)).toBeNull();
-    expect(ot('not-a-date')).toBeNull();
-    expect(ot(ist('2026-10-19', '20:00'))).toBeNull(); // before the attendance day
-    expect(overtimeAfterCutoffMinutes(null, ist('2026-10-20', '20:00'))).toBeNull();
-  });
-
-  test('uses the office timezone, not UTC: 7:30 PM IST is 14:00 UTC', () => {
-    expect(ot(new Date('2026-10-20T14:00:00Z'))).toBe(30);
-    expect(ot(new Date('2026-10-20T13:29:00Z'))).toBe(0); // 6:59 PM IST
-  });
-
-  test('formatting', () => {
+// The overtime rule itself is covered in overtimeService.test.js.
+describe('formatting', () => {
+  test('durations, times and months', () => {
     expect([0, 30, 75, 120].map(formatOvertime)).toEqual(['00h 00m', '00h 30m', '01h 15m', '02h 00m']);
     expect(formatOvertime(null)).toBe('—');
     expect(formatClockTime(ist('2026-10-20', '19:30'), TZ)).toBe('07:30 PM');
@@ -128,8 +106,8 @@ describe('filters and rows', () => {
     const res = await report(hr.token, { month: '2026-10' });
     expect(res.body.meta).toMatchObject({ monthLabel: 'October 2026', employee: 'All Employees', total: 4 });
     expect(res.body.data.map((r) => [r.date, r.employeeName, r.checkIn, r.checkOut, r.overtime])).toEqual([
-      ['01 Oct 2026', 'Asha K', '09:30 AM', '08:15 PM', '01h 15m'],
-      ['20 Oct 2026', 'Asha K', '10:00 AM', '07:30 PM', '00h 30m'],
+      ['01 Oct 2026', 'Asha K', '09:30 AM', '08:15 PM', '02h 15m'], // after 7 PM → from 6 PM
+      ['20 Oct 2026', 'Asha K', '10:00 AM', '07:30 PM', '01h 30m'],
       ['20 Oct 2026', 'Bala M', '09:30 AM', '06:00 PM', '00h 00m'],
       ['31 Oct 2026', 'Asha K', '10:00 AM', '—', '—'],
     ]);
@@ -142,9 +120,9 @@ describe('filters and rows', () => {
     expect(one.body.data.map((r) => r.date)).toEqual(['20 Oct 2026']);
     expect((await report(hr.token, { month: '2026-09', employeeId: a.employee._id.toString() })).body.data.map((r) => r.date)).toEqual(['30 Sep 2026']);
     await punch(a.employee._id, '2026-12-31', '10:00', '19:10');
-    await punch(a.employee._id, '2027-01-01', '10:00', '19:20');
-    expect((await report(hr.token, { month: '2026-12' })).body.data.map((r) => r.overtime)).toEqual(['00h 10m']);
-    expect((await report(hr.token, { month: '2027-01' })).body.data.map((r) => r.overtime)).toEqual(['00h 20m']);
+    await punch(a.employee._id, '2027-01-01', '10:00', '19:00');
+    expect((await report(hr.token, { month: '2026-12' })).body.data.map((r) => r.overtime)).toEqual(['01h 10m']);
+    expect((await report(hr.token, { month: '2027-01' })).body.data.map((r) => r.overtime)).toEqual(['00h 00m']); // exactly 7 PM
   });
 
   test('an empty month returns no rows; empty exports are refused clearly', async () => {
@@ -164,6 +142,54 @@ describe('filters and rows', () => {
     await report(hr.token, { month: '2026-10', format: 'csv' });
     await binary(report(hr.token, { month: '2026-10', format: 'pdf' }));
     expect(await Attendance.find({}).sort({ _id: 1 }).lean()).toEqual(before);
+  });
+});
+
+describe('monthly calendar', () => {
+  const cellFor = (cal, day) => cal.weeks.flat().find((c) => c?.day === day);
+
+  test('aligned Monday-first; record, missing check-out, status and no-record cells; never invented', async () => {
+    const hr = await setup(ROLES.ADMIN, 'hr@zorx.test');
+    const a = await setup(ROLES.EMPLOYEE, 'kk@zorx.test', 'Krishna', 'Kumar');
+    await punch(a.employee._id, '2026-10-26', '09:33', '21:21');
+    await punch(a.employee._id, '2026-10-27', '09:30', null); // no check-out
+    await punch(a.employee._id, '2026-10-28', null, null, { status: 'LEAVE' }); // record without check-in
+    await Holiday.create({ date: dayKey('2026-10-19'), name: 'Company Holiday', createdBy: hr.user._id });
+    const res = await report(hr.token, { month: '2026-10', employeeId: a.employee._id.toString() });
+    const [cal] = res.body.meta.calendars;
+    expect(cal).toMatchObject({ employeeName: 'Krishna Kumar', monthLabel: 'October 2026', daysWithRecords: 3, totalOvertime: '03h 21m' });
+    // 1 Oct 2026 is a Thursday: three empty cells first; 31 days over 5 weeks.
+    expect(cal.weeks[0].slice(0, 4).map((c) => c && c.day)).toEqual([null, null, null, 1]);
+    expect(cal.weeks).toHaveLength(5);
+    expect(cal.weeks.flat().filter(Boolean)).toHaveLength(31);
+    expect(cellFor(cal, 4)).toMatchObject({ isSunday: true, kind: 'no-record' });
+    expect(cellFor(cal, 19)).toMatchObject({ holiday: 'Company Holiday', kind: 'no-record' });
+    expect(cellFor(cal, 26)).toMatchObject({ kind: 'record', checkIn: '09:33 AM', checkOut: '09:21 PM', overtime: '03h 21m', overtimeMinutes: 201 });
+    expect(cellFor(cal, 27)).toMatchObject({ kind: 'record', checkIn: '09:30 AM', checkOut: null, overtime: '—' });
+    expect(cellFor(cal, 28)).toMatchObject({ kind: 'status', statusLabel: 'Leave' });
+    expect(cellFor(cal, 1)).toMatchObject({ kind: 'no-record' });
+  });
+
+  test('days after today are left empty, not "No record"', async () => {
+    const hr = await setup(ROLES.ADMIN, 'hr@zorx.test');
+    const a = await setup(ROLES.EMPLOYEE, 'kk@zorx.test');
+    const future = new Date(Date.now() + 40 * 86400000);
+    const month = future.toISOString().slice(0, 7);
+    const [cal] = (await report(hr.token, { month, employeeId: a.employee._id.toString() })).body.meta.calendars;
+    expect(cal.weeks.flat().filter(Boolean).every((c) => c.kind === 'upcoming')).toBe(true);
+    expect(cal.daysWithRecords).toBe(0);
+  });
+
+  test('an employee with no records still gets a calendar; All Employees lists only employees with records', async () => {
+    const hr = await setup(ROLES.ADMIN, 'hr@zorx.test');
+    const a = await setup(ROLES.EMPLOYEE, 'asha@zorx.test', 'Asha', 'K');
+    const b = await setup(ROLES.EMPLOYEE, 'bala@zorx.test', 'Bala', 'M');
+    await punch(b.employee._id, '2026-10-20', '09:30', '18:00');
+    const one = (await report(hr.token, { month: '2026-10', employeeId: a.employee._id.toString() })).body.meta.calendars;
+    expect(one).toHaveLength(1);
+    expect(one[0]).toMatchObject({ employeeName: 'Asha K', daysWithRecords: 0 });
+    const all = (await report(hr.token, { month: '2026-10' })).body.meta.calendars;
+    expect(all.map((c) => c.employeeName)).toEqual(['Bala M']);
   });
 });
 
@@ -191,11 +217,11 @@ describe('exports', () => {
     expect(res.headers['access-control-expose-headers']).toBe('Content-Disposition');
   });
 
-  test('PDF: branded, filters shown, every row present, header repeated across pages', async () => {
+  test('PDF: A4 landscape calendar, one page per employee, every day and overtime value present', async () => {
     const hr = await setup(ROLES.ADMIN, 'hr@zorx.test');
     const emps = [];
-    for (let i = 0; i < 4; i += 1) emps.push(await setup(ROLES.EMPLOYEE, `e${i}@zorx.test`, `Person${i}`, 'Z'));
-    // 4 employees × 31 days = 124 rows → several pages.
+    for (let i = 0; i < 3; i += 1) emps.push(await setup(ROLES.EMPLOYEE, `e${i}@zorx.test`, `Person${i}`, 'Z'));
+    // Odd days 7:45 PM (→ 01h 45m), even days 6:00 PM (→ 00h 00m).
     for (const e of emps) for (let d = 1; d <= 31; d += 1) await punch(e.employee._id, `2026-10-${String(d).padStart(2, '0')}`, '10:00', d % 2 ? '19:45' : '18:00');
     const res = await binary(report(hr.token, { month: '2026-10', format: 'pdf' }));
     expect(res.status).toBe(200);
@@ -204,12 +230,27 @@ describe('exports', () => {
     const pdf = res.body.toString('latin1');
     expect(pdf.startsWith('%PDF-1.4')).toBe(true);
     expect(pdf.trimEnd().endsWith('%%EOF')).toBe(true);
-    const pages = Number(/\/Count (\d+)/.exec(pdf)[1]);
-    expect(pages).toBeGreaterThan(2);
-    for (const s of ['(ZORX INDIA)', '(Salary Report)', '(Month: October 2026)', '(Employee: All Employees)', `(Page ${pages} of ${pages})`]) expect(pdf).toContain(s);
-    expect(pdf.split('(Employee Name)').length - 1).toBe(pages); // header on every page
-    expect(pdf.split('(00h 45m)').length - 1).toBe(4 * 16); // odd days, matches the table
-    expect(pdf.split('(00h 00m)').length - 1).toBe(4 * 15);
-    for (let i = 0; i < 4; i += 1) expect(pdf.split(`(Person${i} Z)`).length - 1).toBe(31);
+    expect(Number(/\/Count (\d+)/.exec(pdf)[1])).toBe(3); // one page per employee, no blanks
+    const boxes = [...pdf.matchAll(/\/MediaBox \[0 0 ([\d.]+) ([\d.]+)\]/g)].map((m) => [Number(m[1]), Number(m[2])]);
+    expect(boxes).toHaveLength(3);
+    expect(boxes.every(([w, h]) => w === 841.89 && h === 595.28)).toBe(true); // A4 landscape (297 × 210 mm)
+    for (const t of ['(ZORX INDIA)', '(Monthly Attendance Calendar)', '(October 2026)', '(Monday)', '(Sunday)', '(Page 3 of 3)']) expect(pdf).toContain(t);
+    for (let i = 0; i < 3; i += 1) expect(pdf).toContain(`(Person${i} Z`);
+    expect(pdf.split('(OT: 01h 45m)').length - 1).toBe(3 * 16);
+    expect(pdf.split('(OT: 00h 00m)').length - 1).toBe(3 * 15);
+    expect(pdf.split('(In: 10:00 AM)').length - 1).toBe(3 * 31);
+    expect(pdf).toContain('(Days with attendance records: 31');
+  });
+
+  test('PDF for one employee: one page with their name and missing check-out shown as such', async () => {
+    const hr = await setup(ROLES.ADMIN, 'hr@zorx.test');
+    const a = await setup(ROLES.EMPLOYEE, 'kk@zorx.test', 'Krishna', 'Kumar');
+    await punch(a.employee._id, '2026-10-26', '09:33', '21:21');
+    await punch(a.employee._id, '2026-10-27', '09:30', null);
+    const res = await binary(report(hr.token, { month: '2026-10', format: 'pdf', employeeId: a.employee._id.toString() }));
+    const pdf = res.body.toString('latin1');
+    expect(res.headers['content-disposition']).toBe('attachment; filename="salary-report-krishna-kumar-2026-10.pdf"');
+    expect(Number(/\/Count (\d+)/.exec(pdf)[1])).toBe(1);
+    for (const t of ['(Krishna Kumar', '(In: 09:33 AM)', '(Out: 09:21 PM)', '(OT: 03h 21m)', '(Out: \\227 \\(no check-out\\))', '(No record)']) expect(pdf).toContain(t);
   });
 });

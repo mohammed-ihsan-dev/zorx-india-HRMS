@@ -12,6 +12,7 @@ import { ATTENDANCE_STATUS, ATTENDANCE_MODE, ATTENDANCE_VERIFICATION_MODE, BREAK
 import { env } from '../config/env.js';
 import { parseAllowlist, isIpAllowed } from '../utils/networkAllowlist.js';
 import { resolveWfhSource, WFH_SOURCE, recurringWfhPolicyFor } from './wfhService.js';
+import { overtimeForRecord, overtimeRuleFor } from './overtimeService.js';
 
 /**
  * Distance in meters between a device coordinate and the configured office.
@@ -212,22 +213,13 @@ export function effectiveSchedule(employee, officeSettings) {
     workingStartTime: start,
     workingEndTime: end,
     dailyTargetMinutes: employee?.dailyTargetMinutes || officeTarget,
-    overtimeCutoffTime: employee?.overtimeCutoffTime || '19:00',
+    // The overtime rule's pair: counted from `overtimeStartTime` once check-out passes `overtimeCutoffTime`.
+    overtimeCutoffTime: overtimeRuleFor(employee).threshold,
+    overtimeStartTime: overtimeRuleFor(employee).start,
     personal: Boolean(employee?.workingStartTime || employee?.workingEndTime || employee?.dailyTargetMinutes || employee?.overtimeCutoffTime),
   };
 }
 
-export function calculateOvertime(totalWorkingMinutes, officeSettings, dailyTargetMinutes = null) {
-  if (!officeSettings.overtimeEnabled) return 0;
-  // A personal daily target replaces the office's expected day for this employee only.
-  if (dailyTargetMinutes) return Math.max(0, Math.round(totalWorkingMinutes - dailyTargetMinutes));
-  if (!officeSettings.overtimeEnabled) return 0;
-  const startMinutes = parseTimeToMinutes(officeSettings.workingStartTime);
-  const endMinutes = parseTimeToMinutes(officeSettings.workingEndTime);
-  const expectedMinutes = Math.max(0, endMinutes - startMinutes - officeSettings.breakDurationMinutes);
-  const overtime = totalWorkingMinutes - expectedMinutes;
-  return overtime > 0 ? Math.round(overtime) : 0;
-}
 
 export function deriveStatus(lateMinutes, totalWorkingMinutes, officeSettings) {
   if (totalWorkingMinutes > 0 && totalWorkingMinutes < officeSettings.halfDayThresholdMinutes) {
@@ -289,8 +281,9 @@ export async function performCheckOut(employeeId, coords, { clientIp } = {}) {
   // allowance — the allowance is only used below to flag any excess.
   const breakMinutes = totalCompletedBreakMinutes(existing);
   const totalWorkingMinutes = calculateWorkingMinutes(existing.checkIn.timestamp, now, breakMinutes);
-  const personal = await Employee.findById(employeeId).select('dailyTargetMinutes').lean();
-  const overtimeMinutes = calculateOvertime(totalWorkingMinutes, officeSettings, personal?.dailyTargetMinutes);
+  // The app's one overtime rule (7 PM eligibility, counted from 6 PM; or the employee's own pair).
+  const personal = await Employee.findById(employeeId).select('workingEndTime overtimeCutoffTime').lean();
+  const overtimeMinutes = overtimeForRecord({ date: existing.date, checkOut: { timestamp: now } }, personal, officeSettings) ?? 0;
   const status = deriveStatus(existing.lateMinutes, totalWorkingMinutes, officeSettings);
 
   existing.checkOut = { timestamp: now, ...location };

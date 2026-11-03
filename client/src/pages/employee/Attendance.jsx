@@ -86,8 +86,8 @@ export function Attendance() {
       key: 'date',
       header: 'Date',
       render: (r) =>
-        r.overtimeAfter7Minutes > 0 || r.attendanceMode === 'WFH' ? (
-          // WFH day and/or worked after 7:00 PM (server values from the record).
+        r.overtimeMinutes > 0 || r.attendanceMode === 'WFH' ? (
+          // WFH day and/or overtime (server value: check-out after 7 PM, counted from 6 PM).
           <span className="inline-flex items-center gap-1.5 font-semibold text-slate-800">
             {formatDate(r.date)}
             {r.attendanceMode === 'WFH' && (
@@ -95,7 +95,7 @@ export function Attendance() {
                 <House size={14} className="text-slate-400" aria-label="Work from home" />
               </span>
             )}
-            {r.overtimeAfter7Minutes > 0 && (
+            {r.overtimeMinutes > 0 && (
               <span title="Overtime recorded">
                 <Clock size={14} className="text-slate-400" aria-label="Overtime recorded" />
               </span>

@@ -243,7 +243,9 @@ export function MobileDashboardView({ attendance, tasks, tasksLoading }) {
                 {notStarted
                   ? `${formatMinutes(requiredMinutes)} required today`
                   : overtimeMinutes > 0
-                  ? `Target ${formatMinutes(requiredMinutes)} met · +${formatMinutes(overtimeMinutes)}`
+                  ? `Overtime +${formatMinutes(overtimeMinutes)} · target ${formatMinutes(requiredMinutes)}`
+                  : remainingMinutes === 0
+                  ? `Target ${formatMinutes(requiredMinutes)} met`
                   : `${formatMinutes(remainingMinutes)} left of ${formatMinutes(requiredMinutes)}`}
               </p>
             </div>

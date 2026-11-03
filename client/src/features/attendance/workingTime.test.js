@@ -101,3 +101,17 @@ test('office (IST) schedule times shown in the viewer\'s own timezone', async ()
   assert.equal(officeClockToLocal('18:00', 'Asia/Kolkata', day, 'Asia/Kolkata'), '06:00 pm');
   assert.equal(officeClockToLocal('', 'Asia/Kolkata', day, 'Asia/Dubai'), '');
 });
+
+test('live overtime mirrors the server rule: zero until after 7 PM, then counted from 6 PM (company time)', async () => {
+  const { overtimeMinutesAt } = await import('./workingTime.js');
+  const day = '2026-10-26T00:00:00.000Z';
+  const at = (hhmm) => Date.parse(`2026-10-26T${hhmm}:00+05:30`);
+  const cases = [['17:30', 0], ['18:00', 0], ['18:50', 0], ['19:00', 0], ['19:01', 61], ['19:15', 75], ['19:30', 90], ['20:00', 120], ['20:15', 135], ['21:21', 201]];
+  for (const [hhmm, minutes] of cases) assert.equal(overtimeMinutesAt(day, at(hhmm)), minutes, hhmm);
+  // Employee-specific pair (7 PM / 6 PM Dubai = 20:30 / 19:30 IST).
+  assert.equal(overtimeMinutesAt(day, at('20:30'), { threshold: '20:30', start: '19:30' }), 0);
+  assert.equal(overtimeMinutesAt(day, at('21:00'), { threshold: '20:30', start: '19:30' }), 90);
+  // After midnight keeps counting; bad input → 0.
+  assert.equal(overtimeMinutesAt(day, Date.parse('2026-10-27T00:30:00+05:30')), 390);
+  assert.equal(overtimeMinutesAt(null, at('21:00')), 0);
+});

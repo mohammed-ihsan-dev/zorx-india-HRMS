@@ -302,10 +302,10 @@ export function EditEmployeeModal({ open, onClose, employee, departments, onUpda
           />
           <Input
             type="time"
-            label="Overtime Starts After (optional)"
+            label="Overtime Eligible After (optional)"
             value={form.overtimeCutoffTime}
             onChange={handleChange('overtimeCutoffTime')}
-            hint="India time (IST). Leave empty for 7:00 PM. For staff abroad, convert their local time (7 PM Dubai = 8:30 PM IST)."
+            hint="India time (IST). Overtime counts only when check-out is after this time, measured from the Official Check-out Time. Leave empty for the company rule (after 7 PM, from 6 PM). 7 PM Dubai = 8:30 PM IST."
           />
         </div>
 

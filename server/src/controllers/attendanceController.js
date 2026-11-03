@@ -6,7 +6,7 @@ import { ApiError } from '../utils/ApiError.js';
 import * as attendanceService from '../services/attendanceService.js';
 import { isValidCoordinate } from '../utils/geo.js';
 import { getStartOfDayUTC } from '../utils/dateUtils.js';
-import { overtimeAfterCutoffMinutes } from '../services/salaryReportService.js';
+import { overtimeForRecord } from '../services/overtimeService.js';
 import { env } from '../config/env.js';
 import {
   VIRTUAL_EMPLOYEE_ID,
@@ -111,7 +111,7 @@ export const checkOut = asyncHandler(async (req, res) => {
     const now = new Date();
     const breakMinutes = attendanceService.totalCompletedBreakMinutes(existing);
     const totalWorkingMinutes = attendanceService.calculateWorkingMinutes(existing.checkIn.timestamp, now, breakMinutes);
-    const overtimeMinutes = attendanceService.calculateOvertime(totalWorkingMinutes, officeSettings);
+    const overtimeMinutes = overtimeForRecord({ date: getStartOfDayUTC(now), checkOut: { timestamp: now } }, null, officeSettings) ?? 0;
     const status = attendanceService.deriveStatus(existing.lateMinutes, totalWorkingMinutes, officeSettings);
     const snapshot = setVirtualAttendanceSnapshot({
       ...existing,
@@ -238,9 +238,14 @@ export const getMyAttendanceHistory = asyncHandler(async (req, res) => {
 
   // Display-only: minutes worked after 7:00 PM from the recorded check-out, the
   // same calculation as the Salary Report (null when there is no check-out). Not stored.
-  // (Field name kept for compatibility: the cutoff is 7 PM unless this employee has their own.)
-  const cutoff = req.user.employeeId?.overtimeCutoffTime || undefined;
-  const data = records.map((r) => ({ ...r.toJSON(), overtimeAfter7Minutes: overtimeAfterCutoffMinutes(r.date, r.checkOut?.timestamp, { cutoff }) }));
+  // Overtime recalculated from the recorded check-out with the app's one rule
+  // (stored values on older records used an earlier rule and are not shown).
+  // overtimeAfter7Minutes is kept as an alias for older app versions.
+  const officeSettings = await OfficeSettings.getSingleton();
+  const data = records.map((r) => {
+    const overtimeMinutes = overtimeForRecord(r, req.user.employeeId, officeSettings);
+    return { ...r.toJSON(), overtimeMinutes, overtimeAfter7Minutes: overtimeMinutes };
+  });
   sendSuccess(res, { data, meta: { total, page: pageNum, limit: limitNum } });
 });
 
