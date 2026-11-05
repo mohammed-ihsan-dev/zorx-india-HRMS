@@ -375,3 +375,67 @@ describe('attendance integration', () => {
     expect(pdf.body.toString('latin1')).toMatch(/Onsite Work/);
   });
 });
+
+// Rifan's real configuration (audited 2026-11-05), switched from WFH to OFFICE from 6 Nov 2026.
+describe('Rifan as an Office employee with his real schedule (from 6 Nov 2026)', () => {
+  const REAL = { workMode: WORK_MODE.OFFICE, workingStartTime: '11:30', workingEndTime: '19:30', dailyTargetMinutes: 420, overtimeCutoffTime: '20:30' };
+  const DUBAI_SITE = { name: 'Dubai — Emarat Atrium, Sheikh Zayed Road', latitude: 25.189377, longitude: 55.256574, radiusMeters: 200, active: true };
+  const rifanOffice = () => setupRifan({ ...REAL, attendanceLocation: DUBAI_SITE });
+
+  test('before the change (WFH mode): no location check and no GPS captured', async () => {
+    const wfh = await setupRifan({ ...REAL, workMode: WORK_MODE.WFH, attendanceLocation: DUBAI_SITE });
+    const before = await checkIn(wfh.token, SHOOT);
+    expect(before.status).toBe(200);
+    expect(before.body.data.attendanceMode).toBe('WFH');
+    expect(before.body.data.checkIn.latitude).toBeNull(); // no GPS was captured while WFH
+  });
+
+  test('normal UAE office check-in and check-out work, with GPS captured', async () => {
+    const { token } = await rifanOffice();
+    const atOffice = metresNorth(DUBAI_SITE, 60);
+    const inRes = await checkIn(token, atOffice);
+    expect(inRes.status).toBe(200);
+    expect(inRes.body.data).toMatchObject({ attendanceMode: 'OFFICE' });
+    expect(inRes.body.data.checkIn).toMatchObject({ latitude: atOffice.latitude, longitude: atOffice.longitude, distanceFromOffice: 60 });
+    const outRes = await checkOut(token, metresNorth(DUBAI_SITE, 150));
+    expect(outRes.status).toBe(200);
+    expect(outRes.body.data.checkOut.distanceFromOffice).toBe(150);
+  });
+
+  test('outside the 200 m UAE radius is rejected without an approved request (check-in and check-out)', async () => {
+    const { token } = await rifanOffice();
+    expect((await checkIn(token, metresNorth(DUBAI_SITE, 210))).status).toBe(403);
+    expect((await checkIn(token, SHOOT)).status).toBe(403);
+    expect((await checkIn(token, {})).status).toBe(400); // GPS required
+    expect((await checkIn(token, DUBAI_SITE)).status).toBe(200);
+    expect((await checkOut(token, SHOOT)).status).toBe(403);
+    expect((await Attendance.findOne({})).checkOut).toBeNull();
+  });
+
+  test('an approved onsite date still allows outside-office attendance, labelled Onsite Work', async () => {
+    const rifan = await rifanOffice();
+    const salman = await setup('salman@zorx.test', ROLES.SUPER_ADMIN);
+    const created = (await submit(rifan.token, valid(TODAY))).body.data;
+    expect((await checkIn(rifan.token, SHOOT)).status).toBe(403); // pending: geofence still applies
+    await approve(salman.token, created._id);
+    const inRes = await checkIn(rifan.token, SHOOT);
+    expect(inRes.status).toBe(200);
+    expect(inRes.body.data).toMatchObject({ attendanceMode: 'ONSITE' });
+    expect(inRes.body.data.checkIn.latitude).toBe(SHOOT.latitude);
+    expect((await checkOut(rifan.token, SHOOT)).status).toBe(200);
+    // The approval did not change his configuration.
+    expect((await Employee.findById(RIFAN_ID).lean()).workMode).toBe('OFFICE');
+  });
+
+  test('Dubai-time overtime is unchanged: 7 PM Dubai = 20:30 IST threshold, counted from 19:30 IST', async () => {
+    const { token } = await rifanOffice();
+    await checkIn(token, DUBAI_SITE);
+    const rec = await Attendance.findOne({});
+    const { overtimeForRecord } = await import('../src/services/overtimeService.js');
+    const emp = await Employee.findById(RIFAN_ID).lean();
+    const at = (hm) => ({ date: rec.date, checkOut: { timestamp: new Date(`${ymd(rec.date)}T${hm}:00+05:30`) } });
+    const settings = { overtimeEnabled: true };
+    expect(overtimeForRecord(at('20:30'), emp, settings, 'Asia/Kolkata')).toBe(0); // 7:00 PM Dubai
+    expect(overtimeForRecord(at('21:30'), emp, settings, 'Asia/Kolkata')).toBe(120); // 8:00 PM Dubai
+  });
+});

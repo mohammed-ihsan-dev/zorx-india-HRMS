@@ -2,7 +2,7 @@ import fs from 'fs';
 import request from 'supertest';
 import { startTestDb, stopTestDb, clearTestDb } from './testDb.js';
 import { createApp } from '../src/app.js';
-import { env } from '../src/config/env.js';
+import { env, parseCloudinary } from '../src/config/env.js';
 import { User } from '../src/models/User.js';
 import { Employee } from '../src/models/Employee.js';
 import { PROFILE_PICTURES_DIR } from '../src/services/fileStorageService.js';
@@ -13,7 +13,7 @@ const app = createApp();
 const PASSWORD = 'Test@12345';
 const TINY_PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=', 'base64');
 // A fake account — the real one is blanked in setupEnv.js and never reached.
-const FAKE = { cloudName: 'testcloud', apiKey: '111', apiSecret: 'not-a-real-secret', folder: 'zorx_hrms', enabled: true };
+const FAKE = { cloudName: 'testcloud', apiKey: '111', apiSecret: 'not-a-real-secret', folder: 'zorx_hrms', enabled: true, expected: true, problem: null };
 
 async function setup(role, email) {
   const user = await User.create({ email, passwordHash: await User.hashPassword(PASSWORD), role });
@@ -129,13 +129,84 @@ describe('profile pictures on Cloudinary', () => {
     expect(calls).toHaveLength(0);
   });
 
-  test('without Cloudinary configured, the existing disk storage is still used', async () => {
-    Object.assign(env.cloudinary, { enabled: false });
+  test('local development without any Cloudinary variables still uses disk storage', async () => {
+    Object.assign(env.cloudinary, { enabled: false, expected: false });
     const admin = await setup(ROLES.ADMIN, 'hr@zorx.test');
     const emp = await setup(ROLES.EMPLOYEE, 'asha@zorx.test');
     const res = await upload(admin.token, emp.employee._id);
     expect(res.status).toBe(200);
     expect(res.body.data.profileImage).toMatch(/\/uploads\/profile-pictures\/[0-9a-f-]+\.png$/);
     expect(calls).toHaveLength(0);
+  });
+
+  test.each([
+    ['production with nothing set', 'No Cloudinary variables are set'],
+    ['a partial / broken setup', 'missing: CLOUDINARY_API_SECRET'],
+  ])('%s: the upload is refused (503) — never silently stored on disk', async (_, problem) => {
+    Object.assign(env.cloudinary, { enabled: false, expected: true, problem });
+    const errors = [];
+    const realError = console.error;
+    console.error = (...a) => errors.push(a.join(' '));
+    try {
+      const admin = await setup(ROLES.ADMIN, 'hr@zorx.test');
+      const emp = await setup(ROLES.EMPLOYEE, 'asha@zorx.test');
+      const res = await upload(admin.token, emp.employee._id);
+      expect(res.status).toBe(503);
+      expect(res.body.message).toMatch(/not configured/);
+      expect((await Employee.findById(emp.employee._id)).profileImage || '').not.toMatch(/uploads\/profile-pictures/);
+      expect(fs.readdirSync(PROFILE_PICTURES_DIR).filter((f) => !localBefore.has(f))).toEqual([]); // temp file removed
+      expect(calls).toHaveLength(0);
+      expect(errors.join('\n')).toMatch(problem);
+    } finally {
+      console.error = realError;
+    }
+  });
+});
+
+describe('configuration detection (parseCloudinary)', () => {
+  const VARS = ['CLOUDINARY_URL', 'CLOUDINARY_CLOUD_NAME', 'CLOUDINARY_API_KEY', 'CLOUDINARY_API_SECRET', 'CLOUDINARY_FOLDER'];
+  let saved;
+  beforeEach(() => {
+    saved = Object.fromEntries(VARS.map((v) => [v, process.env[v]]));
+    for (const v of VARS) process.env[v] = '';
+  });
+  afterEach(() => {
+    for (const v of VARS) process.env[v] = saved[v] ?? '';
+  });
+
+  test('CLOUDINARY_URL alone configures everything', () => {
+    process.env.CLOUDINARY_URL = 'cloudinary://111:sec-ret@demo-cloud';
+    expect(parseCloudinary('production')).toMatchObject({ enabled: true, cloudName: 'demo-cloud', apiKey: '111', apiSecret: 'sec-ret', folder: 'zorx_hrms', problem: null });
+  });
+
+  test('the three separate variables work, and override the URL', () => {
+    Object.assign(process.env, { CLOUDINARY_CLOUD_NAME: 'mine', CLOUDINARY_API_KEY: '222', CLOUDINARY_API_SECRET: 's2', CLOUDINARY_FOLDER: '/hr/' });
+    expect(parseCloudinary('production')).toMatchObject({ enabled: true, cloudName: 'mine', apiKey: '222', folder: 'hr' });
+  });
+
+  test('surrounding spaces and quotes from a dashboard paste are tolerated', () => {
+    process.env.CLOUDINARY_URL = '  "cloudinary://111:sec-ret@demo-cloud"  ';
+    expect(parseCloudinary('production')).toMatchObject({ enabled: true, cloudName: 'demo-cloud' });
+  });
+
+  test('a partial setup names exactly what is missing — never any value', () => {
+    Object.assign(process.env, { CLOUDINARY_CLOUD_NAME: 'mine', CLOUDINARY_API_KEY: 'secret-key-value' });
+    const c = parseCloudinary('development');
+    expect(c).toMatchObject({ enabled: false, expected: true });
+    expect(c.problem).toBe('Cloudinary is only partly configured; missing: CLOUDINARY_API_SECRET (or set CLOUDINARY_URL).');
+    expect(c.problem).not.toMatch(/secret-key-value|mine/);
+  });
+
+  test('a malformed CLOUDINARY_URL is reported, without echoing it', () => {
+    process.env.CLOUDINARY_URL = 'https://111:sec-ret@demo-cloud';
+    const c = parseCloudinary('production');
+    expect(c.enabled).toBe(false);
+    expect(c.problem).toMatch(/not in the form cloudinary:\/\/<api_key>:<api_secret>@<cloud_name>/);
+    expect(c.problem).not.toMatch(/sec-ret/);
+  });
+
+  test('expected in production even with nothing set; optional only in local development', () => {
+    expect(parseCloudinary('production')).toMatchObject({ enabled: false, expected: true });
+    expect(parseCloudinary('development')).toMatchObject({ enabled: false, expected: false });
   });
 });

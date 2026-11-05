@@ -26,27 +26,54 @@ const parsedOrigins = process.env.CLIENT_ORIGIN
 
 const clientOrigins = Array.from(new Set([...defaultOrigins, ...parsedOrigins]));
 
-function parseCloudinary() {
+const CLOUDINARY_VARS = ['CLOUDINARY_URL', 'CLOUDINARY_CLOUD_NAME', 'CLOUDINARY_API_KEY', 'CLOUDINARY_API_SECRET'];
+const envValue = (name) => (process.env[name] || '').trim().replace(/^(['"])(.*)\1$/, '$2');
+
+/**
+ * Cloudinary settings from either CLOUDINARY_URL (cloudinary://<key>:<secret>@<cloud>)
+ * or the three separate variables (which win where set). Values are trimmed and
+ * stripped of surrounding quotes (a common .env / dashboard paste mistake).
+ * `expected` = production, or any Cloudinary variable is set: then a broken setup
+ * is an error, never a silent fall-back to local disk. `problem` names what is
+ * missing — variable names only, never values.
+ */
+export function parseCloudinary(nodeEnv = process.env.NODE_ENV) {
   let fromUrl = {};
-  try {
-    if (process.env.CLOUDINARY_URL) {
-      const u = new URL(process.env.CLOUDINARY_URL);
-      if (u.protocol === 'cloudinary:') {
-        fromUrl = { cloudName: u.hostname, apiKey: decodeURIComponent(u.username), apiSecret: decodeURIComponent(u.password) };
-      }
+  let urlInvalid = false;
+  const rawUrl = envValue('CLOUDINARY_URL');
+  if (rawUrl) {
+    try {
+      const u = new URL(rawUrl);
+      if (u.protocol !== 'cloudinary:' || !u.hostname || !u.username || !u.password) throw new Error('shape');
+      fromUrl = { cloudName: u.hostname, apiKey: decodeURIComponent(u.username), apiSecret: decodeURIComponent(u.password) };
+    } catch {
+      urlInvalid = true;
     }
-  } catch {
-    // Malformed URL: treated as unconfigured (warned about at startup).
   }
-  const cloudName = process.env.CLOUDINARY_CLOUD_NAME || fromUrl.cloudName || '';
-  const apiKey = process.env.CLOUDINARY_API_KEY || fromUrl.apiKey || '';
-  const apiSecret = process.env.CLOUDINARY_API_SECRET || fromUrl.apiSecret || '';
+  const cloudName = envValue('CLOUDINARY_CLOUD_NAME') || fromUrl.cloudName || '';
+  const apiKey = envValue('CLOUDINARY_API_KEY') || fromUrl.apiKey || '';
+  const apiSecret = envValue('CLOUDINARY_API_SECRET') || fromUrl.apiSecret || '';
+  const enabled = Boolean(cloudName && apiKey && apiSecret);
+  const anySet = CLOUDINARY_VARS.some((n) => envValue(n));
+  const expected = nodeEnv === 'production' || anySet;
+
+  let problem = null;
+  if (!enabled) {
+    const missing = [!cloudName && 'CLOUDINARY_CLOUD_NAME', !apiKey && 'CLOUDINARY_API_KEY', !apiSecret && 'CLOUDINARY_API_SECRET'].filter(Boolean);
+    problem = urlInvalid
+      ? 'CLOUDINARY_URL is set but is not in the form cloudinary://<api_key>:<api_secret>@<cloud_name>.'
+      : anySet
+        ? `Cloudinary is only partly configured; missing: ${missing.join(', ')} (or set CLOUDINARY_URL).`
+        : 'No Cloudinary variables are set (CLOUDINARY_URL, or CLOUDINARY_CLOUD_NAME + CLOUDINARY_API_KEY + CLOUDINARY_API_SECRET).';
+  }
   return {
     cloudName,
     apiKey,
     apiSecret,
-    folder: (process.env.CLOUDINARY_FOLDER || 'zorx_hrms').replace(/^\/+|\/+$/g, ''),
-    enabled: Boolean(cloudName && apiKey && apiSecret),
+    folder: (envValue('CLOUDINARY_FOLDER') || 'zorx_hrms').replace(/^\/+|\/+$/g, ''),
+    enabled,
+    expected,
+    problem,
   };
 }
 

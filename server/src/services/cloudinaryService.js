@@ -9,6 +9,9 @@ const API = 'https://api.cloudinary.com/v1_1';
 
 export const isCloudinaryEnabled = () => env.cloudinary.enabled;
 
+/** Cloudinary should be used (production, or configured at all) but cannot be: never fall back to disk. */
+export const isCloudinaryRequiredButMissing = () => !env.cloudinary.enabled && Boolean(env.cloudinary.expected);
+
 /** Cloudinary request signature: SHA-1 of the sorted params + the API secret. */
 export function signParams(params, apiSecret) {
   const toSign = Object.keys(params)

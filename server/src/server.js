@@ -12,11 +12,14 @@ async function main() {
     console.log(`[server] ZORX INDIA API listening on port ${env.port} (${env.nodeEnv})`);
     console.log(`[mail] provider: ${getMailProvider() || 'none'}`);
     for (const w of mailConfigWarnings()) console.warn(`[mail] WARNING: ${w}`);
-    console.log(
-      env.cloudinary.enabled
-        ? `[images] Cloudinary (cloud "${env.cloudinary.cloudName}", folder "${env.cloudinary.folder}")`
-        : '[images] WARNING: Cloudinary not configured — profile pictures are stored on local disk'
-    );
+    // Names/cloud only — the API key and secret are never logged.
+    if (env.cloudinary.enabled) {
+      console.log(`[images] Cloudinary (cloud "${env.cloudinary.cloudName}", folder "${env.cloudinary.folder}")`);
+    } else if (env.cloudinary.expected) {
+      console.error(`[images] ERROR: Cloudinary is required but not usable — profile picture uploads are refused until fixed. ${env.cloudinary.problem}`);
+    } else {
+      console.warn(`[images] WARNING: Cloudinary not configured — profile pictures are stored on local disk (development only). ${env.cloudinary.problem}`);
+    }
   });
 }
 

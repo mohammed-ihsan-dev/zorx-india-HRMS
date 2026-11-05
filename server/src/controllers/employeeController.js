@@ -8,7 +8,8 @@ import { ApiError } from '../utils/ApiError.js';
 import { recordAudit } from '../services/auditService.js';
 import { notify } from '../services/notificationService.js';
 import { profilePicturePublicPath, deleteProfilePicture } from '../services/fileStorageService.js';
-import { isCloudinaryEnabled, uploadImageFile, ownedPublicIdFromUrl, destroyImage } from '../services/cloudinaryService.js';
+import { isCloudinaryEnabled, isCloudinaryRequiredButMissing, uploadImageFile, ownedPublicIdFromUrl, destroyImage } from '../services/cloudinaryService.js';
+import { env } from '../config/env.js';
 import { TASK_STATUS, ATTENDANCE_STATUS, USER_STATUS, NOTIFICATION_TYPE } from '../utils/constants.js';
 
 export async function generateEmployeeCode() {
@@ -213,6 +214,12 @@ export const uploadProfilePicture = asyncHandler(async (req, res) => {
   }
 
   const previousImage = employee.profileImage;
+  if (isCloudinaryRequiredButMissing()) {
+    // Never store on the server's disk when Cloudinary is expected (Render's disk is wiped on deploy).
+    deleteProfilePicture(req.file.filename);
+    console.error(`[cloudinary] profile picture upload refused: ${env.cloudinary.problem}`);
+    throw new ApiError(503, 'Profile picture storage is not configured. Please contact HR/Admin.');
+  }
   if (isCloudinaryEnabled()) {
     // Cloudinary is the permanent store; the local multer file is only temporary.
     let uploaded;
