@@ -6,7 +6,7 @@ import { ConfirmDialog } from '../../components/ConfirmDialog.jsx';
 import { ChangePasswordModal } from '../../features/auth/ChangePasswordModal.jsx';
 import { useAuth } from '../../hooks/useAuth.js';
 import { useMobileShell } from '../../context/MobileShellContext.jsx';
-import { employeeNavItems, employeeMobileMenuItems } from '../../routes/navConfig.js';
+import { employeeNavItemsFor, employeeMobileMenuItems } from '../../routes/navConfig.js';
 import { useCheckForUpdates } from '../../pwa/useCheckForUpdates.js';
 
 // Destinations already in the bottom navigation.
@@ -15,7 +15,7 @@ const IN_BOTTOM_NAV = ['/', '/attendance', '/leave', '/announcements'];
 // Every other employee page from the sidebar config, grouped for the phone menu.
 // Anything not listed here still shows up under "More", so nothing is ever dropped.
 const GROUPS = [
-  { title: 'Work', paths: ['/tasks', '/work-from-home', '/content-calendar'] },
+  { title: 'Work', paths: ['/tasks', '/work-from-home', '/onsite-work', '/content-calendar'] },
   { title: 'Updates', paths: ['/notifications', '/payslips'] },
   { title: 'Account', paths: ['/profile', '/settings'] },
 ];
@@ -84,7 +84,7 @@ export function MenuPage() {
   // Tablet/desktop already have the sidebar; this page is only for the phone shell.
   if (!mobile) return <Navigate to="/" replace />;
 
-  const secondary = [...employeeNavItems, ...employeeMobileMenuItems].filter((item) => !IN_BOTTOM_NAV.includes(item.to));
+  const secondary = [...employeeNavItemsFor(user), ...employeeMobileMenuItems].filter((item) => !IN_BOTTOM_NAV.includes(item.to));
   const grouped = GROUPS.map((g) => ({ ...g, items: g.paths.map((p) => secondary.find((i) => i.to === p)).filter(Boolean) }));
   const leftovers = secondary.filter((i) => !GROUPS.some((g) => g.paths.includes(i.to)));
   if (leftovers.length) grouped.push({ title: 'More', items: leftovers });

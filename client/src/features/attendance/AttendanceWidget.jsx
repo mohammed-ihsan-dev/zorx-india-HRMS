@@ -10,6 +10,7 @@ import { LOCATION_STATUS } from '../../hooks/useGeolocation.js';
 import { useAuth } from '../../hooks/useAuth.js';
 import { useToast } from '../../hooks/useToast.js';
 import { WfhTodayBanner } from '../workFromHome/WfhTodayBanner.jsx';
+import { OnsiteTodayBanner } from '../onsiteWork/OnsiteTodayBanner.jsx';
 import { NetworkStatusBanner } from './NetworkStatusBanner.jsx';
 import { useCheckInCelebration } from '../gandhiJayanti/useCheckInCelebration.js';
 
@@ -109,7 +110,7 @@ export function AttendanceWidget({ data }) {
       </div>
 
       <div className="empty:hidden mb-4">
-        <WfhTodayBanner record={record} wfhToday={data.wfhToday} />
+        {data.onsiteToday ? <OnsiteTodayBanner onsiteToday={data.onsiteToday} /> : <WfhTodayBanner record={record} wfhToday={data.wfhToday} />}
         {wifiMode && <NetworkStatusBanner />}
       </div>
 

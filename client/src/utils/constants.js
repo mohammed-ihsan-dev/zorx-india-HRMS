@@ -16,6 +16,8 @@ export const MANAGEMENT_ROLES = [ROLES.SUPER_ADMIN, ROLES.ADMIN];
 export const PERMISSIONS = {
   CONTENT_CALENDAR_VIEW: 'CONTENT_CALENDAR_VIEW',
   CONTENT_CALENDAR_MANAGE: 'CONTENT_CALENDAR_MANAGE',
+  // Approve/reject Onsite Work Requests (Super Admin by default; server-enforced).
+  ONSITE_WORK_REVIEW: 'ONSITE_WORK_REVIEW',
 };
 
 export const CONTENT_CALENDAR_STATUS = {

@@ -118,6 +118,7 @@ export const attendanceReport = asyncHandler(async (req, res) => {
     // Recalculated with the current overtime rule from the recorded check-out (not the stored value).
     { label: 'Overtime Minutes', value: (r) => overtimeForRecord(r, r.employeeId, officeSettings) ?? '' },
     { label: 'Status', value: (r) => r.status },
+    { label: 'Work Mode', value: (r) => ({ WFH: 'WFH', ONSITE: 'Onsite Work' })[r.attendanceMode] || 'Office' },
   ];
 
   if (req.query.format === 'csv') {
@@ -243,7 +244,7 @@ export const salaryReport = asyncHandler(async (req, res) => {
   const filter = { date: { $gte: range.start, $lt: range.end } };
   if (employee) filter.employeeId = employee._id;
   const [records, officeSettings, holidays] = await Promise.all([
-    Attendance.find(filter).select('employeeId date status checkIn.timestamp checkOut.timestamp').populate('employeeId', EMPLOYEE_FIELDS).lean(),
+    Attendance.find(filter).select('employeeId date status attendanceMode checkIn.timestamp checkOut.timestamp').populate('employeeId', EMPLOYEE_FIELDS).lean(),
     OfficeSettings.getSingleton(),
     Holiday.find({ date: { $gte: range.start, $lt: range.end } }).select('date name').lean(),
   ]);

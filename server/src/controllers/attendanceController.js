@@ -7,6 +7,7 @@ import * as attendanceService from '../services/attendanceService.js';
 import { isValidCoordinate } from '../utils/geo.js';
 import { getStartOfDayUTC } from '../utils/dateUtils.js';
 import { overtimeForRecord } from '../services/overtimeService.js';
+import { approvedOnsiteFor } from '../services/onsiteWorkService.js';
 import { env } from '../config/env.js';
 import {
   VIRTUAL_EMPLOYEE_ID,
@@ -200,9 +201,10 @@ export const getMyAttendanceToday = asyncHandler(async (req, res) => {
   }
 
   const employeeId = requireEmployee(req);
-  const [attendance, officeSettings] = await Promise.all([
+  const [attendance, officeSettings, onsite] = await Promise.all([
     attendanceService.getTodayAttendance(employeeId),
     OfficeSettings.getSingleton(),
+    approvedOnsiteFor(employeeId, getStartOfDayUTC()),
   ]);
   // Their own site's name and radius (if assigned), so the app requests GPS and
   // shows the right radius. Coordinates are not needed by the client.
@@ -210,7 +212,9 @@ export const getMyAttendanceToday = asyncHandler(async (req, res) => {
   const attendanceLocation = own ? { name: own.officeName, radiusMeters: own.attendanceRadius } : null;
   // This employee's own schedule (dashboard target, shift timing, overtime cutoff).
   const schedule = attendanceService.effectiveSchedule(req.user.employeeId, officeSettings);
-  sendSuccess(res, { data: { attendance, officeSettings, attendanceLocation, schedule } });
+  // Approved Onsite Work today (display + "request GPS"; check-in decides on its own).
+  const onsiteToday = onsite ? { approved: true, workLocation: onsite.workLocation, reason: onsite.reason } : null;
+  sendSuccess(res, { data: { attendance, officeSettings, attendanceLocation, schedule, onsiteToday } });
 });
 
 export const getMyAttendanceHistory = asyncHandler(async (req, res) => {
@@ -257,7 +261,8 @@ export const listAttendance = asyncHandler(async (req, res) => {
   if (status) filter.status = status;
   // Records predating attendanceMode have no value and count as OFFICE.
   if (mode === ATTENDANCE_MODE.WFH) filter.attendanceMode = ATTENDANCE_MODE.WFH;
-  if (mode === ATTENDANCE_MODE.OFFICE) filter.attendanceMode = { $ne: ATTENDANCE_MODE.WFH };
+  if (mode === ATTENDANCE_MODE.ONSITE) filter.attendanceMode = ATTENDANCE_MODE.ONSITE;
+  if (mode === ATTENDANCE_MODE.OFFICE) filter.attendanceMode = { $nin: [ATTENDANCE_MODE.WFH, ATTENDANCE_MODE.ONSITE] };
   if (from || to) {
     filter.date = {};
     if (from) filter.date.$gte = new Date(from);

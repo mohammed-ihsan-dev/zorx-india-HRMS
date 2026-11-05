@@ -114,6 +114,8 @@ export function buildCalendarMonth({ range, records, employee, holidays = [], of
         overtimeMinutes,
         overtime: formatOvertime(overtimeMinutes),
         status: r.status,
+        // Approved Onsite Work day (attendanceMode ONSITE, set at the actual check-in/out).
+        onsite: r.attendanceMode === 'ONSITE',
       });
     } else if (r) {
       daysWithRecords += 1;

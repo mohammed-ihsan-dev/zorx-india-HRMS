@@ -15,8 +15,9 @@ import {
   House,
   ReceiptText,
   PartyPopper,
+  MapPin,
 } from 'lucide-react';
-import { ROLES } from '../utils/constants.js';
+import { ROLES, PERMISSIONS } from '../utils/constants.js';
 
 export const employeeNavItems = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard, end: true },
@@ -24,6 +25,8 @@ export const employeeNavItems = [
   { to: '/attendance', label: 'Attendance', icon: CalendarCheck },
   { to: '/leave', label: 'Leave', icon: CalendarClock },
   { to: '/work-from-home', label: 'Work From Home', icon: House },
+  // Only for employees enabled on the server (login/me → onsiteWorkEligible).
+  { to: '/onsite-work', label: 'Onsite Work', icon: MapPin, onsiteOnly: true },
   { to: '/tasks', label: 'Tasks', icon: ListChecks },
   { to: '/content-calendar', label: 'Content Calendar', icon: CalendarDays },
   { to: '/notifications', label: 'Notifications', icon: Bell },
@@ -40,6 +43,7 @@ export const adminNavItems = [
   { to: '/admin/attendance', label: 'Attendance', icon: CalendarCheck },
   { to: '/admin/leaves', label: 'Leave Requests', icon: CalendarClock },
   { to: '/admin/work-from-home', label: 'Work From Home', icon: House },
+  { to: '/admin/onsite-work', label: 'Onsite Work', icon: MapPin, permission: PERMISSIONS.ONSITE_WORK_REVIEW },
   { to: '/admin/tasks', label: 'Tasks', icon: ListChecks },
   { to: '/admin/content-calendar', label: 'Content Calendar', icon: CalendarDays },
   { to: '/admin/payslips', label: 'Payslips', icon: ReceiptText },
@@ -51,10 +55,16 @@ export const adminNavItems = [
   { to: '/admin/settings/office', label: 'Office Settings', icon: Settings, superAdminOnly: true },
 ];
 
-export function getAdminNavItemsForRole(role) {
+export function getAdminNavItemsForRole(role, permissions = []) {
+  const byPermission = (item) => !item.permission || permissions.includes(item.permission);
   if (role === ROLES.SUPER_ADMIN) {
-    return adminNavItems;
+    return adminNavItems.filter(byPermission);
   }
   // Admin / HR module
-  return adminNavItems.filter((item) => !item.superAdminOnly);
+  return adminNavItems.filter((item) => !item.superAdminOnly && byPermission(item));
+}
+
+/** Employee pages for this user (Onsite Work only where the server enabled it). */
+export function employeeNavItemsFor(user) {
+  return employeeNavItems.filter((item) => !item.onsiteOnly || user?.onsiteWorkEligible);
 }

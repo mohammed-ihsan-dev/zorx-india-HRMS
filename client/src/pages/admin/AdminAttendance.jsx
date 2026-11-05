@@ -87,7 +87,7 @@ export function AdminAttendance() {
     },
     { key: 'status', header: 'Status', render: (r) => <StatusBadge status={r.status} /> },
     // Records predating attendanceMode have no value and were office attendance.
-    { key: 'mode', header: 'Mode', render: (r) => (r.attendanceMode === 'WFH' ? 'WFH' : 'Office') },
+    { key: 'mode', header: 'Mode', render: (r) => ({ WFH: 'WFH', ONSITE: 'Onsite Work' })[r.attendanceMode] || 'Office' },
   ];
 
   return (
@@ -138,6 +138,7 @@ export function AdminAttendance() {
           <option value="">All modes</option>
           <option value="OFFICE">Office</option>
           <option value="WFH">WFH</option>
+          <option value="ONSITE">Onsite Work</option>
         </Select>
       </div>
       <Table

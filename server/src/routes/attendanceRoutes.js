@@ -7,6 +7,8 @@ import { punchSchema, startBreakSchema } from '../validators/attendanceValidator
 import { isDefaultWfhEmployee } from '../services/wfhService.js';
 import { assignedLocationRules } from '../services/attendanceService.js';
 import { OfficeSettings } from '../models/OfficeSettings.js';
+import { approvedOnsiteFor } from '../services/onsiteWorkService.js';
+import { getStartOfDayUTC } from '../utils/dateUtils.js';
 import { BACK_OFFICE_ROLES, ATTENDANCE_VERIFICATION_MODE } from '../utils/constants.js';
 
 const router = Router();
@@ -22,6 +24,10 @@ const validatePunch = validateBody(punchSchema);
 async function validatePunchBody(req, res, next) {
   try {
     const settings = await OfficeSettings.getSingleton();
+    // Approved Onsite Work today: GPS is always required and recorded.
+    if (await approvedOnsiteFor(req.user.employeeId?._id, getStartOfDayUTC(new Date(), settings.timezone))) {
+      return validatePunch(req, res, next);
+    }
     const ownSite = Boolean(assignedLocationRules(req.user.employeeId));
     if (
       (settings.attendanceVerificationMode === ATTENDANCE_VERIFICATION_MODE.WIFI && !ownSite) ||

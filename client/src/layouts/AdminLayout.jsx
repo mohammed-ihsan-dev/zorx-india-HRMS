@@ -11,7 +11,7 @@ export function AdminLayout() {
   const location = useLocation();
   const { user } = useAuth();
 
-  const navItems = useMemo(() => getAdminNavItemsForRole(user?.role), [user?.role]);
+  const navItems = useMemo(() => getAdminNavItemsForRole(user?.role, user?.permissions), [user?.role, user?.permissions]);
   const title = useMemo(() => {
     if (location.pathname === '/admin/profile') return 'My Profile';
     const matches = (item) => (item.end ? location.pathname === item.to : location.pathname.startsWith(item.to));

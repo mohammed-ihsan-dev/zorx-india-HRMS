@@ -213,9 +213,10 @@ export function buildCalendarPdf({ brand, title, calendars, lines = () => [], fo
         if (!cell) return;
         const inner = colW - 12;
         text(x + 6, top - 15, String(cell.day), { size: 12, bold: true });
-        if (cell.holiday) {
-          const tag = fitText(cell.holiday, 7.5, inner - 22, true);
-          text(x + colW - 6 - textWidth(tag, 7.5, true), top - 14, tag, { size: 7.5, bold: true, color: [91, 33, 182] });
+        const tagText = cell.holiday || (cell.onsite ? 'Onsite Work' : null);
+        if (tagText) {
+          const tag = fitText(tagText, 7.5, inner - 22, true);
+          text(x + colW - 6 - textWidth(tag, 7.5, true), top - 14, tag, { size: 7.5, bold: true, color: cell.holiday ? [91, 33, 182] : [3, 105, 161] });
         }
         let ly = top - 30;
         const line = (str, opts) => {
@@ -227,6 +228,7 @@ export function buildCalendarPdf({ brand, title, calendars, lines = () => [], fo
           line(`In: ${cell.checkIn}`);
           line(`Out: ${cell.checkOut || '— (no check-out)'}`, cell.checkOut ? undefined : { color: [180, 83, 9] });
           line(`OT: ${cell.overtime}`, cell.overtimeMinutes > 0 ? { bold: true, color: BRAND } : { color: MUTED });
+          if (cell.onsite && cell.holiday) line('Onsite Work', { bold: true, color: [3, 105, 161] });
         } else if (cell.kind === 'status') {
           line(cell.statusLabel, { bold: true });
           line('No check-in', { color: MUTED });

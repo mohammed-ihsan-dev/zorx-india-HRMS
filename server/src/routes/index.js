@@ -17,6 +17,7 @@ import contentCalendarRoutes from './contentCalendarRoutes.js';
 import clientRoutes from './clientRoutes.js';
 import wfhRoutes from './wfhRoutes.js';
 import holidayRoutes from './holidayRoutes.js';
+import onsiteWorkRoutes from './onsiteWorkRoutes.js';
 
 const router = Router();
 
@@ -38,5 +39,6 @@ router.use('/content-calendar', contentCalendarRoutes);
 router.use('/clients', clientRoutes);
 router.use('/work-from-home', wfhRoutes);
 router.use('/holidays', holidayRoutes);
+router.use('/onsite-work', onsiteWorkRoutes);
 
 export default router;

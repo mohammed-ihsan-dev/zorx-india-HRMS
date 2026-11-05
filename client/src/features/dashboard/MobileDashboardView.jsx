@@ -28,6 +28,7 @@ import { breakTimeLeft, BREAK_TONE } from '../attendance/breakTimeLeft.js';
 import { officeClockToLocal } from '../attendance/workingTime.js';
 import { NetworkStatusBanner } from '../attendance/NetworkStatusBanner.jsx';
 import { WfhTodayBanner } from '../workFromHome/WfhTodayBanner.jsx';
+import { OnsiteTodayBanner } from '../onsiteWork/OnsiteTodayBanner.jsx';
 import { useCheckInCelebration } from '../gandhiJayanti/useCheckInCelebration.js';
 import { LOCATION_STATUS } from '../../hooks/useGeolocation.js';
 import * as notificationService from '../../services/notificationService.js';
@@ -281,7 +282,7 @@ export function MobileDashboardView({ attendance, tasks, tasksLoading }) {
       {!loading && (
         <section aria-label="Attendance actions" className="rounded-3xl bg-zm-card border border-zm-border p-4 space-y-3">
           <div className="empty:hidden space-y-2">
-            <WfhTodayBanner record={record} wfhToday={attendance.wfhToday} />
+            {attendance.onsiteToday ? <OnsiteTodayBanner onsiteToday={attendance.onsiteToday} /> : <WfhTodayBanner record={record} wfhToday={attendance.wfhToday} />}
             {wifiMode && <NetworkStatusBanner />}
           </div>
 

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Navigate } from 'react-router-dom';
-import { CalendarX2, CheckCircle2, Clock, UserX, Clock3, Calendar, Search, RotateCcw, House } from 'lucide-react';
+import { CalendarX2, CheckCircle2, Clock, UserX, Clock3, Calendar, Search, RotateCcw, House, MapPin } from 'lucide-react';
 import { Card } from '../../components/Card.jsx';
 import { Table } from '../../components/Table.jsx';
 import { StatusBadge } from '../../components/StatusBadge.jsx';
@@ -86,13 +86,18 @@ export function Attendance() {
       key: 'date',
       header: 'Date',
       render: (r) =>
-        r.overtimeMinutes > 0 || r.attendanceMode === 'WFH' ? (
+        r.overtimeMinutes > 0 || r.attendanceMode === 'WFH' || r.attendanceMode === 'ONSITE' ? (
           // WFH day and/or overtime (server value: check-out after 7 PM, counted from 6 PM).
           <span className="inline-flex items-center gap-1.5 font-semibold text-slate-800">
             {formatDate(r.date)}
             {r.attendanceMode === 'WFH' && (
               <span title="Work from home">
                 <House size={14} className="text-slate-400" aria-label="Work from home" />
+              </span>
+            )}
+            {r.attendanceMode === 'ONSITE' && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-sky-50 border border-sky-200 px-2 py-0.5 text-[11px] font-bold text-sky-800" title="Approved onsite work">
+                <MapPin size={12} aria-hidden="true" /> Onsite Work
               </span>
             )}
             {r.overtimeMinutes > 0 && (

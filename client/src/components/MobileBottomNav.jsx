@@ -11,7 +11,7 @@ const NAV_ITEMS = [
 
 // Secondary pages live under Menu, so Menu stays highlighted while on them.
 // Plain Link (not NavLink): NavLink would replace aria-current with its own route match.
-const MENU_CHILDREN = ['/profile', '/tasks', '/work-from-home', '/content-calendar', '/notifications', '/payslips', '/settings'];
+const MENU_CHILDREN = ['/profile', '/tasks', '/work-from-home', '/onsite-work', '/content-calendar', '/notifications', '/payslips', '/settings'];
 
 function isActive(item, pathname) {
   if (item.end) return pathname === item.to;

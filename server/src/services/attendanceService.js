@@ -13,6 +13,7 @@ import { env } from '../config/env.js';
 import { parseAllowlist, isIpAllowed } from '../utils/networkAllowlist.js';
 import { resolveWfhSource, WFH_SOURCE, recurringWfhPolicyFor } from './wfhService.js';
 import { overtimeForRecord, overtimeRuleFor } from './overtimeService.js';
+import { approvedOnsiteFor } from './onsiteWorkService.js';
 
 /**
  * Distance in meters between a device coordinate and the configured office.
@@ -95,6 +96,18 @@ export function assignedLocationRules(employee) {
 }
 
 async function resolvePunchLocation(employeeId, coords, officeSettings, dateKey, clientIp) {
+  // APPROVED Onsite Work for this exact day (eligible employees only): GPS is
+  // still required and the real coordinates are recorded — only the assigned
+  // site / office radius check is skipped. Pending, rejected or cancelled
+  // requests, and approvals for other days, never reach this branch.
+  if (await approvedOnsiteFor(employeeId, dateKey)) {
+    if (!coords || !isValidCoordinate(coords.latitude, coords.longitude)) {
+      throw ApiError.badRequest('Invalid location coordinates were received.');
+    }
+    const site = assignedLocationRules(await Employee.findById(employeeId).select('attendanceLocation').lean()) || officeSettings;
+    const distanceFromOffice = calculateDistance(coords, site);
+    return { isWfh: false, isOnsite: true, location: { latitude: coords.latitude, longitude: coords.longitude, distanceFromOffice } };
+  }
   const source = await resolveWfhSource(employeeId, dateKey);
   if (source === WFH_SOURCE.DEFAULT) {
     return { isWfh: true, location: NO_LOCATION };
@@ -232,8 +245,8 @@ export async function performCheckIn(employeeId, coords, { clientIp } = {}) {
   const officeSettings = await OfficeSettings.getSingleton();
   const now = new Date();
   const dateKey = getStartOfDayUTC(now, officeSettings.timezone);
-  const { isWfh, location } = await resolvePunchLocation(employeeId, coords, officeSettings, dateKey, clientIp);
-  const attendanceMode = isWfh ? ATTENDANCE_MODE.WFH : ATTENDANCE_MODE.OFFICE;
+  const { isWfh, isOnsite, location } = await resolvePunchLocation(employeeId, coords, officeSettings, dateKey, clientIp);
+  const attendanceMode = isOnsite ? ATTENDANCE_MODE.ONSITE : isWfh ? ATTENDANCE_MODE.WFH : ATTENDANCE_MODE.OFFICE;
 
   const existing = await Attendance.findOne({ employeeId, date: dateKey });
   canCheckIn(existing);
@@ -272,10 +285,12 @@ export async function performCheckOut(employeeId, coords, { clientIp } = {}) {
   const officeSettings = await OfficeSettings.getSingleton();
   const now = new Date();
   const dateKey = getStartOfDayUTC(now, officeSettings.timezone);
-  const { location } = await resolvePunchLocation(employeeId, coords, officeSettings, dateKey, clientIp);
+  const { isOnsite, location } = await resolvePunchLocation(employeeId, coords, officeSettings, dateKey, clientIp);
 
   const existing = await Attendance.findOne({ employeeId, date: dateKey });
   canCheckOut(existing);
+  // Approved after an in-office check-in: the day still counts as Onsite Work.
+  if (isOnsite) existing.attendanceMode = ATTENDANCE_MODE.ONSITE;
 
   // Effective working time is net of ACTUAL recorded break time, not the configured
   // allowance — the allowance is only used below to flag any excess.

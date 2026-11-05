@@ -38,12 +38,14 @@ function Cell({ cell }) {
       <div className="flex items-start justify-between gap-1">
         <span className="text-sm font-bold text-slate-900">{cell.day}</span>
         {cell.holiday && <span className="text-[10px] font-bold text-violet-700 text-right leading-tight">{cell.holiday}</span>}
+        {cell.onsite && !cell.holiday && <span className="text-[10px] font-bold text-sky-700 text-right leading-tight">Onsite Work</span>}
       </div>
       {cell.kind === 'record' && (
         <div className="mt-1 tabular-nums">
           <p className="text-slate-700">In: {cell.checkIn}</p>
           {cell.checkOut ? <p className="text-slate-700">Out: {cell.checkOut}</p> : <p className="text-amber-700">Out: — (no check-out)</p>}
           <p className={cell.overtimeMinutes > 0 ? 'font-semibold text-brand-800' : 'text-slate-400'}>OT: {cell.overtime}</p>
+          {cell.onsite && cell.holiday && <p className="font-semibold text-sky-700">Onsite Work</p>}
         </div>
       )}
       {cell.kind === 'status' && (

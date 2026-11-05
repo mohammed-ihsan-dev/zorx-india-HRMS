@@ -38,6 +38,8 @@ const Employees = lazy(() => import('./pages/admin/Employees.jsx').then((m) => (
 const EmployeeDetail = lazy(() => import('./pages/admin/EmployeeDetail.jsx').then((m) => ({ default: m.EmployeeDetail })));
 const AdminAttendance = lazy(() => import('./pages/admin/AdminAttendance.jsx').then((m) => ({ default: m.AdminAttendance })));
 const AdminLeaves = lazy(() => import('./pages/admin/AdminLeaves.jsx').then((m) => ({ default: m.AdminLeaves })));
+const OnsiteWork = lazy(() => import('./pages/employee/OnsiteWork.jsx').then((m) => ({ default: m.OnsiteWork })));
+const AdminOnsiteWork = lazy(() => import('./pages/admin/AdminOnsiteWork.jsx').then((m) => ({ default: m.AdminOnsiteWork })));
 const AdminWorkFromHome = lazy(() => import('./pages/admin/AdminWorkFromHome.jsx').then((m) => ({ default: m.AdminWorkFromHome })));
 const AdminTasks = lazy(() => import('./pages/admin/AdminTasks.jsx').then((m) => ({ default: m.AdminTasks })));
 const Departments = lazy(() => import('./pages/admin/Departments.jsx').then((m) => ({ default: m.Departments })));
@@ -70,6 +72,7 @@ export default function App() {
             <Route path="/attendance" element={<Attendance />} />
             <Route path="/leave" element={<Leave />} />
             <Route path="/work-from-home" element={<WorkFromHome />} />
+            <Route path="/onsite-work" element={<OnsiteWork />} />
             <Route path="/tasks" element={<Tasks />} />
             <Route path="/content-calendar" element={<ContentCalendar />} />
             <Route path="/notifications" element={<Notifications />} />
@@ -97,6 +100,7 @@ export default function App() {
                 <Route path="/admin/audit-logs" element={<AuditLogs />} />
                 <Route path="/admin/edit-requests" element={<EditRequests />} />
                 <Route path="/admin/work-from-home" element={<AdminWorkFromHome />} />
+                <Route path="/admin/onsite-work" element={<AdminOnsiteWork />} />
                 <Route path="/admin/payslips" element={<AdminPayslips />} />
                 <Route path="/admin/holidays" element={<AdminHolidays />} />
                 <Route path="/admin/settings/office" element={<OfficeSettings />} />

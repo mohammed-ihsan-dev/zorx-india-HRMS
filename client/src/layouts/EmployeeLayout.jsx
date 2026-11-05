@@ -6,7 +6,8 @@ import { MobileBottomNav } from '../components/MobileBottomNav.jsx';
 import { MobileSubpageHeader } from '../components/MobileSubpageHeader.jsx';
 import { BreakReminderWatcher } from '../features/attendance/BreakReminderWatcher.jsx';
 import { MobileShellProvider, useMediaQuery, MOBILE_QUERY } from '../context/MobileShellContext.jsx';
-import { employeeNavItems } from '../routes/navConfig.js';
+import { employeeNavItems, employeeNavItemsFor } from '../routes/navConfig.js';
+import { useAuth } from '../hooks/useAuth.js';
 
 function getTitle(pathname) {
   const match = employeeNavItems.find((item) => (item.end ? pathname === item.to : pathname.startsWith(item.to)));
@@ -17,6 +18,7 @@ export function EmployeeLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const location = useLocation();
   const isMobile = useMediaQuery(MOBILE_QUERY);
+  const { user } = useAuth();
 
   // Phones get the compact dark-green shell with bottom navigation. Tablet and
   // desktop render exactly the original layout below.
@@ -37,7 +39,7 @@ export function EmployeeLayout() {
 
   return (
     <div className="h-screen w-full flex overflow-hidden bg-slate-50">
-      <Sidebar items={employeeNavItems} open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+      <Sidebar items={employeeNavItemsFor(user)} open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       <div className="flex-1 min-w-0 flex flex-col h-full overflow-hidden">
         <Topbar onMenuClick={() => setSidebarOpen(true)} title={getTitle(location.pathname)} profilePath="/profile" />
         <main className="flex-1 overflow-y-auto p-4 lg:p-6 w-full">

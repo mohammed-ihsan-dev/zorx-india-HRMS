@@ -18,6 +18,9 @@ export const BACK_OFFICE_ROLES = [ROLES.SUPER_ADMIN, ROLES.ADMIN];
 export const PERMISSIONS = Object.freeze({
   CONTENT_CALENDAR_VIEW: 'CONTENT_CALENDAR_VIEW',
   CONTENT_CALENDAR_MANAGE: 'CONTENT_CALENDAR_MANAGE',
+  // Review (approve/reject) Onsite Work Requests. Super Admin by default; any
+  // other user only through an explicit grant on their own account.
+  ONSITE_WORK_REVIEW: 'ONSITE_WORK_REVIEW',
 });
 
 export const PERMISSION_VALUES = Object.values(PERMISSIONS);
@@ -25,7 +28,7 @@ export const PERMISSION_VALUES = Object.values(PERMISSIONS);
 // Permissions every user of a given role has automatically, before any
 // explicit per-user grants are layered on top.
 export const ROLE_DEFAULT_PERMISSIONS = Object.freeze({
-  [ROLES.SUPER_ADMIN]: [PERMISSIONS.CONTENT_CALENDAR_VIEW, PERMISSIONS.CONTENT_CALENDAR_MANAGE],
+  [ROLES.SUPER_ADMIN]: [PERMISSIONS.CONTENT_CALENDAR_VIEW, PERMISSIONS.CONTENT_CALENDAR_MANAGE, PERMISSIONS.ONSITE_WORK_REVIEW],
   [ROLES.ADMIN]: [PERMISSIONS.CONTENT_CALENDAR_VIEW],
   [ROLES.EMPLOYEE]: [PERMISSIONS.CONTENT_CALENDAR_VIEW],
 });
@@ -66,6 +69,8 @@ export const ATTENDANCE_STATUS = Object.freeze({
 export const ATTENDANCE_MODE = Object.freeze({
   OFFICE: 'OFFICE',
   WFH: 'WFH',
+  // Approved onsite work (outside the employee's assigned site) — see onsiteWorkService.
+  ONSITE: 'ONSITE',
 });
 
 // An employee's standing work arrangement. WFH employees never need a WFH
@@ -87,6 +92,13 @@ export const WFH_STATUS = Object.freeze({
   PENDING: 'PENDING',
   APPROVED: 'APPROVED',
   REJECTED: 'REJECTED',
+});
+
+export const ONSITE_STATUS = Object.freeze({
+  PENDING: 'PENDING',
+  APPROVED: 'APPROVED',
+  REJECTED: 'REJECTED',
+  CANCELLED: 'CANCELLED',
 });
 
 export const BREAK_TYPE = Object.freeze({
@@ -185,6 +197,9 @@ export const NOTIFICATION_TYPE = Object.freeze({
   WFH_SUBMITTED: 'WFH_SUBMITTED',
   WFH_APPROVED: 'WFH_APPROVED',
   WFH_REJECTED: 'WFH_REJECTED',
+  ONSITE_SUBMITTED: 'ONSITE_SUBMITTED',
+  ONSITE_APPROVED: 'ONSITE_APPROVED',
+  ONSITE_REJECTED: 'ONSITE_REJECTED',
 });
 
 // Profile fields an employee may request HR to change. Only PHONE, ADDRESS, and

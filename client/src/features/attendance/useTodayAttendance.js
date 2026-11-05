@@ -45,6 +45,8 @@ export function useTodayAttendance() {
   const [attendanceLocation, setAttendanceLocation] = useState(null);
   // This employee's effective schedule (personal overrides or the office's), from the server.
   const [schedule, setSchedule] = useState(null);
+  // Approved Onsite Work today ({ workLocation, reason }) or null — display + "send GPS" only.
+  const [onsiteToday, setOnsiteToday] = useState(null);
 
   // True once the server has answered; until then a failure means "unknown", never "not checked in".
   const [loaded, setLoaded] = useState(false);
@@ -70,6 +72,7 @@ export function useTodayAttendance() {
         setOfficeSettings(data.officeSettings);
         setAttendanceLocation(data.attendanceLocation || null);
         setSchedule(data.schedule || null);
+        setOnsiteToday(data.onsiteToday?.approved ? data.onsiteToday : null);
         setDefaultWfh(Boolean(wfhToday?.defaultWfh));
         setWfhToday(wfhToday);
         setLoaded(true);
@@ -182,7 +185,8 @@ export function useTodayAttendance() {
   // only — the backend independently enforces the Admin-selected mode.
   const verificationMode = officeSettings?.attendanceVerificationMode === 'WIFI' ? 'WIFI' : 'GPS';
   // An employee with their own site always sends GPS (the server checks it against that site).
-  const locationFree = defaultWfh || (verificationMode === 'WIFI' && !attendanceLocation);
+  // An approved onsite day always sends GPS (recorded; the server skips only the radius check).
+  const locationFree = !onsiteToday && (defaultWfh || (verificationMode === 'WIFI' && !attendanceLocation));
 
   const punch = useCallback(
     async (kind) => {
@@ -277,6 +281,7 @@ export function useTodayAttendance() {
     geolocation,
     locationFree,
     defaultWfh,
+    onsiteToday,
     verificationMode,
     checkIn: () => punch('in'),
     checkOut: () => punch('out'),

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { CalendarDays, LayoutList, ChevronLeft, ChevronRight, AlertTriangle, PartyPopper, Clock, House } from 'lucide-react';
+import { CalendarDays, LayoutList, ChevronLeft, ChevronRight, AlertTriangle, PartyPopper, Clock, House, MapPin } from 'lucide-react';
 import { MobileStatusPill } from '../../components/MobileStatusPill.jsx';
 import * as attendanceService from '../../services/attendanceService.js';
 import * as holidayService from '../../services/holidayService.js';
@@ -202,6 +202,8 @@ export function MobileCalendarView() {
                     const overtime = hasOvertime(r);
                     // Recorded as WFH, or a recurring-policy WFH date (eligibility, even before a record).
                     const wfh = r?.attendanceMode === 'WFH' || isRecurringWfhDay(wfhRule, key);
+                    // Approved onsite work, recorded at the actual check-in/out.
+                    const onsite = r?.attendanceMode === 'ONSITE';
                     const holiday = holidayByDay.get(key);
                     const tone = r ? CELL_TONE[r.status] || NEUTRAL : holiday ? HOLIDAY_TONE : NEUTRAL;
                     const isToday = key === todayKey;
@@ -212,8 +214,8 @@ export function MobileCalendarView() {
                         type="button"
                         onClick={() => setSelected(key)}
                         aria-pressed={isSelected}
-                        aria-label={`${day} ${MONTH_LABELS[month]}${holiday ? `, holiday: ${holiday.name}` : ''}${r ? `, ${r.status.replace('_', ' ').toLowerCase()}` : ''}${missedOut ? ', missed check-out' : ''}${overtime ? ', overtime recorded' : ''}${wfh ? ', work from home' : ''}${isToday ? ', today' : ''}`}
-                        title={[wfh && 'Work from home', overtime && 'Overtime recorded'].filter(Boolean).join(' · ') || undefined}
+                        aria-label={`${day} ${MONTH_LABELS[month]}${holiday ? `, holiday: ${holiday.name}` : ''}${r ? `, ${r.status.replace('_', ' ').toLowerCase()}` : ''}${missedOut ? ', missed check-out' : ''}${overtime ? ', overtime recorded' : ''}${wfh ? ', work from home' : ''}${onsite ? ', onsite work' : ''}${isToday ? ', today' : ''}`}
+                        title={[wfh && 'Work from home', onsite && 'Onsite work', overtime && 'Overtime recorded'].filter(Boolean).join(' · ') || undefined}
                         className={`relative aspect-square rounded-xl border text-sm font-bold flex items-center justify-center ${tone} ${
                           isSelected
                             ? 'ring-2 ring-zm-green-light ring-offset-2 ring-offset-zm-card'
@@ -227,6 +229,7 @@ export function MobileCalendarView() {
                         {/* Same size/placement as the triangle, opposite corner; takes the cell's own colour. */}
                         {overtime && <Clock size={10} className="absolute bottom-1 left-1" aria-hidden="true" />}
                         {wfh && <House size={10} className="absolute top-1 right-1" aria-hidden="true" />}
+                        {onsite && !wfh && <MapPin size={10} className="absolute top-1 right-1" aria-hidden="true" />}
                       </button>
                     );
                   })}
@@ -305,6 +308,11 @@ export function MobileCalendarView() {
                   : 'Worked from home'}
               </p>
             )}
+            {selectedRecord?.attendanceMode === 'ONSITE' && (
+              <p className="flex items-center gap-2 text-xs font-semibold text-sky-300">
+                <MapPin size={14} className="shrink-0" aria-hidden="true" /> Onsite Work · approved onsite day (location recorded at check-in/out)
+              </p>
+            )}
             {hasOvertime(selectedRecord) && (
               <p className="flex items-center gap-2 text-xs font-semibold text-zm-muted">
                 <Clock size={14} className="shrink-0" aria-hidden="true" /> Overtime · {formatMinutes(selectedRecord.overtimeMinutes)} (check-out after 7 PM, counted from 6 PM)
@@ -356,6 +364,11 @@ export function MobileCalendarView() {
                       {r.attendanceMode === 'WFH' && (
                         <span title="Work from home" className="text-zm-muted">
                           <House size={14} aria-label="Work from home" />
+                        </span>
+                      )}
+                      {r.attendanceMode === 'ONSITE' && (
+                        <span title="Onsite work" className="text-sky-300">
+                          <MapPin size={14} aria-label="Onsite work" />
                         </span>
                       )}
                       {hasOvertime(r) && (

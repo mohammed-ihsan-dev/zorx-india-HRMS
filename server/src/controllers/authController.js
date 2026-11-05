@@ -9,6 +9,7 @@ import { generateEmployeeCode } from './employeeController.js';
 import { recordAudit } from '../services/auditService.js';
 import { notifyMany } from '../services/notificationService.js';
 import { getEffectivePermissions } from '../utils/permissions.js';
+import { isOnsiteWorkEligible } from '../services/onsiteWorkService.js';
 import { matchesVirtualTestCredentials, buildVirtualUser } from '../utils/virtualTestUser.js';
 import { USER_STATUS, ROLES, BACK_OFFICE_ROLES, NOTIFICATION_TYPE } from '../utils/constants.js';
 
@@ -135,6 +136,8 @@ export const login = asyncHandler(async (req, res) => {
         permissions: getEffectivePermissions(user),
         mustChangePassword: Boolean(user.mustChangePassword),
         employee: user.employeeId,
+        // Shows the Onsite Work page (display only; every onsite API re-checks).
+        onsiteWorkEligible: isOnsiteWorkEligible(user.employeeId?._id || user.employeeId),
       },
     },
   });
@@ -155,6 +158,7 @@ export const getMe = asyncHandler(async (req, res) => {
       mustChangePassword: Boolean(req.user.mustChangePassword),
       lastLogin: req.user.lastLogin,
       employee: req.user.employeeId,
+      onsiteWorkEligible: isOnsiteWorkEligible(req.user.employeeId?._id),
       isVirtualTestUser: Boolean(req.user.isVirtualTestUser),
     },
   });
