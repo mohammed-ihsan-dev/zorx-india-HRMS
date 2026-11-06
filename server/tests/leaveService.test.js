@@ -80,24 +80,27 @@ describe('leaveService', () => {
       return Leave.create({ employeeId, leaveType, startDate: new Date(start), endDate: new Date(start), days, reason: 'Existing', status });
     };
 
-    test('Sick Leave is eligible from exactly 3 months after joining', () => {
-      expect(leaveService.getSickLeaveEligibleFrom(new Date('2026-09-01')).toISOString().slice(0, 10)).toBe('2026-12-01');
+    test('Sick Leave starts in the second calendar month after the joining month', () => {
+      expect(leaveService.getSickLeaveEligibleFrom(new Date('2026-09-01')).toISOString().slice(0, 10)).toBe('2026-11-01');
+      expect(leaveService.getSickLeaveEligibleFrom(new Date('2026-09-30')).toISOString().slice(0, 10)).toBe('2026-11-01');
       expect(leaveService.getSickLeaveEligibleFrom(null)).toBeNull();
     });
 
     test('Sick Leave before the eligibility date is rejected; on/after it is allowed', async () => {
       const newJoiner = { _id: employeeId, joiningDate: new Date('2026-09-01') };
-      await expect(leaveService.assertLeaveAllowed(newJoiner, LEAVE_TYPE.SICK, new Date('2026-11-30'), 1)).rejects.toMatchObject({ statusCode: 400 });
-      await expect(leaveService.assertLeaveAllowed(newJoiner, LEAVE_TYPE.SICK, new Date('2026-12-01'), 1)).resolves.toBeUndefined();
+      await expect(leaveService.assertLeaveAllowed(newJoiner, LEAVE_TYPE.SICK, new Date('2026-10-31'), 1)).rejects.toMatchObject({ statusCode: 400 });
+      await expect(leaveService.assertLeaveAllowed(newJoiner, LEAVE_TYPE.SICK, new Date('2026-11-01'), 1)).resolves.toBeUndefined();
     });
 
-    test('Sick Leave is limited to 1 day per calendar month (no carry-forward)', async () => {
-      const type = LEAVE_TYPE.SICK;
+    test('Sick Leave accrues 1/month from the policy start and carries forward (no monthly cap)', async () => {
+      const type = LEAVE_TYPE.SICK; // joined Jan 2026 → credits from Oct 2026
       await expect(leaveService.assertLeaveAllowed(employee(), type, new Date('2026-10-05'), 2)).rejects.toMatchObject({ statusCode: 400 });
       await addLeave(type, '2026-10-05');
       await expect(leaveService.assertLeaveAllowed(employee(), type, new Date('2026-10-20'), 1)).rejects.toMatchObject({ statusCode: 400 });
       await expect(leaveService.assertLeaveAllowed(employee(), type, new Date('2026-11-02'), 1)).resolves.toBeUndefined();
-      await expect(leaveService.assertLeaveAllowed(employee(), type, new Date('2026-12-02'), 2)).rejects.toMatchObject({ statusCode: 400 });
+      // Oct–Dec = 3 credits, 1 used → 2 days together in December (carry-forward).
+      await expect(leaveService.assertLeaveAllowed(employee(), type, new Date('2026-12-02'), 2)).resolves.toBeUndefined();
+      await expect(leaveService.assertLeaveAllowed(employee(), type, new Date('2026-12-02'), 3)).rejects.toMatchObject({ statusCode: 400 });
     });
 
     describe('Casual Leave accrual and carry-forward', () => {
@@ -196,8 +199,8 @@ describe('leaveService', () => {
       const summary = await leaveService.getLeaveSummary({ _id: employeeId, joiningDate: new Date('2026-09-01') }, new Date('2026-10-14'));
       expect(summary.types.CASUAL).toMatchObject({ credited: 1, available: 1 });
       expect(summary.types.PAID).toEqual({ allowance: null, used: 2 });
-      expect(summary.types.SICK).toMatchObject({ allowance: 1, used: 0, eligibleNow: false });
-      expect(summary.types.SICK.eligibleFrom.toISOString().slice(0, 10)).toBe('2026-12-01');
+      expect(summary.types.SICK).toMatchObject({ credited: 0, available: 0, approved: 0, pending: 0, eligibleNow: false });
+      expect(summary.types.SICK.eligibleFrom.toISOString().slice(0, 10)).toBe('2026-11-01');
     });
   });
 });

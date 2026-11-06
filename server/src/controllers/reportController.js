@@ -12,9 +12,10 @@ import { env } from '../config/env.js';
 import { buildCalendarPdf } from '../utils/simplePdf.js';
 import { buildSalaryRows, buildCalendarMonth, monthRange, employeeDisplayName, slugify, SALARY_COLUMNS } from '../services/salaryReportService.js';
 import { overtimeForRecord, OVERTIME_THRESHOLD, OVERTIME_START } from '../services/overtimeService.js';
+import { buildAttendanceCalendar } from '../services/attendanceCalendarService.js';
 import { OfficeSettings } from '../models/OfficeSettings.js';
 import { Holiday } from '../models/Holiday.js';
-import { ROLES } from '../utils/constants.js';
+import { ROLES, LEAVE_STATUS } from '../utils/constants.js';
 
 function toCsv(rows, columns) {
   const header = columns.map((c) => c.label).join(',');
@@ -293,4 +294,35 @@ export const salaryReport = asyncHandler(async (req, res) => {
   res.setHeader('Content-Type', 'application/pdf');
   res.setHeader('Content-Disposition', `attachment; filename="${filename}.pdf"`);
   return res.send(pdf);
+});
+
+/**
+ * GET /reports/attendance-calendar?employeeId=...&month=YYYY-MM
+ * Back office only (router-level requireRole, same as every report). Read-only:
+ * one employee's month with each day classified (attendanceCalendarService).
+ * Loads only that employee's records for that month.
+ */
+export const attendanceCalendarReport = asyncHandler(async (req, res) => {
+  const { employeeId } = req.query;
+  const now = getZonedParts(new Date());
+  const month = req.query.month || `${now.year}-${String(now.month).padStart(2, '0')}`;
+  const range = monthRange(month);
+  if (!range) throw ApiError.badRequest('Please choose a valid month (YYYY-MM).');
+  if (!employeeId || !mongoose.isValidObjectId(employeeId)) throw ApiError.badRequest('Please choose an employee.');
+  const employee = await Employee.findById(employeeId).select('firstName lastName employeeCode joiningDate status workingEndTime overtimeCutoffTime').lean();
+  if (!employee) throw ApiError.notFound('Employee not found.');
+
+  const lastDay = new Date(range.end.getTime() - 86400000);
+  const [records, leaves, holidays, officeSettings] = await Promise.all([
+    Attendance.find({ employeeId: employee._id, date: { $gte: range.start, $lt: range.end } })
+      .select('date status attendanceMode checkIn.timestamp checkOut.timestamp')
+      .lean(),
+    Leave.find({ employeeId: employee._id, status: { $in: [LEAVE_STATUS.APPROVED, LEAVE_STATUS.PENDING] }, startDate: { $lte: lastDay }, endDate: { $gte: range.start } })
+      .select('leaveType status startDate endDate duration')
+      .lean(),
+    Holiday.find({ date: { $gte: range.start, $lt: range.end } }).select('date name').lean(),
+    OfficeSettings.getSingleton(),
+  ]);
+  const calendar = buildAttendanceCalendar({ range, employee, records, leaves, holidays, officeSettings });
+  sendSuccess(res, { data: calendar, meta: { month, monthLabel: range.label } });
 });

@@ -7,7 +7,6 @@ import { Tabs } from '../../components/Tabs.jsx';
 import { EmptyState } from '../../components/EmptyState.jsx';
 import * as departmentService from '../../services/departmentService.js';
 import {
-  getAttendanceReport,
   getLeaveReport,
   getEmployeeReport,
   getTaskReport,
@@ -17,6 +16,7 @@ import { useToast } from '../../hooks/useToast.js';
 import { useAuth } from '../../hooks/useAuth.js';
 import { BACK_OFFICE_ROLES } from '../../utils/constants.js';
 import { SalaryReport } from '../../features/reports/SalaryReport.jsx';
+import { AttendanceCalendarReport } from '../../features/reports/AttendanceCalendarReport.jsx';
 
 const REPORT_TABS = [
   { key: 'attendance', label: 'Attendance', icon: CalendarClock },
@@ -33,7 +33,6 @@ const EMPLOYEE_STATUS_OPTIONS = ['', 'ACTIVE', 'INACTIVE'];
 const TASK_STATUS_OPTIONS = ['', 'TODO', 'IN_PROGRESS', 'IN_REVIEW', 'COMPLETED', 'CANCELLED'];
 
 const REPORT_CONFIG = {
-  attendance: { path: '/reports/attendance', fetch: getAttendanceReport, label: 'Attendance Report' },
   employees: { path: '/reports/employees', fetch: getEmployeeReport, label: 'Employee Report' },
   leave: { path: '/reports/leave', fetch: getLeaveReport, label: 'Leave Report' },
   tasks: { path: '/reports/tasks', fetch: getTaskReport, label: 'Task Report' },
@@ -46,10 +45,11 @@ export function Reports() {
   const tabs = canSeeSalary ? [...REPORT_TABS, SALARY_TAB] : REPORT_TABS;
   const [activeTab, setActiveTab] = useState('attendance');
   const isSalary = activeTab === 'salary';
+  // Calendar tabs load on their own (Salary: Generate Report; Attendance: employee + month).
+  const isCalendarTab = isSalary || activeTab === 'attendance';
   const [departments, setDepartments] = useState([]);
 
   const [filters, setFilters] = useState({
-    attendance: { from: '', to: '', departmentId: '' },
     employees: { from: '', to: '', departmentId: '', status: '' },
     leave: { from: '', to: '', status: '', leaveType: '' },
     tasks: { from: '', to: '', status: '' },
@@ -65,7 +65,7 @@ export function Reports() {
   const activeFilters = filters[activeTab] || {};
 
   useEffect(() => {
-    if (isSalary) return undefined; // the Salary tab loads on "Generate Report"
+    if (isCalendarTab) return undefined; // calendar tabs load their own data
     let cancelled = false;
     setPreview({ loading: true, error: '', count: null });
 
@@ -85,7 +85,7 @@ export function Reports() {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab, isSalary, JSON.stringify(activeFilters)]);
+  }, [activeTab, isCalendarTab, JSON.stringify(activeFilters)]);
 
   const setFilter = (field) => (e) => {
     const value = e.target.value;
@@ -121,25 +121,15 @@ export function Reports() {
           <div className="pt-6">
             <SalaryReport />
           </div>
+        ) : activeTab === 'attendance' ? (
+          <div className="pt-6">
+            <AttendanceCalendarReport />
+          </div>
         ) : (
         <div className="pt-6">
           <CardHeader title={REPORT_CONFIG[activeTab].label} subtitle="Filters apply directly to the exported data." />
 
           <div className="flex flex-wrap items-end gap-4">
-            {activeTab === 'attendance' && (
-              <>
-                <Input label="Start Date" type="date" className="w-44" value={filters.attendance.from} onChange={setFilter('from')} />
-                <Input label="End Date" type="date" className="w-44" value={filters.attendance.to} onChange={setFilter('to')} />
-                <Select label="Department" className="w-52" value={filters.attendance.departmentId} onChange={setFilter('departmentId')}>
-                  <option value="">All Departments</option>
-                  {departments.map((d) => (
-                    <option key={d._id} value={d._id}>
-                      {d.name}
-                    </option>
-                  ))}
-                </Select>
-              </>
-            )}
 
             {activeTab === 'employees' && (
               <>

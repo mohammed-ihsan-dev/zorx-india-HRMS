@@ -13,5 +13,6 @@ router.get('/leave', reportController.leaveReport);
 router.get('/employees', reportController.employeeReport);
 router.get('/tasks', reportController.taskReport);
 router.get('/salary', reportController.salaryReport);
+router.get('/attendance-calendar', reportController.attendanceCalendarReport);
 
 export default router;

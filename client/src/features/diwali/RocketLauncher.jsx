@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createBurst, step } from './fireworks.js';
+import { Lock } from 'lucide-react';
 import { PHASE, LAYOUT, transition, toPx, canDrag, isLit } from './rocketGame.js';
 
 // Rocket artwork box; FUSE = the fuse tip inside it (the point that must touch
@@ -122,7 +123,12 @@ function FlameStation() {
  * The Diwali rocket game: carry the rocket to the flame, light the fuse, put it
  * back on its launch spot, watch it fly and burst. Rules live in rocketGame.js.
  */
-export function RocketLauncher({ fill = false } = {}) {
+/**
+ * `locked`: until all five diyas glow the rocket and flame only answer with a laugh.
+ * `audio`: the game's audio manager (diwaliAudio.js) — cues are fired from real events
+ * only (never from re-renders or pointer movement). `onPlayAgain`: the parent resets the diyas.
+ */
+export function RocketLauncher({ fill = false, locked = false, audio = null, onPlayAgain } = {}) {
   const stageRef = useRef(null);
   const rocketRef = useRef(null);
   const canvasRef = useRef(null);
@@ -133,6 +139,34 @@ export function RocketLauncher({ fill = false } = {}) {
   const [phase, setPhaseState] = useState(PHASE.READY);
   const phaseRef = useRef(PHASE.READY);
   const [dragging, setDragging] = useState(false);
+  const flameRef = useRef(null);
+  const lockedRef = useRef(locked);
+  lockedRef.current = locked;
+  const cue = useCallback((name) => audio?.play(name), [audio]);
+  // Short CSS feedback on an element (no React state, so no re-render storm).
+  const flash = (el, cls, ms = 450) => {
+    if (!el) return;
+    el.classList.remove(cls);
+    void el.offsetWidth; // restart the animation
+    el.classList.add(cls);
+    clearTimeout(timers.current[cls]);
+    timers.current[cls] = setTimeout(() => el.classList.remove(cls), ms);
+  };
+  const refuse = (el) => {
+    cue('chiri');
+    flash(el, 'is-refused');
+  };
+  // Unlock moment: a short celebratory note when the five diyas complete.
+  const [unlockNote, setUnlockNote] = useState(false);
+  const wasLocked = useRef(locked);
+  useEffect(() => {
+    if (wasLocked.current && !locked) {
+      setUnlockNote(true);
+      timers.current.unlockNote = setTimeout(() => setUnlockNote(false), 2600);
+    }
+    if (locked) setUnlockNote(false);
+    wasLocked.current = locked;
+  }, [locked]);
 
   const setPhase = useCallback((next) => {
     if (next === phaseRef.current) return;
@@ -179,8 +213,7 @@ export function RocketLauncher({ fill = false } = {}) {
     const t = timers.current;
     return () => {
       cancelAnimationFrame(t.frame);
-      clearTimeout(t.prep);
-      clearTimeout(t.snap);
+      for (const id of Object.values(t)) clearTimeout(id);
     };
   }, []);
 
@@ -235,6 +268,7 @@ export function RocketLauncher({ fill = false } = {}) {
       let ps = burstAt(at).map((p) => ({ ...p, delay: 0 }));
       ps = step(ps, 0.4);
       draw(ps);
+      cue('full'); // the celebration
       setPhase(transition(PHASE.LAUNCHING, { type: 'launched' }));
       setPhase(transition(PHASE.EXPLODING, { type: 'exploded' }));
       return;
@@ -266,6 +300,7 @@ export function RocketLauncher({ fill = false } = {}) {
           rocket.style.opacity = '0';
           burst = burstAt(at);
           flashUntil = now + 180;
+          cue('full'); // the burst: the celebration track starts here, before completion
           setPhase(transition(phaseRef.current, { type: 'launched' }));
         }
       }
@@ -282,7 +317,7 @@ export function RocketLauncher({ fill = false } = {}) {
       }
     };
     timers.current.frame = requestAnimationFrame(tick);
-  }, [place, setPhase]);
+  }, [place, setPhase, cue]);
 
   const beginLaunch = useCallback(() => {
     // Snap onto the pad, a short "fuse burning down" shake, then lift-off.
@@ -300,11 +335,18 @@ export function RocketLauncher({ fill = false } = {}) {
       const next = transition(before, { stage: stage(), pos: pos.current, ...event });
       if (next === before) return next;
       setPhase(next);
-      if (next === PHASE.LAUNCHING) beginLaunch();
-      if (before === PHASE.LIGHTING && next === PHASE.READY) place(padPx(), { animate: true }); // unlit: springs back
+      if (next === PHASE.LAUNCHING) {
+        cue('velmuruka'); // exactly once: LAUNCHING is entered once per round
+        beginLaunch();
+      }
+      if (before === PHASE.LIGHTING && next === PHASE.READY) {
+        place(padPx(), { animate: true }); // unlit: springs back
+        flash(rocketRef.current, 'is-miss');
+      }
+      if (before === PHASE.RETURNING && next === PHASE.LIT) flash(rocketRef.current, 'is-miss'); // lit, but not on the spot
       return next;
     },
-    [beginLaunch, place, setPhase]
+    [beginLaunch, place, setPhase, cue]
   );
 
   const pointer = (e) => {
@@ -312,6 +354,12 @@ export function RocketLauncher({ fill = false } = {}) {
     return { x: e.clientX - r.left, y: e.clientY - r.top };
   };
   const onPointerDown = (e) => {
+    e.stopPropagation();
+    if (lockedRef.current) {
+      e.preventDefault();
+      refuse(rocketRef.current);
+      return;
+    }
     if (!canDrag(phaseRef.current) || drag.current) return;
     e.preventDefault();
     e.currentTarget.setPointerCapture?.(e.pointerId);
@@ -344,6 +392,7 @@ export function RocketLauncher({ fill = false } = {}) {
   const onKeyDown = (e) => {
     if (e.key !== 'Enter' && e.key !== ' ') return;
     e.preventDefault();
+    if (lockedRef.current) return refuse(rocketRef.current);
     const s = stage();
     const ph = phaseRef.current;
     if (ph === PHASE.READY) {
@@ -357,12 +406,25 @@ export function RocketLauncher({ fill = false } = {}) {
     }
   };
 
+  // The flame on its own: locked, or touched without bringing the rocket → laugh + flare.
+  const onFlameDown = (e) => {
+    e.stopPropagation();
+    const ph = phaseRef.current;
+    if (lockedRef.current || ph === PHASE.READY || ph === PHASE.LIT) refuse(flameRef.current);
+  };
+  // Anywhere else in the locked sky → the same laugh (cooldown in the audio manager).
+  const onStageDown = () => {
+    if (lockedRef.current) refuse(rocketRef.current);
+  };
+
   const playAgain = () => {
     const canvas = canvasRef.current;
     canvas?.getContext('2d')?.clearRect(0, 0, canvas.width, canvas.height);
     if (rocketRef.current) rocketRef.current.style.opacity = '';
     setPhase(transition(phaseRef.current, { type: 'reset' }));
     place(padPx());
+    audio?.stopAll(); // reset audio states for the new round
+    onPlayAgain?.(); // the parent relights nothing: all five diyas go dark, the game locks again
   };
 
   const lit = isLit(phase);
@@ -380,8 +442,10 @@ export function RocketLauncher({ fill = false } = {}) {
     <div className={fill ? 'flex-1 min-h-0 flex flex-col' : ''}>
       <div
         ref={stageRef}
-        className={`rocket-stage relative overflow-hidden select-none ${fill ? 'flex-1 min-h-[320px]' : 'h-80 rounded-2xl border border-white/10'}`}
+        className={`rocket-stage relative overflow-hidden select-none ${locked ? 'is-locked' : 'is-unlocked'} ${fill ? 'flex-1 min-h-[320px]' : 'h-80 rounded-2xl border border-white/10'}`}
         data-phase={phase}
+        data-locked={locked || undefined}
+        onPointerDown={onStageDown}
       >
         <span className="rocket-horizon" aria-hidden="true" />
         {/* Launch platform: a small stone slab (warms when the fuse is lit, brighter as the rocket nears). */}
@@ -392,30 +456,47 @@ export function RocketLauncher({ fill = false } = {}) {
           style={{ left: `${LAYOUT.pad.x * 100}%`, top: `${LAYOUT.pad.y * 100}%` }}
         />
         {/* Fixed flame station: flame centre (SVG 40,30) sits exactly on LAYOUT.flame. */}
-        <div className="absolute pointer-events-none" style={{ left: `calc(${LAYOUT.flame.x * 100}% - 40px)`, top: `calc(${LAYOUT.flame.y * 100}% - 30px)` }} aria-hidden="true">
+        <div ref={flameRef} className="rocket-flame-station absolute pointer-events-none" style={{ left: `calc(${LAYOUT.flame.x * 100}% - 40px)`, top: `calc(${LAYOUT.flame.y * 100}% - 30px)` }} aria-hidden="true">
           <FlameStation />
         </div>
+        {/* Tap target for the flame itself (the rocket sits above it while being lit). */}
+        <button
+          type="button"
+          aria-label="Flame"
+          onPointerDown={onFlameDown}
+          className="rocket-flame-hit absolute -translate-x-1/2 -translate-y-1/2 rounded-full touch-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f7d58c]"
+          style={{ left: `${LAYOUT.flame.x * 100}%`, top: `calc(${LAYOUT.flame.y * 100}% + 10px)`, width: 72, height: 96 }}
+        />
 
         <canvas ref={canvasRef} className="absolute inset-0 w-full h-full pointer-events-none" aria-hidden="true" />
 
         <button
           ref={rocketRef}
           type="button"
-          aria-label={label}
-          aria-disabled={!canDrag(phase) || undefined}
+          aria-label={locked ? 'Rocket, locked' : label}
+          aria-disabled={locked || !canDrag(phase) || undefined}
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
           onPointerCancel={onPointerUp}
           onKeyDown={onKeyDown}
           className={`rocket absolute left-0 top-0 touch-none rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f7d58c] ${
-            canDrag(phase) ? (dragging ? 'cursor-grabbing' : 'cursor-grab') : 'cursor-default'
+            !locked && canDrag(phase) ? (dragging ? 'cursor-grabbing' : 'cursor-grab') : 'cursor-not-allowed'
           } ${dragging ? 'is-dragging' : ''}`}
           style={{ width: RW, height: RH }}
         >
           <Rocket lit={lit} />
         </button>
 
+        {/* Locked: a quiet lock mark, no instructions. */}
+        <span className={`rocket-lock-badge pointer-events-none absolute left-1/2 top-4 -translate-x-1/2 ${locked ? 'is-shown' : ''}`} aria-hidden="true">
+          <Lock size={14} />
+        </span>
+        {unlockNote && (
+          <p className="rocket-unlock-note diwali-pop pointer-events-none absolute inset-x-0 top-[18%] text-center px-4" role="status">
+            ✨ All five diyas glow ✨
+          </p>
+        )}
         {(phase === PHASE.EXPLODING || phase === PHASE.COMPLETED) && (
           <p className="rocket-greeting diwali-pop absolute inset-x-0 top-[46%] text-center px-4" role="status">
             ✨ Happy Diwali! ✨

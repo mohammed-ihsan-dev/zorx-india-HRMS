@@ -72,18 +72,22 @@ describe('leave types', () => {
 });
 
 describe('Sick Leave', () => {
-  test('an employee who joined less than 3 months before the leave date cannot request it', async () => {
+  test('before the second calendar month after joining it cannot be requested', async () => {
     const recent = new Date(Date.now() - 10 * DAY_MS);
     const { token } = await setup(ROLES.EMPLOYEE, 'new@zorx.test', recent);
     const res = await submit(token, LEAVE_TYPE.SICK, new Date(recent.getTime() + 20 * DAY_MS).toISOString().slice(0, 10));
     expect(res.status).toBe(400);
-    expect(res.body.message).toMatch(/3 months after joining/);
+    expect(res.body.message).toMatch(/second calendar month after your joining month/);
   });
 
-  test('stays at 1 day per month with no carry-forward', async () => {
+  test('accrues and carries forward like Casual Leave: all accrued days together, one more refused', async () => {
     const { token } = await longServing();
-    expect((await submit(token, LEAVE_TYPE.SICK, future(20))).status).toBe(201);
-    expect((await submit(token, LEAVE_TYPE.SICK, future(22))).status).toBe(400);
+    const n = CREDITS_BY_FUTURE_MONTH; // same policy start and 1/month as Casual for a long-serving employee
+    expect((await submit(token, LEAVE_TYPE.SICK, future(10), addDays(future(10), n - 1))).status).toBe(201);
+    const over = await submit(token, LEAVE_TYPE.SICK, future(25));
+    expect(over.status).toBe(400);
+    expect(over.body.message).toMatch(/Not enough Sick Leave/);
+    expect(over.body.details).toMatchObject({ available: 0, requested: 1, shortfall: 1 });
   });
 });
 
@@ -181,7 +185,7 @@ describe('GET /api/leaves/me', () => {
     expect(new Set(balances).size).toBe(1);
     expect(calls[0].body.data.summary.types).toMatchObject({
       CASUAL: { accruesPerMonth: 1, approved: 0, pending: 0 },
-      SICK: { allowance: 1, used: 0, eligibleNow: true },
+      SICK: { accruesPerMonth: 1, approved: 0, pending: 0, eligibleNow: true },
       PAID: { allowance: null, used: 0 },
     });
     expect(Object.keys(calls[0].body.data.summary.types)).toEqual(['CASUAL', 'SICK', 'PAID']);

@@ -1,4 +1,4 @@
-const WEEKDAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+import { MonthCalendarGrid, CELL_BASE } from './MonthCalendarGrid.jsx';
 
 /**
  * One employee's month (server: salaryReportService.buildCalendarMonth) as a
@@ -7,31 +7,11 @@ const WEEKDAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Satur
  * a check-in, "No record" for past days without attendance, nothing for future days.
  */
 export function SalaryCalendar({ calendar }) {
-  return (
-    <div className="overflow-x-auto">
-      <div className="min-w-[760px] rounded-xl border border-slate-200 overflow-hidden" role="table" aria-label={`${calendar.employeeName}, ${calendar.monthLabel}`}>
-        <div className="grid grid-cols-7 bg-brand-100/70 border-b border-slate-200" role="row">
-          {WEEKDAYS.map((d) => (
-            <div key={d} role="columnheader" className="px-2.5 py-2 text-xs font-bold text-brand-800">
-              {d}
-            </div>
-          ))}
-        </div>
-        {calendar.weeks.map((week, wi) => (
-          <div key={wi} className="grid grid-cols-7 border-b last:border-b-0 border-slate-200" role="row">
-            {week.map((cell, ci) => (
-              <Cell key={ci} cell={cell} />
-            ))}
-          </div>
-        ))}
-      </div>
-    </div>
-  );
+  return <MonthCalendarGrid weeks={calendar.weeks} label={`${calendar.employeeName}, ${calendar.monthLabel}`} renderCell={(cell) => <Cell cell={cell} />} />;
 }
 
 function Cell({ cell }) {
-  const base = 'min-h-[96px] px-2.5 py-2 border-r last:border-r-0 border-slate-200 text-xs leading-relaxed';
-  if (!cell) return <div role="cell" className={`${base} bg-slate-50/60`} />;
+  const base = CELL_BASE;
   const tone = cell.holiday ? 'bg-violet-50' : cell.isSunday ? 'bg-slate-50' : 'bg-white';
   return (
     <div role="cell" className={`${base} ${tone}`}>

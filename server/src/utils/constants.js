@@ -120,22 +120,30 @@ export const LEAVE_TYPE = Object.freeze({
 
 export const REQUESTABLE_LEAVE_TYPES = [LEAVE_TYPE.CASUAL, LEAVE_TYPE.SICK, LEAVE_TYPE.PAID];
 
-// Non-accumulating limit: days per calendar month (by leave start date).
-// Paid Leave has no allowance — user's own risk.
-export const MONTHLY_LEAVE_ALLOWANCE = Object.freeze({
-  [LEAVE_TYPE.SICK]: 1,
-});
+// Non-accumulating limits: days per calendar month (by leave start date).
+// None remain: Casual and Sick Leave accrue (LEAVE_ACCRUAL); Paid Leave has no
+// allowance (taken at the employee's own risk).
+export const MONTHLY_LEAVE_ALLOWANCE = Object.freeze({});
 
-// Casual Leave accrues 1 day per calendar month and unused days carry forward
-// with no cap. Credits start from the later of this month and the employee's
-// joining month (joining month included); there are no back-dated credits.
-export const CASUAL_LEAVE_ACCRUAL = Object.freeze({
-  DAYS_PER_MONTH: 1,
-  START_YEAR: 2026,
-  START_MONTH_INDEX: 9, // October (0-based)
+// Accruing leave types: DAYS_PER_MONTH credited per calendar month, unused days
+// carry forward with no cap. Credits start from the later of the policy start
+// (START_YEAR/START_MONTH_INDEX — no back-dated credits before it) and the
+// joining month + ELIGIBLE_AFTER_JOINING_MONTHS. One shared calculation for both
+// (leaveService.creditStart / creditsThrough / getAvailable).
+export const LEAVE_ACCRUAL = Object.freeze({
+  // Casual: from the joining month itself.
+  [LEAVE_TYPE.CASUAL]: Object.freeze({ DAYS_PER_MONTH: 1, START_YEAR: 2026, START_MONTH_INDEX: 9, ELIGIBLE_AFTER_JOINING_MONTHS: 0 }),
+  // Sick: from the second calendar month after the joining month (Sep → Nov, Dec → Feb);
+  // needs a joining date. Same policy start as Casual Leave (October 2026).
+  [LEAVE_TYPE.SICK]: Object.freeze({ DAYS_PER_MONTH: 1, START_YEAR: 2026, START_MONTH_INDEX: 9, ELIGIBLE_AFTER_JOINING_MONTHS: 2, REQUIRES_JOINING_DATE: true }),
 });
+export const ACCRUING_LEAVE_TYPES = Object.freeze(Object.keys(LEAVE_ACCRUAL));
 
-export const SICK_LEAVE_ELIGIBILITY_MONTHS = 3;
+// Kept for existing imports: the Casual Leave accrual settings.
+export const CASUAL_LEAVE_ACCRUAL = LEAVE_ACCRUAL[LEAVE_TYPE.CASUAL];
+
+// Sick Leave starts this many calendar months after the joining month.
+export const SICK_LEAVE_ELIGIBILITY_MONTHS = LEAVE_ACCRUAL[LEAVE_TYPE.SICK].ELIGIBLE_AFTER_JOINING_MONTHS;
 
 // Half-day leave: a duration of one single date, not a leave category. Leave
 // records created before this have no `duration` and are FULL_DAY.

@@ -4,7 +4,7 @@ import { createApp } from '../src/app.js';
 import { User } from '../src/models/User.js';
 import { Employee } from '../src/models/Employee.js';
 import { Leave } from '../src/models/Leave.js';
-import { getLeaveSummary } from '../src/services/leaveService.js';
+import { getLeaveSummary, creditsThrough } from '../src/services/leaveService.js';
 import { ROLES, LEAVE_TYPE } from '../src/utils/constants.js';
 
 const app = createApp();
@@ -144,11 +144,14 @@ describe('same-date rules', () => {
 });
 
 describe('Sick and Paid rules unchanged', () => {
-  test('Sick: two half days fill the 1-day monthly allowance; a third is refused', async () => {
-    const { token } = await setup(ROLES.EMPLOYEE, 'a@zorx.test');
-    expect((await half(token, LEAVE_TYPE.SICK, at(0, 10), 'MORNING')).status).toBe(201);
-    expect((await half(token, LEAVE_TYPE.SICK, at(0, 12), 'EVENING')).status).toBe(201);
-    expect((await half(token, LEAVE_TYPE.SICK, at(0, 14), 'MORNING')).status).toBe(400);
+  test('Sick half days use the same 0.5 conversion as Casual: 2 × credits halves fit, one more is refused', async () => {
+    const { token, employee } = await setup(ROLES.EMPLOYEE, 'a@zorx.test');
+    const credits = creditsThrough(LEAVE_TYPE.SICK, employee.joiningDate, new Date(at(0, 10)));
+    for (let i = 0; i < credits; i++) {
+      expect((await half(token, LEAVE_TYPE.SICK, at(0, 10 + i), 'MORNING')).status).toBe(201);
+      expect((await half(token, LEAVE_TYPE.SICK, at(0, 10 + i), 'EVENING')).status).toBe(201);
+    }
+    expect((await half(token, LEAVE_TYPE.SICK, at(0, 20), 'MORNING')).status).toBe(400);
   });
 
   test('Sick eligibility still applies to half days', async () => {
@@ -156,7 +159,7 @@ describe('Sick and Paid rules unchanged', () => {
     const { token } = await setup(ROLES.EMPLOYEE, 'new@zorx.test', recent);
     const res = await half(token, LEAVE_TYPE.SICK, new Date(recent.getTime() + 20 * 86400000).toISOString().slice(0, 10), 'MORNING');
     expect(res.status).toBe(400);
-    expect(res.body.message).toMatch(/3 months after joining/);
+    expect(res.body.message).toMatch(/second calendar month after your joining month/);
   });
 
   test('Paid half days have no allowance, as before', async () => {

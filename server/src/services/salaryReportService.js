@@ -86,23 +86,51 @@ const STATUS_LABEL = { PRESENT: 'Present', LATE: 'Late', HALF_DAY: 'Half day', A
  *   upcoming   — a future day (left empty)
  * Sundays and holidays are flagged so they can be shaded; nothing is invented.
  */
-export function buildCalendarMonth({ range, records, employee, holidays = [], officeSettings = null, today = new Date(), timeZone = env.timezone }) {
-  const byDay = new Map(records.map((r) => [new Date(r.date).toISOString().slice(0, 10), r]));
+/** India-time "YYYY-MM-DD" of an instant (the attendance day key convention). */
+export function dayKeyOf(date, timeZone = env.timezone) {
+  const t = getZonedParts(date, timeZone);
+  return `${t.year}-${String(t.month).padStart(2, '0')}-${String(t.day).padStart(2, '0')}`;
+}
+
+/**
+ * The Monday-first month grid shared by the Salary and Attendance calendars:
+ * `makeCell(base)` fills each in-month day; out-of-month slots are null.
+ * base = { day, dateKey, weekday (0 = Sunday), isSunday, holiday }.
+ */
+export function buildMonthGrid(range, { holidays = [] } = {}, makeCell) {
   const holidayByDay = new Map(holidays.map((h) => [new Date(h.date).toISOString().slice(0, 10), h.name]));
-  const t = getZonedParts(today, timeZone);
-  const todayKey = `${t.year}-${String(t.month).padStart(2, '0')}-${String(t.day).padStart(2, '0')}`;
   const y = range.start.getUTCFullYear();
   const m = range.start.getUTCMonth();
   const daysInMonth = new Date(Date.UTC(y, m + 1, 0)).getUTCDate();
   const lead = (range.start.getUTCDay() + 6) % 7; // Monday = 0
   const cells = Array(lead).fill(null);
-  let daysWithRecords = 0;
-  let totalOvertimeMinutes = 0;
   for (let d = 1; d <= daysInMonth; d += 1) {
     const dateKey = `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
     const weekday = new Date(Date.UTC(y, m, d)).getUTCDay();
+    cells.push(makeCell({ day: d, dateKey, weekday, isSunday: weekday === 0, holiday: holidayByDay.get(dateKey) || null }));
+  }
+  while (cells.length % 7) cells.push(null);
+  return Array.from({ length: cells.length / 7 }, (_, i) => cells.slice(i * 7, i * 7 + 7));
+}
+
+/**
+ * One employee's month as calendar weeks (Monday first), shared by the screen
+ * and the PDF. Each in-month cell is one of:
+ *   record     — has a check-in: In / Out ("—" = missing check-out) / OT
+ *   status     — a record without a check-in (e.g. Leave, Absent): its status
+ *   no-record  — a past or current day with no attendance record
+ *   upcoming   — a future day (left empty)
+ * Sundays and holidays are flagged so they can be shaded; nothing is invented.
+ */
+export function buildCalendarMonth({ range, records, employee, holidays = [], officeSettings = null, today = new Date(), timeZone = env.timezone }) {
+  const byDay = new Map(records.map((r) => [new Date(r.date).toISOString().slice(0, 10), r]));
+  const todayKey = dayKeyOf(today, timeZone);
+  let daysWithRecords = 0;
+  let totalOvertimeMinutes = 0;
+  const weeks = buildMonthGrid(range, { holidays }, (base) => {
+    const { day, dateKey, isSunday, holiday } = base;
     const r = byDay.get(dateKey);
-    const cell = { day: d, dateKey, isSunday: weekday === 0, holiday: holidayByDay.get(dateKey) || null };
+    const cell = { day, dateKey, isSunday, holiday };
     if (r?.checkIn?.timestamp) {
       const overtimeMinutes = overtimeForRecord(r, employee, officeSettings, timeZone);
       daysWithRecords += 1;
@@ -123,10 +151,8 @@ export function buildCalendarMonth({ range, records, employee, holidays = [], of
     } else {
       cell.kind = dateKey > todayKey ? 'upcoming' : 'no-record';
     }
-    cells.push(cell);
-  }
-  while (cells.length % 7) cells.push(null);
-  const weeks = Array.from({ length: cells.length / 7 }, (_, i) => cells.slice(i * 7, i * 7 + 7));
+    return cell;
+  });
   return {
     employeeId: employee?._id ? String(employee._id) : null,
     employeeName: employeeDisplayName(employee),

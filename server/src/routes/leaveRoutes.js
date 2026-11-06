@@ -15,6 +15,7 @@ router.get('/me', leaveController.getMyLeaves);
 router.patch('/:id/cancel', leaveController.cancelLeave);
 
 router.get('/', requireRole(...BACK_OFFICE_ROLES), leaveController.listLeaves);
+router.get('/balance/:employeeId', requireRole(...BACK_OFFICE_ROLES), leaveController.getEmployeeLeaveBalance);
 router.patch('/:id/approve', requireRole(...BACK_OFFICE_ROLES), validateBody(reviewLeaveSchema), leaveController.approveLeave);
 router.patch('/:id/reject', requireRole(...BACK_OFFICE_ROLES), validateBody(reviewLeaveSchema), leaveController.rejectLeave);
 

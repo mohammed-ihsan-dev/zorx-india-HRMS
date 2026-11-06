@@ -5,7 +5,7 @@ import { User } from '../src/models/User.js';
 import { Employee } from '../src/models/Employee.js';
 import { Leave } from '../src/models/Leave.js';
 import { LeaveLock } from '../src/models/LeaveLock.js';
-import { getLeaveSummary } from '../src/services/leaveService.js';
+import { getLeaveSummary, creditsThrough } from '../src/services/leaveService.js';
 import { ROLES, LEAVE_TYPE } from '../src/utils/constants.js';
 
 // Cumulative Casual Leave: accrued days carry forward and can be spent in any
@@ -151,11 +151,13 @@ describe('concurrency', () => {
 });
 
 describe('other leave types and history are unaffected', () => {
-  test('Sick Leave stays 1 day per month; Paid Leave stays unlimited', async () => {
+  test('Sick Leave uses its own accrued balance (no 1-per-month cap), separate from Casual; Paid Leave stays unlimited', async () => {
     const { employee: emp, token } = await employee();
     await keepCasual(emp._id, 0);
-    expect((await submit(token, LEAVE_TYPE.SICK, at(0, 10))).status).toBe(201);
-    expect((await submit(token, LEAVE_TYPE.SICK, at(0, 12))).status).toBe(400);
+    const sick = creditsThrough(LEAVE_TYPE.SICK, emp.joiningDate, new Date(at(0, 10)));
+    expect(sick).toBeGreaterThanOrEqual(2);
+    expect((await submit(token, LEAVE_TYPE.SICK, at(0, 10), at(0, 9 + sick))).status).toBe(201); // all accrued days together
+    expect((await submit(token, LEAVE_TYPE.SICK, at(0, 25))).status).toBe(400);
     expect((await submit(token, LEAVE_TYPE.PAID, at(0, 14), at(0, 18))).status).toBe(201);
     expect((await submit(token, LEAVE_TYPE.PAID, at(0, 20))).status).toBe(201);
   });
@@ -167,5 +169,21 @@ describe('other leave types and history are unaffected', () => {
     expect((await submit(token, LEAVE_TYPE.CASUAL, at(0, 10))).status).toBe(201);
     expect((await submit(token, LEAVE_TYPE.CASUAL, at(0, 12))).status).toBe(201);
     expect(await Leave.find({ _id: { $in: before.map((l) => l._id) } }).lean()).toEqual(before);
+  });
+});
+
+describe('per-employee Casual credit start (config/leavePolicies.js)', () => {
+  test('only the listed employee starts later; everyone else is unchanged', async () => {
+    const { creditsThrough: credits, creditStart } = await import('../src/services/leaveService.js');
+    const { CASUAL_CREDIT_START_OVERRIDES } = await import('../src/config/leavePolicies.js');
+    const RIFAN = '6adf17303c9ddd5f303eef7a';
+    expect(Object.keys(CASUAL_CREDIT_START_OVERRIDES)).toEqual([RIFAN]);
+    const joined = new Date('2026-08-28');
+    const nov = new Date('2026-11-15');
+    expect(creditStart(LEAVE_TYPE.CASUAL, joined, RIFAN).toISOString().slice(0, 7)).toBe('2026-11');
+    expect(credits(LEAVE_TYPE.CASUAL, joined, nov, RIFAN)).toBe(1); // no October carry-forward
+    expect(credits(LEAVE_TYPE.CASUAL, joined, new Date('2026-12-15'), RIFAN)).toBe(2); // normal accrual after
+    expect(credits(LEAVE_TYPE.CASUAL, joined, nov, '64b000000000000000000000')).toBe(2); // others unchanged
+    expect(credits(LEAVE_TYPE.SICK, joined, nov, RIFAN)).toBe(credits(LEAVE_TYPE.SICK, joined, nov)); // Sick unaffected
   });
 });

@@ -128,6 +128,15 @@ export const getMyLeaves = asyncHandler(async (req, res) => {
   sendSuccess(res, { data: { leaves, summary } });
 });
 
+/** GET /leaves/balance/:employeeId — HR/Admin view of one employee's balances (the same calculation the employee sees). */
+export const getEmployeeLeaveBalance = asyncHandler(async (req, res) => {
+  const { employeeId } = req.params;
+  if (!/^[a-f0-9]{24}$/i.test(employeeId)) throw ApiError.badRequest('Invalid employee.');
+  const employee = await Employee.findById(employeeId).select('firstName lastName joiningDate').lean();
+  if (!employee) throw ApiError.notFound('Employee not found.');
+  sendSuccess(res, { data: await getLeaveSummary(employee) });
+});
+
 export const listLeaves = asyncHandler(async (req, res) => {
   const { status, employeeId, page = 1, limit = 20 } = req.query;
   const filter = {};

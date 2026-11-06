@@ -7,10 +7,10 @@ import {
   LEAVE_DURATION,
   HALF_DAY_DAYS,
   MONTHLY_LEAVE_ALLOWANCE,
-  SICK_LEAVE_ELIGIBILITY_MONTHS,
-  CASUAL_LEAVE_ACCRUAL,
+  LEAVE_ACCRUAL,
 } from '../utils/constants.js';
 import { ApiError } from '../utils/ApiError.js';
+import { CASUAL_CREDIT_START_OVERRIDES } from '../config/leavePolicies.js';
 
 const ACTIVE_STATUSES = [LEAVE_STATUS.PENDING, LEAVE_STATUS.APPROVED];
 const TYPE_LABEL = { [LEAVE_TYPE.CASUAL]: 'Casual Leave', [LEAVE_TYPE.SICK]: 'Sick Leave', [LEAVE_TYPE.PAID]: 'Paid Leave' };
@@ -67,19 +67,14 @@ export async function assertNoOverlap(employeeId, startDate, endDate, excludeLea
 }
 
 /**
- * First calendar day Sick Leave may start: the 3-month anniversary of the
- * joining date (12 Sep → 12 Dec). When that month is shorter, the last day of
- * the month is used (30 Nov → 28 Feb, 31 Aug → 30 Nov). null for a missing or
- * invalid joining date — which means NOT eligible, never "no restriction".
+ * First day Sick Leave may be taken: the 1st of the month in which Sick Leave
+ * credits start — the joining month + 2 calendar months (Sep → Nov, Dec → Feb),
+ * never before the policy start. null for a missing or invalid joining date,
+ * which means NOT eligible, never "no restriction".
  */
 export function getSickLeaveEligibleFrom(joiningDate) {
-  if (!joiningDate) return null;
-  const j = new Date(joiningDate);
-  if (Number.isNaN(j.getTime())) return null;
-  const y = j.getUTCFullYear();
-  const m = j.getUTCMonth() + SICK_LEAVE_ELIGIBILITY_MONTHS;
-  const lastDayOfTargetMonth = new Date(Date.UTC(y, m + 1, 0)).getUTCDate();
-  return new Date(Date.UTC(y, m, Math.min(j.getUTCDate(), lastDayOfTargetMonth)));
+  if (!joiningDate || Number.isNaN(new Date(joiningDate).getTime())) return null;
+  return creditStart(LEAVE_TYPE.SICK, joiningDate);
 }
 
 // Leave dates are stored as UTC-midnight calendar days, so months are taken in UTC.
@@ -101,52 +96,70 @@ export async function countMonthlyLeaveDays(employeeId, leaveType, date, exclude
   return row?.days || 0;
 }
 
-// ---- Casual Leave: monthly accrual with unlimited carry-forward ----
+// ---- Accruing leave (Casual, Sick): monthly credits with unlimited carry-forward ----
 // The balance is derived, never stored: credits are a pure function of the
 // joining date and the calendar month, so refreshes, retries, tabs and
 // concurrent calls can never grant a month twice, and nothing resets at
-// month-end. Usage comes from the leave requests themselves.
+// month-end. Usage comes from the leave requests themselves. Each type differs
+// only by its LEAVE_ACCRUAL config (policy start, months after joining).
 const monthIndex = (date) => {
   const d = new Date(date);
   return d.getUTCFullYear() * 12 + d.getUTCMonth();
 };
-const ACCRUAL_START_INDEX = CASUAL_LEAVE_ACCRUAL.START_YEAR * 12 + CASUAL_LEAVE_ACCRUAL.START_MONTH_INDEX;
-const ACCRUAL_START_DATE = new Date(Date.UTC(CASUAL_LEAVE_ACCRUAL.START_YEAR, CASUAL_LEAVE_ACCRUAL.START_MONTH_INDEX, 1));
+const fromIndex = (i) => new Date(Date.UTC(Math.floor(i / 12), i % 12, 1));
+const policyStartIndex = (type) => LEAVE_ACCRUAL[type].START_YEAR * 12 + LEAVE_ACCRUAL[type].START_MONTH_INDEX;
 
-/** First month (as a UTC month-start Date) in which this employee earns Casual Leave. */
-export function getCasualCreditStart(joiningDate) {
-  const first = Math.max(ACCRUAL_START_INDEX, joiningDate ? monthIndex(joiningDate) : ACCRUAL_START_INDEX);
-  return new Date(Date.UTC(Math.floor(first / 12), first % 12, 1));
+/**
+ * First month (as a UTC month-start Date) in which this employee earns `type` leave.
+ * `employeeId` (optional) applies an HR-approved per-employee start (config/leavePolicies.js).
+ */
+export function creditStart(type, joiningDate, employeeId = null) {
+  const cfg = LEAVE_ACCRUAL[type];
+  const policy = policyStartIndex(type);
+  const joined = joiningDate && !Number.isNaN(new Date(joiningDate).getTime()) ? monthIndex(joiningDate) + cfg.ELIGIBLE_AFTER_JOINING_MONTHS : policy;
+  const override = type === LEAVE_TYPE.CASUAL && employeeId ? CASUAL_CREDIT_START_OVERRIDES[String(employeeId)] : null;
+  const own = override ? override.year * 12 + override.monthIndex : -Infinity;
+  return fromIndex(Math.max(policy, joined, own));
 }
 
-/** Casual Leave days earned from the credit start month through the month of `date`, inclusive. */
-export function casualCreditsThrough(joiningDate, date) {
-  const months = monthIndex(date) - monthIndex(getCasualCreditStart(joiningDate)) + 1;
-  return Math.max(0, months) * CASUAL_LEAVE_ACCRUAL.DAYS_PER_MONTH;
+/** `type` days earned from its credit start month through the month of `date`, inclusive. */
+export function creditsThrough(type, joiningDate, date, employeeId = null) {
+  const cfg = LEAVE_ACCRUAL[type];
+  if (cfg.REQUIRES_JOINING_DATE && (!joiningDate || Number.isNaN(new Date(joiningDate).getTime()))) return 0;
+  const months = monthIndex(date) - monthIndex(creditStart(type, joiningDate, employeeId)) + 1;
+  return Math.max(0, months) * cfg.DAYS_PER_MONTH;
 }
 
-/** Casual days with one of `statuses` since accrual began (earlier "user's risk" casual leave never counts). */
-export async function casualDaysTaken(employeeId, statuses = ACTIVE_STATUSES, excludeLeaveId = null) {
-  const match = { employeeId, leaveType: LEAVE_TYPE.CASUAL, status: { $in: statuses }, startDate: { $gte: ACCRUAL_START_DATE } };
+/** `type` days with one of `statuses` since that type's accrual began (earlier leave never counts). */
+export async function daysTaken(type, employeeId, statuses = ACTIVE_STATUSES, excludeLeaveId = null) {
+  const match = { employeeId, leaveType: type, status: { $in: statuses }, startDate: { $gte: fromIndex(policyStartIndex(type)) } };
   if (excludeLeaveId) match._id = { $ne: excludeLeaveId };
   const [row] = await Leave.aggregate([{ $match: match }, { $group: { _id: null, days: { $sum: '$days' } } }]);
   return row?.days || 0;
 }
 
 /**
- * Casual days available for a leave starting on `date`: credits earned through
- * that month minus every other pending/approved casual day (wherever dated).
+ * `type` days available for a leave starting on `date`: credits earned through
+ * that month minus every other pending/approved day of that type (wherever dated).
  * Counting all other days, not just earlier ones, means no combination of
  * requests can ever spend more than has been earned.
  */
-export async function getCasualAvailable(employee, date, { statuses = ACTIVE_STATUSES, excludeLeaveId = null } = {}) {
-  return casualCreditsThrough(employee.joiningDate, date) - (await casualDaysTaken(employee._id, statuses, excludeLeaveId));
+export async function getAvailable(type, employee, date, { statuses = ACTIVE_STATUSES, excludeLeaveId = null } = {}) {
+  return creditsThrough(type, employee.joiningDate, date, employee._id) - (await daysTaken(type, employee._id, statuses, excludeLeaveId));
 }
+
+// Casual Leave names, kept for existing callers (same results as before).
+export const getCasualCreditStart = (joiningDate) => creditStart(LEAVE_TYPE.CASUAL, joiningDate);
+export const casualCreditsThrough = (joiningDate, date) => creditsThrough(LEAVE_TYPE.CASUAL, joiningDate, date);
+export const casualDaysTaken = (employeeId, statuses = ACTIVE_STATUSES, excludeLeaveId = null) => daysTaken(LEAVE_TYPE.CASUAL, employeeId, statuses, excludeLeaveId);
+export const getCasualAvailable = (employee, date, opts) => getAvailable(LEAVE_TYPE.CASUAL, employee, date, opts);
+
+const monthYear = (d) => d.toLocaleDateString('en-IN', { month: 'long', year: 'numeric', timeZone: 'UTC' });
 
 /**
  * Company leave policy, enforced on both submission and approval:
- * - Casual Leave: only within the accrued balance (1/month, unlimited carry-forward);
- * - Sick Leave: only from 3 months after joining, MONTHLY_LEAVE_ALLOWANCE days per month;
+ * - Casual Leave and Sick Leave: only within the accrued balance (1/month,
+ *   unlimited carry-forward; Sick from the second month after joining);
  * - Paid Leave: no allowance (taken at the employee's own risk).
  * On submission, pending requests hold their days (no double-requesting the same
  * balance); on approval (`approving: true`) only already-approved leave counts,
@@ -155,28 +168,24 @@ export async function getCasualAvailable(employee, date, { statuses = ACTIVE_STA
 export async function assertLeaveAllowed(employee, leaveType, startDate, days, excludeLeaveId = null, { approving = false } = {}) {
   const statuses = approving ? [LEAVE_STATUS.APPROVED] : ACTIVE_STATUSES;
 
-  if (leaveType === LEAVE_TYPE.CASUAL) {
-    const available = Math.max(0, await getCasualAvailable(employee, startDate, { statuses, excludeLeaveId }));
+  if (LEAVE_ACCRUAL[leaveType]) {
+    if (leaveType === LEAVE_TYPE.SICK) {
+      const eligibleFrom = getSickLeaveEligibleFrom(employee.joiningDate);
+      if (!eligibleFrom) throw ApiError.badRequest('Sick Leave needs a joining date on your profile. Please contact HR.');
+      if (new Date(startDate) < eligibleFrom) {
+        throw ApiError.badRequest(`Sick Leave is available from ${monthYear(eligibleFrom)} (the second calendar month after your joining month).`, { leaveType, eligibleFrom });
+      }
+    }
+    const available = Math.max(0, await getAvailable(leaveType, employee, startDate, { statuses, excludeLeaveId }));
     if (days > available) {
       const { label } = monthWindow(startDate);
       throw ApiError.badRequest(
-        `Not enough Casual Leave: ${available} day${available === 1 || available === 0.5 ? '' : 's'} available for ${label}, ${days} requested ` +
+        `Not enough ${TYPE_LABEL[leaveType]}: ${available} day${available === 1 || available === 0.5 ? '' : 's'} available for ${label}, ${days} requested ` +
           `(short by ${days - available}). You can choose Paid Leave instead.`,
         { leaveType, available, requested: days, shortfall: days - available }
       );
     }
     return;
-  }
-
-  if (leaveType === LEAVE_TYPE.SICK) {
-    const eligibleFrom = getSickLeaveEligibleFrom(employee.joiningDate);
-    if (!eligibleFrom) {
-      throw ApiError.badRequest('Sick Leave needs a joining date on your profile. Please contact HR.');
-    }
-    if (new Date(startDate) < eligibleFrom) {
-      const on = eligibleFrom.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'UTC' });
-      throw ApiError.badRequest(`Sick Leave is available ${SICK_LEAVE_ELIGIBILITY_MONTHS} months after joining (from ${on}).`);
-    }
   }
 
   const allowance = MONTHLY_LEAVE_ALLOWANCE[leaveType];
@@ -231,32 +240,35 @@ export async function withEmployeeLeaveLock(employeeId, fn) {
   }
 }
 
-/** Current balances for the Leave page (Casual: accrued balance; Sick/Paid: this month). */
+/** One accruing type's balance (same shape for Casual and Sick). */
+async function accruedBalance(type, employee, referenceDate) {
+  const credited = creditsThrough(type, employee.joiningDate, referenceDate, employee._id);
+  const approved = await daysTaken(type, employee._id, [LEAVE_STATUS.APPROVED]);
+  const pending = await daysTaken(type, employee._id, [LEAVE_STATUS.PENDING]);
+  return {
+    accruesPerMonth: LEAVE_ACCRUAL[type].DAYS_PER_MONTH,
+    creditStart: creditStart(type, employee.joiningDate, employee._id),
+    credited,
+    approved,
+    pending,
+    available: Math.max(0, credited - approved - pending),
+  };
+}
+
+/** Current balances for the Leave page (Casual and Sick: accrued balance; Paid: used this month). */
 export async function getLeaveSummary(employee, referenceDate = new Date()) {
   const { start, label } = monthWindow(referenceDate);
-  const used = async (type) => countMonthlyLeaveDays(employee._id, type, start);
   const eligibleFrom = getSickLeaveEligibleFrom(employee.joiningDate);
-  const credited = casualCreditsThrough(employee.joiningDate, referenceDate);
-  const approved = await casualDaysTaken(employee._id, [LEAVE_STATUS.APPROVED]);
-  const pending = await casualDaysTaken(employee._id, [LEAVE_STATUS.PENDING]);
   return {
     month: label,
     types: {
-      [LEAVE_TYPE.CASUAL]: {
-        accruesPerMonth: CASUAL_LEAVE_ACCRUAL.DAYS_PER_MONTH,
-        creditStart: getCasualCreditStart(employee.joiningDate),
-        credited,
-        approved,
-        pending,
-        available: Math.max(0, credited - approved - pending),
-      },
+      [LEAVE_TYPE.CASUAL]: await accruedBalance(LEAVE_TYPE.CASUAL, employee, referenceDate),
       [LEAVE_TYPE.SICK]: {
-        allowance: MONTHLY_LEAVE_ALLOWANCE[LEAVE_TYPE.SICK],
-        used: await used(LEAVE_TYPE.SICK),
+        ...(await accruedBalance(LEAVE_TYPE.SICK, employee, referenceDate)),
         eligibleFrom,
         eligibleNow: Boolean(eligibleFrom) && new Date(referenceDate) >= eligibleFrom,
       },
-      [LEAVE_TYPE.PAID]: { allowance: null, used: await used(LEAVE_TYPE.PAID) },
+      [LEAVE_TYPE.PAID]: { allowance: null, used: await countMonthlyLeaveDays(employee._id, LEAVE_TYPE.PAID, start) },
     },
   };
 }

@@ -9,15 +9,13 @@ import { useToast } from '../../hooks/useToast.js';
 import { getErrorMessage } from '../../services/apiClient.js';
 import { countDaysInclusive } from '../../utils/calendarDate.js';
 import { formatDate } from '../../utils/formatters.js';
-import { formatLeaveDays } from './leaveFormat.js';
+import { formatLeaveDays, accruedAvailable, ACCRUING_TYPES } from './leaveFormat.js';
 
 const LEAVE_OPTIONS = [
   { type: 'CASUAL', label: 'Casual Leave' },
   { type: 'SICK', label: 'Sick Leave' },
   { type: 'PAID', label: 'Paid Leave' },
 ];
-const MONTHLY_ALLOWANCE = { SICK: 1 };
-const ACTIVE_STATUSES = ['PENDING', 'APPROVED'];
 const ALLOWED_TYPES = ['application/pdf', 'image/jpeg', 'image/png'];
 const DURATIONS = [
   { value: 'FULL_DAY', label: 'Full Day' },
@@ -55,8 +53,6 @@ function Segmented({ label, name, options, value, onChange }) {
 const MAX_SIZE_BYTES = 5 * 1024 * 1024;
 
 const ymd = (value) => (value ? new Date(value).toISOString().slice(0, 10) : '');
-const sameMonth = (a, b) => a && b && a.slice(0, 7) === b.slice(0, 7);
-const monthIdx = (value) => { const d = new Date(value); return d.getUTCFullYear() * 12 + d.getUTCMonth(); };
 const monthLabel = (value) => formatDate(value, { month: 'long', year: 'numeric', timeZone: 'UTC' });
 
 export function LeaveRequestModal({ open, onClose, initialDate, initialHalfDaySession = null, onSubmitted, leaves = [], summary = null }) {
@@ -77,34 +73,17 @@ export function LeaveRequestModal({ open, onClose, initialDate, initialHalfDaySe
 
   const sickEligibleFrom = ymd(summary?.types?.SICK?.eligibleFrom);
 
-  // Mirrors the server rule (which stays authoritative): pending/approved days of
-  // a type in the calendar month of the selected start date.
-  const usedInMonth = useMemo(() => {
-    const used = { SICK: 0 };
-    for (const l of leaves) {
-      if (ACTIVE_STATUSES.includes(l.status) && l.leaveType in used && sameMonth(ymd(l.startDate), form.startDate)) {
-        used[l.leaveType] += l.days;
-      }
-    }
-    return used;
-  }, [leaves, form.startDate]);
-
-  const casual = summary?.types?.CASUAL;
-  const casualAvailable = useMemo(() => {
-    if (!casual || !form.startDate) return null;
-    const credits = Math.max(0, monthIdx(form.startDate) - monthIdx(casual.creditStart) + 1) * casual.accruesPerMonth;
-    return Math.max(0, credits - casual.approved - casual.pending);
-  }, [casual, form.startDate]);
+  // Casual and Sick Leave share one accrual (server authoritative): balance for the chosen start month.
+  const accrued = ACCRUING_TYPES.includes(form.leaveType) ? summary?.types?.[form.leaveType] : null;
+  const accruedLeft = useMemo(() => (accrued ? accruedAvailable(accrued, form.startDate) : null), [accrued, form.startDate]);
+  const typeName = form.leaveType === 'SICK' ? 'Sick Leave' : 'Casual Leave';
 
   const unavailableReason = (type) => {
     if (type === 'SICK' && summary?.types?.SICK && !sickEligibleFrom) {
       return 'Sick Leave needs a joining date on your profile. Please contact HR.';
     }
     if (type === 'SICK' && sickEligibleFrom && form.startDate && form.startDate < sickEligibleFrom) {
-      return `Sick Leave will be available from ${formatDate(sickEligibleFrom, { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' })} (3 months after joining).`;
-    }
-    if (MONTHLY_ALLOWANCE[type] && usedInMonth[type] >= MONTHLY_ALLOWANCE[type]) {
-      return "You've already used this month's Sick Leave. Please choose Paid Leave instead.";
+      return `Sick Leave will be available from ${formatDate(sickEligibleFrom, { month: 'long', year: 'numeric', timeZone: 'UTC' })} (the second calendar month after your joining month).`;
     }
     return '';
   };
@@ -136,12 +115,12 @@ export function LeaveRequestModal({ open, onClose, initialDate, initialHalfDaySe
   const days = isHalf ? (form.startDate ? 0.5 : 0) : countDaysInclusive(form.startDate, form.endDate);
   // Notes for the types that are disabled for the chosen dates (shown even when not selected).
   const blockedNotes = LEAVE_OPTIONS.map(({ type }) => unavailableReason(type)).filter(Boolean);
-  const casualShortfall =
-    form.leaveType === 'CASUAL' && casualAvailable !== null && days > casualAvailable
-      ? `Not enough Casual Leave: ${casualAvailable} day${casualAvailable === 1 || casualAvailable === 0.5 ? '' : 's'} available for ${monthLabel(form.startDate)}, this request needs ${days} (short by ${days - casualAvailable}). You can choose Paid Leave instead.`
+  const accruedShortfall =
+    accruedLeft !== null && days > accruedLeft
+      ? `Not enough ${typeName}: ${accruedLeft} day${accruedLeft === 1 || accruedLeft === 0.5 ? '' : 's'} available for ${monthLabel(form.startDate)}, this request needs ${days} (short by ${days - accruedLeft}). You can choose Paid Leave instead.`
       : '';
   // The selected type is never changed automatically — the request is just blocked with the reason.
-  const blockingReason = unavailableReason(form.leaveType) || casualShortfall;
+  const blockingReason = unavailableReason(form.leaveType) || accruedShortfall;
 
   const handleFileChange = (e) => {
     setFileError('');
@@ -173,9 +152,6 @@ export function LeaveRequestModal({ open, onClose, initialDate, initialHalfDaySe
     if (!isHalf && days < 1) return setError('End date must be on or after the start date.');
     if (isHalf && !form.halfDaySession) return setError('Please choose Morning or Evening for a half-day leave.');
     if (blockingReason) return setError(blockingReason);
-    if (MONTHLY_ALLOWANCE[form.leaveType] && usedInMonth[form.leaveType] + days > MONTHLY_ALLOWANCE[form.leaveType]) {
-      return setError('Sick Leave is limited to 1 day per month. Please choose Paid Leave for longer leave.');
-    }
     if (!form.reason.trim()) return setError('Please provide a reason.');
 
     setSubmitting(true);
@@ -228,19 +204,19 @@ export function LeaveRequestModal({ open, onClose, initialDate, initialHalfDaySe
           </div>
         ))}
 
-        {form.leaveType === 'CASUAL' && casualAvailable !== null && !casualShortfall && (
+        {accruedLeft !== null && !accruedShortfall && !unavailableReason(form.leaveType) && (
           <div className="flex items-center gap-2 text-xs font-semibold text-brand-900 bg-brand-50 border border-brand-200 rounded-lg p-2.5">
             <Info size={16} className="text-brand-600 shrink-0" />
             <span>
-              {casualAvailable} Casual Leave day{casualAvailable === 1 || casualAvailable === 0.5 ? '' : 's'} available for {monthLabel(form.startDate)}. Unused days carry forward.
+              {accruedLeft} {typeName} day{accruedLeft === 1 || accruedLeft === 0.5 ? '' : 's'} available for {monthLabel(form.startDate)}. Unused days carry forward.
             </span>
           </div>
         )}
 
-        {casualShortfall && (
+        {accruedShortfall && (
           <div role="alert" className="flex items-center gap-2 text-xs font-semibold text-amber-900 bg-amber-50 border border-amber-200 rounded-lg p-2.5">
             <AlertTriangle size={16} className="text-amber-600 shrink-0" />
-            <span>{casualShortfall}</span>
+            <span>{accruedShortfall}</span>
           </div>
         )}
 

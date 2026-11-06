@@ -14,7 +14,7 @@ import { useAuth } from '../../hooks/useAuth.js';
 import { BACK_OFFICE_ROLES } from '../../utils/constants.js';
 import { useToast } from '../../hooks/useToast.js';
 import { getErrorMessage } from '../../services/apiClient.js';
-import { leaveDurationLabel, isHalfDay } from '../../features/leave/leaveFormat.js';
+import { leaveDurationLabel, isHalfDay, balanceLine } from '../../features/leave/leaveFormat.js';
 
 export function AdminLeaves() {
   const toast = useToast();
@@ -28,6 +28,22 @@ export function AdminLeaves() {
   const [loading, setLoading] = useState(true);
   const [actionTarget, setActionTarget] = useState(null); // { leave, action }
   const [submitting, setSubmitting] = useState(false);
+  // The employee's current balance for the request being reviewed (same server calculation they see).
+  const [balance, setBalance] = useState(null);
+
+  useEffect(() => {
+    setBalance(null);
+    const id = actionTarget?.leave?.employeeId?._id;
+    if (!id) return undefined;
+    let cancelled = false;
+    leaveService
+      .getEmployeeLeaveBalance(id)
+      .then((b) => !cancelled && setBalance(b))
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [actionTarget]);
 
   const load = () => {
     setLoading(true);
@@ -139,7 +155,9 @@ export function AdminLeaves() {
         onConfirm={handleAction}
         loading={submitting}
         title={actionTarget?.action === 'approve' ? 'Approve leave request?' : 'Reject leave request?'}
-        description={`This will ${actionTarget?.action} the leave request for ${actionTarget?.leave.employeeId?.firstName} ${actionTarget?.leave.employeeId?.lastName}.`}
+        description={`This will ${actionTarget?.action} the leave request for ${actionTarget?.leave.employeeId?.firstName} ${actionTarget?.leave.employeeId?.lastName}.${
+          balance && actionTarget ? ` Current balance — ${balanceLine(actionTarget.leave.leaveType, balance.types[actionTarget.leave.leaveType])}` : ''
+        }`}
         confirmLabel={actionTarget?.action === 'approve' ? 'Approve' : 'Reject'}
         variant={actionTarget?.action === 'approve' ? 'primary' : 'danger'}
       />

@@ -53,3 +53,9 @@ export async function downloadReportFile(path, params = {}, format = 'csv') {
   link.remove();
   window.URL.revokeObjectURL(link.href);
 }
+
+/** One employee's attendance month as a calendar (Reports → Attendance). */
+export async function getAttendanceCalendar(params) {
+  const { data } = await apiClient.get('/reports/attendance-calendar', { params });
+  return data.data;
+}

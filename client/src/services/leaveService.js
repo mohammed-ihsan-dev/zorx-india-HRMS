@@ -29,3 +29,9 @@ export async function rejectLeave(id, reviewNote = '') {
   const { data } = await apiClient.patch(`/leaves/${id}/reject`, { reviewNote });
   return data.data;
 }
+
+/** HR/Admin: one employee's leave balances (same calculation the employee sees). */
+export async function getEmployeeLeaveBalance(employeeId) {
+  const { data } = await apiClient.get(`/leaves/balance/${employeeId}`);
+  return data.data;
+}

@@ -179,7 +179,7 @@ export function Leave() {
                   )}
                 </div>
                 <p className="text-lg font-bold text-slate-900 mt-1">
-                  {type === 'CASUAL' ? (
+                  {type === 'CASUAL' || (type === 'SICK' && !sickLocked) ? (
                     <>
                       {info.available}{' '}
                       <span className="text-sm font-normal text-slate-500">day{info.available === 1 ? '' : 's'} available</span>
@@ -191,7 +191,7 @@ export function Leave() {
                   ) : sickLocked ? (
                     <span className="text-sm font-semibold text-slate-500">
                       {info.eligibleFrom
-                        ? `Available from ${formatDate(info.eligibleFrom, { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' })}`
+                        ? `Available from ${formatDate(info.eligibleFrom, { month: 'long', year: 'numeric', timeZone: 'UTC' })}`
                         : 'Needs a joining date — contact HR'}
                     </span>
                   ) : isPaid ? (

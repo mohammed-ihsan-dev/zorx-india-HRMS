@@ -17,12 +17,11 @@ const TONE_CLASS = {
 
 /** Same wording/rules as the desktop balance cards, condensed. */
 function balanceText(type, info) {
-  if (type === 'CASUAL') return info.available > 0 ? `${info.available} available` : 'None available';
   if (type === 'SICK' && !info.eligibleNow) {
-    return info.eligibleFrom
-      ? `From ${formatDate(info.eligibleFrom, { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })}`
-      : 'Needs joining date';
+    return info.eligibleFrom ? `From ${formatDate(info.eligibleFrom, { month: 'short', year: 'numeric', timeZone: 'UTC' })}` : 'Needs joining date';
   }
+  // Casual and Sick Leave accrue the same way: show the available balance.
+  if (type === 'CASUAL' || type === 'SICK') return info.available > 0 ? `${info.available} available` : 'None available';
   if (info.allowance === null) return `${info.used} used this month`;
   return `${Math.max(0, info.allowance - info.used)} / ${info.allowance} left`;
 }

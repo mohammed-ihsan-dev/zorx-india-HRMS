@@ -1,18 +1,17 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useState } from 'react';
 import { Download, FileText, Play, Search, Wallet, AlertTriangle, CalendarDays } from 'lucide-react';
 import { CardHeader } from '../../components/Card.jsx';
 import { Input, Select } from '../../components/Input.jsx';
 import { Button } from '../../components/Button.jsx';
 import { Table } from '../../components/Table.jsx';
 import { EmptyState } from '../../components/EmptyState.jsx';
-import * as employeeService from '../../services/employeeService.js';
 import { getSalaryReport, downloadReportFile } from '../../services/reportService.js';
 import { getErrorMessage } from '../../services/apiClient.js';
 import { useToast } from '../../hooks/useToast.js';
 import { currentPayslipPeriod } from '../payslips/payslipFormat.js';
 import { SalaryCalendar } from './SalaryCalendar.jsx';
+import { useEmployeeOptions } from './useEmployeeOptions.js';
 
-const employeeName = (e) => `${e?.firstName || ''} ${e?.lastName || ''}`.replace(/\s+/g, ' ').trim() || 'Unnamed';
 
 /**
  * Reports → Salary: each employee's month as a calendar (check-in, check-out,
@@ -21,7 +20,6 @@ const employeeName = (e) => `${e?.firstName || ''} ${e?.lastName || ''}`.replace
  */
 export function SalaryReport() {
   const toast = useToast();
-  const [employees, setEmployees] = useState([]);
   const [search, setSearch] = useState('');
   const [employeeId, setEmployeeId] = useState('');
   const [month, setMonth] = useState(() => currentPayslipPeriod()); // current month in India time
@@ -32,25 +30,7 @@ export function SalaryReport() {
   // All Employees: which employee's calendar is open.
   const [openId, setOpenId] = useState(null);
 
-  useEffect(() => {
-    employeeService
-      .listEmployees({ limit: 500 })
-      .then((res) => setEmployees((res.data || []).slice().sort((a, b) => employeeName(a).localeCompare(employeeName(b)))))
-      .catch((err) => toast.error(getErrorMessage(err, 'Unable to load employees.')));
-  }, [toast]);
-
-  // Same names get the employee code (or a short id) so they can be told apart.
-  const options = useMemo(() => {
-    const counts = employees.reduce((m, e) => m.set(employeeName(e), (m.get(employeeName(e)) || 0) + 1), new Map());
-    const q = search.trim().toLowerCase();
-    return employees
-      .map((e) => {
-        const name = employeeName(e);
-        const tag = counts.get(name) > 1 || e.status === 'INACTIVE' ? ` (${[e.employeeCode || `#${e._id.slice(-4)}`, e.status === 'INACTIVE' && 'inactive'].filter(Boolean).join(', ')})` : '';
-        return { id: e._id, label: `${name}${tag}`, haystack: `${name} ${e.employeeCode || ''}`.toLowerCase() };
-      })
-      .filter((o) => !q || o.haystack.includes(q) || o.id === employeeId);
-  }, [employees, search, employeeId]);
+  const { options } = useEmployeeOptions({ search, selectedId: employeeId, toast });
 
   const params = { month, employeeId: employeeId || undefined };
   // Exports always match what is on screen: they are enabled only for the generated filters.
