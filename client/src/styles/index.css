@@ -407,3 +407,81 @@ html[data-zm-chrome='dark'] .zm-update-toast { bottom: calc(env(safe-area-inset-
 @media (prefers-reduced-motion: reduce) {
   .rocket-pad.is-ready, .rocket-flame-halo, .rocket-fuse-fire, .rocket.is-prepping svg { animation: none; }
 }
+/* Diwali game v2: full-screen on phones, premium visuals, no instruction text. */
+.diwali-fullscreen {
+  height: 100vh;
+  height: 100dvh;
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+  background: #040a12;
+  touch-action: none; /* the immersive view never scrolls; controls inside still receive taps */
+}
+.diwali-window { background: radial-gradient(120% 80% at 50% 0%, #10263a 0%, #0a1724 55%, #08140f 100%); }
+.diwali-diya-slot { background: linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.015)); transition: background-color 0.3s, box-shadow 0.3s; }
+.diwali-diya-slot.is-lit { box-shadow: inset 0 -16px 24px -12px rgba(255, 190, 70, 0.35); border-color: rgba(201, 151, 47, 0.45); }
+.rocket-stage {
+  background:
+    radial-gradient(1px 1px at 8% 12%, rgba(255, 255, 255, 0.75), transparent),
+    radial-gradient(1px 1px at 19% 31%, rgba(255, 255, 255, 0.45), transparent),
+    radial-gradient(1.2px 1.2px at 31% 8%, rgba(255, 246, 207, 0.8), transparent),
+    radial-gradient(1px 1px at 44% 24%, rgba(255, 255, 255, 0.5), transparent),
+    radial-gradient(1px 1px at 57% 6%, rgba(255, 255, 255, 0.65), transparent),
+    radial-gradient(1.3px 1.3px at 66% 19%, rgba(255, 246, 207, 0.7), transparent),
+    radial-gradient(1px 1px at 78% 9%, rgba(255, 255, 255, 0.55), transparent),
+    radial-gradient(1px 1px at 89% 27%, rgba(255, 255, 255, 0.5), transparent),
+    radial-gradient(1px 1px at 95% 41%, rgba(255, 255, 255, 0.35), transparent),
+    radial-gradient(1px 1px at 37% 43%, rgba(255, 255, 255, 0.3), transparent),
+    radial-gradient(60% 40% at 80% 55%, rgba(255, 170, 60, 0.07), transparent 70%),
+    linear-gradient(180deg, #040a12 0%, #081522 45%, #0b1d1a 82%, #0f2418 100%);
+}
+.rocket-horizon {
+  position: absolute;
+  inset: auto 0 0 0;
+  height: 22%;
+  pointer-events: none;
+  background:
+    radial-gradient(70% 120% at 50% 100%, rgba(201, 151, 47, 0.18), transparent 70%),
+    linear-gradient(180deg, transparent, rgba(5, 14, 10, 0.85));
+}
+.rocket::before { content: ''; position: absolute; inset: -14px -14px -6px; } /* larger touch target */
+.rocket { filter: drop-shadow(0 6px 8px rgba(0, 0, 0, 0.55)); }
+.rocket.is-dragging { filter: drop-shadow(0 12px 14px rgba(0, 0, 0, 0.6)); }
+.rocket-pad {
+  width: 58px;
+  height: 16px;
+  border: 0;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, #3a3a33 0%, #23231f 70%, rgba(0, 0, 0, 0) 100%);
+  box-shadow: 0 1px 0 rgba(241, 213, 138, 0.18) inset, 0 6px 10px rgba(0, 0, 0, 0.5);
+  transition: box-shadow 0.35s ease, background 0.35s ease;
+}
+.rocket-pad.is-ready {
+  border: 0;
+  animation: none;
+  box-shadow: 0 1px 0 rgba(241, 213, 138, 0.3) inset, 0 0 12px rgba(245, 197, 66, 0.22), 0 6px 10px rgba(0, 0, 0, 0.5);
+}
+.rocket-pad.is-ready.is-near {
+  background: radial-gradient(closest-side, #5a4a26 0%, #2c271b 70%, rgba(0, 0, 0, 0) 100%);
+  box-shadow: 0 1px 0 rgba(255, 228, 160, 0.5) inset, 0 0 22px rgba(245, 197, 66, 0.55), 0 6px 10px rgba(0, 0, 0, 0.5);
+}
+.flame-station-outer, .flame-station-inner, .flame-station-glow { transform-box: fill-box; }
+.flame-station-outer { transform-origin: 50% 100%; animation: diwali-flicker 1.8s ease-in-out infinite; }
+.flame-station-inner { transform-origin: 50% 100%; animation: diwali-flicker 1.2s ease-in-out -0.4s infinite; }
+.flame-station-glow { transform-origin: center; animation: diwali-glow 2.6s ease-in-out infinite; }
+.rocket-fuse-sparks { transform-box: fill-box; transform-origin: center; animation: rocket-sparks 0.22s linear infinite; }
+@keyframes rocket-sparks {
+  0% { opacity: 1; transform: rotate(0deg) scale(0.8); }
+  100% { opacity: 0.4; transform: rotate(45deg) scale(1.25); }
+}
+.rocket-greeting {
+  font-size: clamp(1.35rem, 5vw, 1.9rem);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: #f7d58c;
+  text-shadow: 0 0 18px rgba(245, 197, 66, 0.45), 0 2px 4px rgba(0, 0, 0, 0.6);
+}
+@media (prefers-reduced-motion: reduce) {
+  .flame-station-outer, .flame-station-inner, .flame-station-glow, .rocket-fuse-sparks { animation: none; }
+}

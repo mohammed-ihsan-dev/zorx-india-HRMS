@@ -58,13 +58,3 @@ export function transition(phase, event) {
 
 export const isLit = (phase) => phase === PHASE.LIT || phase === PHASE.RETURNING || phase === PHASE.LAUNCHING;
 export const canDrag = (phase) => phase === PHASE.READY || phase === PHASE.LIT;
-
-export const HINTS = Object.freeze({
-  READY: 'Drag the rocket to the flame to light it',
-  LIGHTING: 'Bring the fuse to the flame…',
-  LIT: 'Fuse lit! Place the rocket back on its launch spot',
-  RETURNING: 'Place it on the glowing launch spot',
-  LAUNCHING: 'Lift-off!',
-  EXPLODING: '',
-  COMPLETED: '',
-});

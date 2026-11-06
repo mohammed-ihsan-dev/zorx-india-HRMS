@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { Diya } from './DiwaliArt.jsx';
 import { createBurst, step } from './fireworks.js';
-import { PHASE, LAYOUT, HINTS, transition, toPx, canDrag, isLit } from './rocketGame.js';
+import { PHASE, LAYOUT, transition, toPx, canDrag, isLit } from './rocketGame.js';
 
 // Rocket artwork box; FUSE = the fuse tip inside it (the point that must touch
 // the flame, and that sits on the launch spot).
@@ -18,40 +17,103 @@ function Rocket({ lit }) {
     <svg viewBox={`0 0 ${RW} ${RH}`} width={RW} height={RH} aria-hidden="true" focusable="false" className="block overflow-visible">
       <defs>
         <linearGradient id="rk-body" x1="0" x2="1">
-          <stop offset="0" stopColor="#5e0f16" />
-          <stop offset="0.45" stopColor="#b3202c" />
-          <stop offset="0.7" stopColor="#d23a3f" />
-          <stop offset="1" stopColor="#6d121b" />
+          <stop offset="0" stopColor="#4a0a12" />
+          <stop offset="0.3" stopColor="#9b1b27" />
+          <stop offset="0.55" stopColor="#d9434a" />
+          <stop offset="0.62" stopColor="#f07a73" />
+          <stop offset="0.75" stopColor="#b3202c" />
+          <stop offset="1" stopColor="#520b14" />
         </linearGradient>
         <linearGradient id="rk-gold" x1="0" x2="1">
-          <stop offset="0" stopColor="#8a6418" />
-          <stop offset="0.5" stopColor="#f7d58c" />
-          <stop offset="1" stopColor="#8a6418" />
+          <stop offset="0" stopColor="#7a5514" />
+          <stop offset="0.45" stopColor="#f3d28a" />
+          <stop offset="0.6" stopColor="#fff1c4" />
+          <stop offset="1" stopColor="#7a5514" />
         </linearGradient>
         <linearGradient id="rk-stick" x1="0" x2="1">
-          <stop offset="0" stopColor="#7a5a2e" />
-          <stop offset="1" stopColor="#c9a46a" />
+          <stop offset="0" stopColor="#6b4b22" />
+          <stop offset="0.5" stopColor="#d2b07a" />
+          <stop offset="1" stopColor="#7a5a2e" />
         </linearGradient>
+        <radialGradient id="rk-spark" cx="50%" cy="50%" r="50%">
+          <stop offset="0" stopColor="#fff6cf" />
+          <stop offset="0.4" stopColor="#ffc94d" stopOpacity="0.9" />
+          <stop offset="1" stopColor="#ff8a1f" stopOpacity="0" />
+        </radialGradient>
       </defs>
-      {/* Bamboo guide stick */}
+      {/* Bamboo guide stick with nodes */}
       <rect x="25.5" y="34" width="3" height="58" rx="1.5" fill="url(#rk-stick)" />
-      {/* Nose cone */}
-      <path d="M18 2 L27 18 L9 18 Z" fill="url(#rk-gold)" />
-      {/* Body with gold bands */}
-      <rect x="9" y="17" width="18" height="40" rx="2" fill="url(#rk-body)" />
-      <rect x="9" y="22" width="18" height="3" fill="url(#rk-gold)" />
-      <rect x="9" y="48" width="18" height="3" fill="url(#rk-gold)" />
-      <path d="M12 30 L24 30 M12 35 L24 35 M12 40 L24 40" stroke="#f7d58c" strokeOpacity="0.35" strokeWidth="0.8" />
-      <rect x="9" y="56" width="18" height="2" fill="#3b0a0f" />
-      {/* Fuse */}
-      <path d="M18 58 C17 60 19 62 18 64" stroke={lit ? '#ffb347' : '#8c7a5b'} strokeWidth="1.6" fill="none" strokeLinecap="round" />
+      <path d="M25.5 52h3M25.5 70h3M25.5 86h3" stroke="#5a3d1a" strokeWidth="0.8" />
+      {/* Nose cone with a highlight */}
+      <path d="M18 1.5 C22 7 25.5 12 27 18 L9 18 C10.5 12 14 7 18 1.5 Z" fill="url(#rk-gold)" />
+      <path d="M18 3 C16 7 14.5 11 13.6 16" stroke="#fff6cf" strokeOpacity="0.6" strokeWidth="0.9" fill="none" strokeLinecap="round" />
+      {/* Body: paper tube with gold bands and a diamond motif */}
+      <rect x="9" y="17.5" width="18" height="39.5" rx="1.5" fill="url(#rk-body)" />
+      <rect x="9" y="21" width="18" height="2.6" fill="url(#rk-gold)" />
+      <rect x="9" y="49.5" width="18" height="2.6" fill="url(#rk-gold)" />
+      <path d="M18 28 L22.5 36.5 L18 45 L13.5 36.5 Z" fill="none" stroke="#f3d28a" strokeOpacity="0.75" strokeWidth="1" />
+      <circle cx="18" cy="36.5" r="1.4" fill="#f3d28a" fillOpacity="0.85" />
+      <rect x="9" y="56" width="18" height="2.2" rx="1" fill="#2c070c" />
+      {/* Fuse (twisted paper) */}
+      <path d="M18 58 C16.6 59.6 19.4 61.6 18 63.6" stroke={lit ? '#ffb347' : '#a08d68'} strokeWidth="1.8" fill="none" strokeLinecap="round" />
       {lit && (
         <g className="rocket-fuse-fire">
-          <circle cx={FUSE.x} cy={FUSE.y} r="6" fill="#ffb02e" opacity="0.35" />
-          <path d="M18 59 C21 62 21 65 18 67 C15 65 15 62 18 59 Z" fill="#ffd34d" />
-          <circle cx={FUSE.x} cy={FUSE.y} r="1.6" fill="#fff6cf" />
+          <circle cx={FUSE.x} cy={FUSE.y} r="8" fill="url(#rk-spark)" />
+          <path d="M18 58.5 C21.2 61.5 21.2 65 18 67.5 C14.8 65 14.8 61.5 18 58.5 Z" fill="#ffd34d" />
+          <path d="M18 61 C19.4 62.6 19.4 64.6 18 66 C16.6 64.6 16.6 62.6 18 61 Z" fill="#fff6cf" />
+          <g className="rocket-fuse-sparks" stroke="#ffe08a" strokeWidth="0.9" strokeLinecap="round">
+            <path d="M18 64 l-6 -4" />
+            <path d="M18 64 l6 -5" />
+            <path d="M18 64 l-5 5" />
+            <path d="M18 64 l5 4" />
+          </g>
         </g>
       )}
+    </svg>
+  );
+}
+
+/** The fixed fire: a brass deepa stand with a layered, flickering flame. Its flame centre is the target. */
+function FlameStation() {
+  return (
+    <svg viewBox="0 0 80 120" width="80" height="120" aria-hidden="true" focusable="false" className="block overflow-visible">
+      <defs>
+        <radialGradient id="fs-glow" cx="50%" cy="50%" r="50%">
+          <stop offset="0" stopColor="#ffcf5c" stopOpacity="0.55" />
+          <stop offset="0.5" stopColor="#ff9a2e" stopOpacity="0.16" />
+          <stop offset="1" stopColor="#ff9a2e" stopOpacity="0" />
+        </radialGradient>
+        <linearGradient id="fs-outer" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor="#ffe9a3" stopOpacity="0.9" />
+          <stop offset="0.5" stopColor="#ff9a2e" />
+          <stop offset="1" stopColor="#d9480f" />
+        </linearGradient>
+        <linearGradient id="fs-mid" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor="#fff3c4" />
+          <stop offset="1" stopColor="#ffc233" />
+        </linearGradient>
+        <linearGradient id="fs-brass" x1="0" x2="1">
+          <stop offset="0" stopColor="#6e4f17" />
+          <stop offset="0.45" stopColor="#e0b75a" />
+          <stop offset="0.6" stopColor="#fbe3a0" />
+          <stop offset="1" stopColor="#6e4f17" />
+        </linearGradient>
+      </defs>
+      <circle className="flame-station-glow" cx="40" cy="30" r="38" fill="url(#fs-glow)" />
+      <g className="flame-station-outer">
+        <path d="M40 2 C49 14 54 22 54 31 C54 40 47.5 45 40 45 C32.5 45 26 40 26 31 C26 22 31 14 40 2 Z" fill="url(#fs-outer)" />
+      </g>
+      <g className="flame-station-inner">
+        <path d="M40 14 C45.5 21 47.5 26 47.5 32 C47.5 38 44 42 40 42 C36 42 32.5 38 32.5 32 C32.5 26 34.5 21 40 14 Z" fill="url(#fs-mid)" />
+        <ellipse cx="40" cy="37" rx="3.2" ry="4" fill="#fffbea" />
+      </g>
+      {/* Bowl, stem and base */}
+      <path d="M22 44 C24 54 32 58 40 58 C48 58 56 54 58 44 Z" fill="url(#fs-brass)" />
+      <path d="M22 44 C30 47 50 47 58 44" stroke="#fff1c4" strokeOpacity="0.55" strokeWidth="1" fill="none" />
+      <rect x="37" y="58" width="6" height="40" fill="url(#fs-brass)" />
+      <ellipse cx="40" cy="72" rx="7" ry="2.2" fill="url(#fs-brass)" />
+      <path d="M26 112 C28 102 34 98 40 98 C46 98 52 102 54 112 Z" fill="url(#fs-brass)" />
+      <ellipse cx="40" cy="113" rx="18" ry="3.5" fill="#3a2a0d" opacity="0.55" />
     </svg>
   );
 }
@@ -60,10 +122,11 @@ function Rocket({ lit }) {
  * The Diwali rocket game: carry the rocket to the flame, light the fuse, put it
  * back on its launch spot, watch it fly and burst. Rules live in rocketGame.js.
  */
-export function RocketLauncher() {
+export function RocketLauncher({ fill = false } = {}) {
   const stageRef = useRef(null);
   const rocketRef = useRef(null);
   const canvasRef = useRef(null);
+  const padRef = useRef(null);
   const pos = useRef({ x: 0, y: 0 }); // fuse tip, stage px
   const drag = useRef(null); // { id, dx, dy } while held
   const timers = useRef({ frame: 0, prep: 0, snap: 0 });
@@ -154,11 +217,15 @@ export function RocketLauncher() {
       ctx.globalAlpha = 1;
       ctx.globalCompositeOperation = 'source-over';
     };
+    // Layered burst: gold outer ring, a delayed festive ring, a warm-white core and late crackle.
+    // Varied sizes and lifetimes so it opens and fades naturally (~110 particles).
     const burstAt = (at) => {
-      const ring = createBurst(at.x, at.y, Math.random, 40).map((p) => ({ ...p, vx: p.vx * 1.75, vy: p.vy * 1.75, size: p.size + 0.6 }));
-      const inner = createBurst(at.x, at.y, Math.random, 28).map((p) => ({ ...p, vx: p.vx * 1.05, vy: p.vy * 1.05, color: '#fff1b8' }));
-      const crackle = createBurst(at.x, at.y, Math.random, 16).map((p) => ({ ...p, vx: p.vx * 0.6, vy: p.vy * 0.6, size: 1.8, color: '#ffe08a', delay: 0.4 }));
-      return [...ring, ...inner, ...crackle];
+      const vary = (ps, speed, extra) => ps.map((p) => ({ ...p, vx: p.vx * speed, vy: p.vy * speed, size: 1.3 + Math.random() * 2.2, ...extra(p) }));
+      const ring = vary(createBurst(at.x, at.y, Math.random, 40), 1.8, () => ({}));
+      const festive = vary(createBurst(at.x, at.y, Math.random, 30), 1.3, (p) => ({ color: ['#ff6b4a', '#ff9a3c', '#ff7aa8'][Math.floor(Math.random() * 3)], delay: 0.12, life: p.life * 0.9, ttl: p.ttl * 0.9 }));
+      const core = vary(createBurst(at.x, at.y, Math.random, 24), 0.75, () => ({ color: '#fff1b8' }));
+      const crackle = vary(createBurst(at.x, at.y, Math.random, 16), 0.5, () => ({ size: 1.4, color: '#ffe08a', delay: 0.45 }));
+      return [...ring, ...festive, ...core, ...crackle];
     };
 
     if (reducedMotion()) {
@@ -260,12 +327,16 @@ export function RocketLauncher() {
     const s = stage();
     place({ x: Math.min(Math.max(p.x - d.dx, 14), s.w - 14), y: Math.min(Math.max(p.y - d.dy, FUSE.y), s.h - (RH - FUSE.y) + 6) });
     apply({ type: 'move' });
+    // Display only: the platform warms up as a lit rocket comes near it.
+    const pad = toPx(LAYOUT.pad, s.w, s.h);
+    padRef.current?.classList.toggle('is-near', isLit(phaseRef.current) && Math.hypot(pos.current.x - pad.x, pos.current.y - pad.y) < 110);
   };
   const onPointerUp = (e) => {
     const d = drag.current;
     if (!d || e.pointerId !== d.id) return;
     drag.current = null;
     setDragging(false);
+    padRef.current?.classList.remove('is-near');
     apply({ type: 'drop' });
   };
 
@@ -296,40 +367,33 @@ export function RocketLauncher() {
 
   const lit = isLit(phase);
   const label = {
-    READY: 'Rocket, unlit. Drag it to the flame, or press Enter to light it.',
-    LIGHTING: 'Rocket, unlit, being carried to the flame.',
-    LIT: 'Rocket, fuse lit. Drag it back to the launch spot, or press Enter to launch.',
-    RETURNING: 'Rocket, fuse lit, being carried to the launch spot.',
-    LAUNCHING: 'Rocket launching.',
-    EXPLODING: 'Rocket exploded.',
-    COMPLETED: 'Rocket launched.',
+    READY: 'Rocket',
+    LIGHTING: 'Rocket',
+    LIT: 'Rocket, fuse burning',
+    RETURNING: 'Rocket, fuse burning',
+    LAUNCHING: 'Rocket, in flight',
+    EXPLODING: 'Rocket, burst',
+    COMPLETED: 'Rocket, burst',
   }[phase];
 
   return (
-    <div>
+    <div className={fill ? 'flex-1 min-h-0 flex flex-col' : ''}>
       <div
         ref={stageRef}
-        className="rocket-stage relative h-64 sm:h-72 rounded-2xl overflow-hidden border border-white/10 select-none"
+        className={`rocket-stage relative overflow-hidden select-none ${fill ? 'flex-1 min-h-[320px]' : 'h-80 rounded-2xl border border-white/10'}`}
         data-phase={phase}
       >
-        {/* Launch spot (glows once the fuse is lit). */}
+        <span className="rocket-horizon" aria-hidden="true" />
+        {/* Launch platform: a small stone slab (warms when the fuse is lit, brighter as the rocket nears). */}
         <span
+          ref={padRef}
           aria-hidden="true"
           className={`rocket-pad absolute -translate-x-1/2 -translate-y-1/2 ${lit && phase !== PHASE.LAUNCHING ? 'is-ready' : ''}`}
           style={{ left: `${LAYOUT.pad.x * 100}%`, top: `${LAYOUT.pad.y * 100}%` }}
         />
-        <span className="absolute -translate-x-1/2 text-[10px] font-semibold uppercase tracking-wider text-[#f1d58a]/60" style={{ left: `${LAYOUT.pad.x * 100}%`, top: `calc(${LAYOUT.pad.y * 100}% + 26px)` }} aria-hidden="true">
-          Launch
-        </span>
-        {/* Fixed flame station: a brass stand with a lit diya (its flame is the target). */}
-        <div className="absolute pointer-events-none" style={{ left: `calc(${LAYOUT.flame.x * 100}% - 32px)`, top: `calc(${LAYOUT.flame.y * 100}% - 25px)` }} aria-hidden="true">
-          <span className="rocket-flame-halo absolute left-1/2 top-[25px] -translate-x-1/2 -translate-y-1/2" />
-          <Diya size={64} />
-          <svg viewBox="0 0 64 40" width="64" height="40" className="-mt-2 block">
-            <path d="M24 0 L40 0 L36 10 L28 10 Z" fill="#b8892f" />
-            <rect x="30" y="10" width="4" height="22" fill="#8a6418" />
-            <ellipse cx="32" cy="34" rx="16" ry="4" fill="#b8892f" />
-          </svg>
+        {/* Fixed flame station: flame centre (SVG 40,30) sits exactly on LAYOUT.flame. */}
+        <div className="absolute pointer-events-none" style={{ left: `calc(${LAYOUT.flame.x * 100}% - 40px)`, top: `calc(${LAYOUT.flame.y * 100}% - 30px)` }} aria-hidden="true">
+          <FlameStation />
         </div>
 
         <canvas ref={canvasRef} className="absolute inset-0 w-full h-full pointer-events-none" aria-hidden="true" />
@@ -353,26 +417,23 @@ export function RocketLauncher() {
         </button>
 
         {(phase === PHASE.EXPLODING || phase === PHASE.COMPLETED) && (
-          <p className="diwali-pop absolute inset-x-0 top-[50%] text-center text-xl sm:text-2xl font-extrabold text-[#f7d58c] drop-shadow" role="status">
+          <p className="rocket-greeting diwali-pop absolute inset-x-0 top-[46%] text-center px-4" role="status">
             ✨ Happy Diwali! ✨
           </p>
         )}
-      </div>
-
-      <div className="mt-3 min-h-[48px] flex items-center justify-between gap-3">
-        <p className="text-sm font-semibold text-[#ffd34d]" aria-live="polite">
-          {HINTS[phase]}
-        </p>
         {phase === PHASE.COMPLETED && (
-          <button
-            type="button"
-            onClick={playAgain}
-            className="shrink-0 min-h-[44px] px-4 rounded-xl font-bold bg-[#f5c542] text-[#173d29] hover:bg-[#f7d58c] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f7d58c] focus-visible:ring-offset-2 focus-visible:ring-offset-[#173d29]"
-          >
-            Play Again
-          </button>
+          <div className="absolute inset-x-0 bottom-[max(1rem,env(safe-area-inset-bottom))] flex justify-center diwali-pop">
+            <button
+              type="button"
+              onClick={playAgain}
+              className="min-h-[48px] px-6 rounded-full font-semibold tracking-wide bg-[#f5c542]/95 text-[#14281c] shadow-lg hover:bg-[#f7d58c] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f7d58c] focus-visible:ring-offset-2 focus-visible:ring-offset-[#0b1a26]"
+            >
+              Play Again
+            </button>
+          </div>
         )}
       </div>
+
     </div>
   );
 }

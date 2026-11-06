@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import { Diya } from './DiwaliArt.jsx';
 import { RocketLauncher } from './RocketLauncher.jsx';
+import { useMediaQuery, MOBILE_QUERY } from '../../context/MobileShellContext.jsx';
 
 const DIYA_COUNT = 5; // small fixed limit: no unbounded DOM or animations
 
@@ -18,6 +19,21 @@ export default function DiwaliGame({ onClose }) {
   const [lit, setLit] = useState(() => Array(DIYA_COUNT).fill(false));
   const [lastLit, setLastLit] = useState(-1);
   const litCount = lit.filter(Boolean).length;
+  // Phones get a full-screen experience; larger screens keep the centred window.
+  const fullScreen = useMediaQuery(MOBILE_QUERY);
+
+  // No background scrolling while the game is open; restored exactly on close.
+  useEffect(() => {
+    const html = document.documentElement;
+    const body = document.body;
+    const prev = [html.style.overflow, body.style.overflow, body.style.overscrollBehavior];
+    html.style.overflow = 'hidden';
+    body.style.overflow = 'hidden';
+    body.style.overscrollBehavior = 'none';
+    return () => {
+      [html.style.overflow, body.style.overflow, body.style.overscrollBehavior] = prev;
+    };
+  }, []);
 
   // Focus: into the dialog on open, back to the opener on close. Escape + Tab trap.
   useEffect(() => {
@@ -55,75 +71,95 @@ export default function DiwaliGame({ onClose }) {
     setLastLit(i);
   };
 
+  const diyas = (
+    <section aria-label="Diyas" className={fullScreen ? 'px-4 pt-2 shrink-0' : 'px-5 pt-4'}>
+      <div className="grid grid-cols-5 gap-1.5 sm:gap-3">
+        {lit.map((isLit, i) => (
+          <button
+            key={i}
+            type="button"
+            onClick={() => lightDiya(i)}
+            aria-pressed={isLit}
+            aria-label={isLit ? `Diya ${i + 1}, lit` : `Light diya ${i + 1}`}
+            className={`diwali-diya-slot flex items-end justify-center rounded-2xl ${fullScreen ? 'min-h-[56px]' : 'min-h-[64px] sm:min-h-[76px]'} border border-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f7d58c] ${isLit ? 'is-lit' : ''}`}
+          >
+            <Diya size={fullScreen ? 46 : 52} lit={isLit} className={isLit && i === lastLit ? 'is-igniting' : ''} />
+          </button>
+        ))}
+      </div>
+      <div className="min-h-[1.75rem] mt-1.5 flex items-center justify-between gap-2" aria-live="polite">
+        <p className="text-xs sm:text-sm font-semibold text-[#ffd34d]">
+          {lastLit >= 0 && <span key={lastLit} className="diwali-pop inline-block">{litCount === DIYA_COUNT ? 'All diyas are glowing — Happy Diwali! 🪔' : 'A little light makes everything brighter!'}</span>}
+        </p>
+        {litCount === DIYA_COUNT && (
+          <button
+            type="button"
+            onClick={() => {
+              setLit(Array(DIYA_COUNT).fill(false));
+              setLastLit(-1);
+            }}
+            className="shrink-0 text-xs font-semibold text-[#f1d58a] underline underline-offset-2 min-h-[32px]"
+          >
+            Light them again
+          </button>
+        )}
+      </div>
+    </section>
+  );
 
-  return createPortal(
-    <div className="fixed inset-0 z-[60] flex items-center justify-center p-3 sm:p-6">
-      <div className="absolute inset-0 bg-[#0d2417]/70 backdrop-blur-[2px]" onClick={onClose} aria-hidden="true" />
+  // Minimal top bar: small branding + close. No instructions anywhere.
+  const topBar = (
+    <div className={`flex items-center justify-between gap-3 shrink-0 ${fullScreen ? 'px-4 pt-2' : 'px-5 pt-4'}`}>
+      <div className="min-w-0">
+        <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-[#c9972f]">ZORX INDIA · Diwali 2026</p>
+        <h2 id={titleId} className="text-base sm:text-lg font-bold text-[#f7d58c] leading-tight">
+          Light Up the Celebration
+        </h2>
+      </div>
+      <button
+        ref={closeRef}
+        type="button"
+        onClick={onClose}
+        aria-label="Close"
+        className="shrink-0 w-11 h-11 inline-flex items-center justify-center rounded-full border border-[#c9972f]/45 bg-black/20 text-[#f7d58c] hover:bg-white/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f7d58c]"
+      >
+        <X size={18} aria-hidden="true" />
+      </button>
+    </div>
+  );
+
+  if (fullScreen) {
+    return createPortal(
       <div
         ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        className="relative w-full max-w-lg max-h-full overflow-y-auto rounded-3xl border border-[#c9972f]/50 bg-gradient-to-b from-[#0d2417] via-[#173d29] to-[#1f5138] text-[#fbeed0] shadow-2xl"
+        className="diwali-fullscreen fixed inset-0 z-[60] flex flex-col overflow-hidden overscroll-none text-[#fbeed0]"
       >
-        <div className="flex items-start justify-between gap-3 px-5 pt-5">
-          <div>
-            <h2 id={titleId} className="text-xl sm:text-2xl font-extrabold text-[#f7d58c]">
-              Light Up the Celebration!
-            </h2>
-            <p className="text-sm text-[#e0efdf] mt-1">Celebrate the festival of lights with ZORX INDIA.</p>
-          </div>
-          <button
-            ref={closeRef}
-            type="button"
-            onClick={onClose}
-            className="shrink-0 inline-flex items-center gap-1.5 min-h-[44px] px-3 rounded-xl border border-[#c9972f]/50 text-sm font-semibold text-[#f7d58c] hover:bg-white/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f7d58c]"
-          >
-            <X size={16} aria-hidden="true" /> Close
-          </button>
-        </div>
-
-        {/* A. Light a Diya */}
-        <section aria-labelledby={`${titleId}-diyas`} className="px-5 pt-5">
-          <h3 id={`${titleId}-diyas`} className="text-sm font-bold uppercase tracking-wider text-[#f1d58a]">
-            Light a Diya <span className="font-semibold normal-case tracking-normal text-[#e0efdf]/80">· {litCount}/{DIYA_COUNT} lit</span>
-          </h3>
-          <div className="mt-3 grid grid-cols-5 gap-1.5 sm:gap-3">
-            {lit.map((isLit, i) => (
-              <button
-                key={i}
-                type="button"
-                onClick={() => lightDiya(i)}
-                aria-pressed={isLit}
-                aria-label={isLit ? `Diya ${i + 1}, lit` : `Light diya ${i + 1}`}
-                className="flex items-end justify-center rounded-2xl min-h-[64px] sm:min-h-[76px] bg-white/[0.04] border border-white/10 hover:bg-white/[0.08] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f7d58c]"
-              >
-                <Diya size={52} lit={isLit} className={isLit && i === lastLit ? 'is-igniting' : ''} />
-              </button>
-            ))}
-          </div>
-          <p className="min-h-[1.5rem] mt-2 text-sm font-semibold text-[#ffd34d]" aria-live="polite">
-            {lastLit >= 0 && <span key={lastLit} className="diwali-pop inline-block">{litCount === DIYA_COUNT ? 'All diyas are glowing — Happy Diwali! 🪔' : 'A little light makes everything brighter!'}</span>}
-          </p>
-          {litCount === DIYA_COUNT && (
-            <button
-              type="button"
-              onClick={() => {
-                setLit(Array(DIYA_COUNT).fill(false));
-                setLastLit(-1);
-              }}
-              className="text-xs font-semibold text-[#f1d58a] underline underline-offset-2 min-h-[32px]"
-            >
-              Light them again
-            </button>
-          )}
+        {topBar}
+        {diyas}
+        <section aria-label="Rocket" className="relative flex-1 min-h-0 flex flex-col">
+          <RocketLauncher fill />
         </section>
+      </div>,
+      document.body
+    );
+  }
 
-        {/* B. Rocket launcher (replaces the old "Launch Fireworks" button). */}
-        <section aria-labelledby={`${titleId}-rocket`} className="px-5 pt-4 pb-5">
-          <h3 id={`${titleId}-rocket`} className="text-sm font-bold uppercase tracking-wider text-[#f1d58a] mb-3">
-            Light the Rocket
-          </h3>
+  return createPortal(
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-3 sm:p-6">
+      <div className="absolute inset-0 bg-[#050b14]/75 backdrop-blur-[2px]" onClick={onClose} aria-hidden="true" />
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        className="diwali-window relative w-full max-w-xl max-h-full overflow-y-auto rounded-3xl border border-[#c9972f]/40 text-[#fbeed0] shadow-2xl"
+      >
+        {topBar}
+        {diyas}
+        <section aria-label="Rocket" className="px-5 pt-1 pb-5">
           <RocketLauncher />
         </section>
       </div>
