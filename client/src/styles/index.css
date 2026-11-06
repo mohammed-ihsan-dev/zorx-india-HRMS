@@ -257,3 +257,58 @@ body {
 /* The update toast sits above the phone bottom navigation. */
 html[data-zm-chrome='dark'] .zm-update-toast { bottom: calc(env(safe-area-inset-bottom, 0px) + 92px); }
 
+
+/* ── Diwali 2026 (6–10 Nov, see features/diwali/diwaliConfig.js) ──────────── */
+/* Transform/opacity-only animations; everything stops under reduced motion. */
+.diwali-flame {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  animation: diwali-flicker 1.6s ease-in-out infinite;
+}
+.diwali-glow {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: diwali-glow 2.4s ease-in-out infinite;
+}
+.diwali-diya.is-igniting .diwali-flame {
+  animation: diwali-ignite 0.6s ease-out both, diwali-flicker 1.6s ease-in-out 0.6s infinite;
+}
+@keyframes diwali-flicker {
+  0%, 100% { transform: scale(1, 1) rotate(0deg); opacity: 1; }
+  25% { transform: scale(0.94, 1.06) rotate(-2deg); opacity: 0.95; }
+  50% { transform: scale(1.04, 0.95) rotate(1.5deg); opacity: 1; }
+  75% { transform: scale(0.97, 1.03) rotate(-1deg); opacity: 0.92; }
+}
+@keyframes diwali-glow {
+  0%, 100% { opacity: 0.75; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.08); }
+}
+@keyframes diwali-ignite {
+  0% { opacity: 0; transform: scale(0.2, 0.1); }
+  70% { opacity: 1; transform: scale(1.15, 1.2); }
+  100% { opacity: 1; transform: scale(1, 1); }
+}
+.diwali-sparkle {
+  border-radius: 9999px;
+  background: radial-gradient(circle, #fff6cf 0%, #f5c542 45%, rgba(245, 197, 66, 0) 70%);
+  opacity: 0;
+  animation: diwali-twinkle 4.2s ease-in-out infinite;
+}
+@keyframes diwali-twinkle {
+  0%, 100% { opacity: 0; transform: scale(0.4); }
+  20% { opacity: 1; transform: scale(1.2) rotate(45deg); }
+  40% { opacity: 0; transform: scale(0.6) rotate(90deg); }
+}
+.diwali-decor.is-dark svg { opacity: 0.45; }
+.diwali-pop { animation: diwali-pop 0.35s ease-out both; }
+@keyframes diwali-pop {
+  from { opacity: 0; transform: translateY(4px) scale(0.98); }
+  to { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .diwali-flame,
+  .diwali-glow,
+  .diwali-diya.is-igniting .diwali-flame,
+  .diwali-pop { animation: none; }
+  .diwali-sparkle { animation: none; opacity: 0.6; }
+}

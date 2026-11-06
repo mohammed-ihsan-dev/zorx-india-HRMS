@@ -33,6 +33,9 @@ import { useCheckInCelebration } from '../gandhiJayanti/useCheckInCelebration.js
 import { LOCATION_STATUS } from '../../hooks/useGeolocation.js';
 import * as notificationService from '../../services/notificationService.js';
 import { formatDate, formatTime, formatMinutes } from '../../utils/formatters.js';
+import { useDiwaliActive } from '../diwali/diwaliConfig.js';
+import { Diya, DiwaliHeaderDecor } from '../diwali/DiwaliArt.jsx';
+import { DiwaliBanner } from '../diwali/DiwaliBanner.jsx';
 
 const OPEN_TASK_STATUSES = ['TODO', 'IN_PROGRESS', 'IN_REVIEW'];
 
@@ -154,6 +157,7 @@ export function MobileDashboardView({ attendance, tasks, tasksLoading }) {
   const shiftTiming = startTime && endTime ? `${officeClockToLocal(startTime, officeTz)} – ${officeClockToLocal(endTime, officeTz)}` : '—';
 
   const name = employee?.firstName ? `${employee.firstName} ${employee.lastName || ''}`.trim() : user?.email;
+  const diwali = useDiwaliActive();
   const openTasks = (tasks || []).filter((t) => OPEN_TASK_STATUSES.includes(t.status)).length;
 
   const handleCheckIn = () => {
@@ -185,10 +189,14 @@ export function MobileDashboardView({ attendance, tasks, tasksLoading }) {
           The bleed (-mx/px, -mt/pt, pb/-mb) keeps the spacing unchanged and the
           opaque background stops cards showing through while they scroll under it. */}
       <div className="sticky -top-3 z-10 -mx-4 px-4 pt-3 pb-2 -mt-3 -mb-2 bg-zm-bg space-y-4">
+        {diwali && <DiwaliHeaderDecor tone="dark" />}
         <header className="flex items-center justify-between gap-3">
           <div className="min-w-0">
             <p className="text-xs font-medium text-zm-muted">Welcome back</p>
-            <h1 className="text-xl font-extrabold text-zm-text tracking-tight truncate">{name}</h1>
+            <h1 className="text-xl font-extrabold text-zm-text tracking-tight flex items-center gap-1.5 min-w-0">
+              <span className="truncate">{name}</span>
+              {diwali && <Diya size={28} className="shrink-0 -mt-1" />}
+            </h1>
           </div>
           <Link
             to="/notifications"
@@ -210,6 +218,9 @@ export function MobileDashboardView({ attendance, tasks, tasksLoading }) {
           {formatDate(new Date(), { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' })}
         </div>
       </div>
+
+      {/* Diwali 6–10 Nov 2026 only (useDiwaliActive); compact so attendance stays near the top. */}
+      {diwali && <DiwaliBanner tone="dark" />}
 
       {/* Working hours — primary card */}
       {loading ? (

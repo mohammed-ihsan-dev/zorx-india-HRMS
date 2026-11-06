@@ -14,6 +14,9 @@ import * as announcementService from '../../services/announcementService.js';
 import { formatDate } from '../../utils/formatters.js';
 import { useMobileShell } from '../../context/MobileShellContext.jsx';
 import { MobileDashboardView } from '../../features/dashboard/MobileDashboardView.jsx';
+import { useDiwaliActive } from '../../features/diwali/diwaliConfig.js';
+import { Diya, DiwaliHeaderDecor } from '../../features/diwali/DiwaliArt.jsx';
+import { DiwaliBanner } from '../../features/diwali/DiwaliBanner.jsx';
 
 // The chart library is the app's largest download (~380 KB): load it only when
 // the desktop dashboard actually shows the chart, never on the phone Home.
@@ -70,6 +73,7 @@ function MobileDashboard({ tasks, tasksLoading }) {
 export function Dashboard() {
   const { user } = useAuth();
   const mobile = useMobileShell();
+  const diwali = useDiwaliActive();
   const employee = user?.employee;
   const isSuperAdmin = user?.role === 'SUPER_ADMIN';
 
@@ -110,18 +114,27 @@ export function Dashboard() {
   return (
     <div className="flex flex-col space-y-8 pb-8">
       {/* Greeting Header & Live Clock Banner */}
-      <div className="order-2 min-[425px]:order-1 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6 bg-white p-6 sm:p-8 rounded-3xl border border-slate-200/90 shadow-sm">
+      <div className="relative isolate order-2 min-[425px]:order-1 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6 bg-white p-6 sm:p-8 rounded-3xl border border-slate-200/90 shadow-sm">
+        {diwali && <DiwaliHeaderDecor />}
         <div>
           <span className="text-xs sm:text-sm font-extrabold uppercase tracking-widest text-brand-700 bg-brand-50 px-3 py-1 rounded-md border border-brand-200/60">
             Employee Portal
           </span>
           <h2 className="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight mt-2.5">
             {greeting()}, {employee?.firstName || 'there'} 👋
+            {diwali && <Diya size={40} className="inline-block align-middle ml-2 -mt-2" />}
           </h2>
         </div>
 
         <LiveClockBanner />
       </div>
+
+      {/* Diwali 6–10 Nov 2026 only (useDiwaliActive), directly under the greeting. */}
+      {diwali && (
+        <div className="order-2 min-[425px]:order-1 -mt-4">
+          <DiwaliBanner />
+        </div>
+      )}
 
       {/* Punch Station & Working Hours */}
       <div className="order-1 min-[425px]:order-2">
