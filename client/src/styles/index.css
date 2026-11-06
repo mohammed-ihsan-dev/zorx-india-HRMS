@@ -351,3 +351,59 @@ html[data-zm-chrome='dark'] .zm-update-toast { bottom: calc(env(safe-area-inset-
 @media (prefers-reduced-motion: reduce) {
   .diwali-burst-dot, .diwali-burst-glow { animation: none; display: none; }
 }
+/* Diwali rocket game (features/diwali/RocketLauncher.jsx). */
+.rocket-stage {
+  background:
+    radial-gradient(1.2px 1.2px at 12% 18%, rgba(255, 255, 255, 0.8), transparent),
+    radial-gradient(1px 1px at 34% 9%, rgba(255, 255, 255, 0.6), transparent),
+    radial-gradient(1.4px 1.4px at 58% 22%, rgba(255, 246, 207, 0.8), transparent),
+    radial-gradient(1px 1px at 76% 12%, rgba(255, 255, 255, 0.6), transparent),
+    radial-gradient(1.2px 1.2px at 90% 30%, rgba(255, 255, 255, 0.7), transparent),
+    radial-gradient(1px 1px at 46% 38%, rgba(255, 255, 255, 0.45), transparent),
+    radial-gradient(1px 1px at 22% 44%, rgba(255, 255, 255, 0.4), transparent),
+    radial-gradient(120% 60% at 50% 110%, rgba(201, 151, 47, 0.22), transparent 60%),
+    linear-gradient(180deg, #050b14 0%, #0b1a26 55%, #10261c 100%);
+}
+.rocket { will-change: transform; filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.5)); }
+.rocket.is-dragging svg { transform: scale(1.06); transition: transform 120ms ease-out; }
+.rocket-pad {
+  width: 44px;
+  height: 14px;
+  border-radius: 9999px;
+  border: 1.5px dashed rgba(241, 213, 138, 0.45);
+  background: radial-gradient(closest-side, rgba(241, 213, 138, 0.12), transparent);
+}
+.rocket-pad.is-ready {
+  border-style: solid;
+  border-color: #f5c542;
+  box-shadow: 0 0 14px rgba(245, 197, 66, 0.55);
+  animation: rocket-pad-pulse 1.2s ease-in-out infinite;
+}
+@keyframes rocket-pad-pulse {
+  0%, 100% { opacity: 0.65; transform: translate(-50%, -50%) scale(1); }
+  50% { opacity: 1; transform: translate(-50%, -50%) scale(1.12); }
+}
+.rocket-flame-halo {
+  width: 92px;
+  height: 92px;
+  border-radius: 9999px;
+  background: radial-gradient(closest-side, rgba(255, 190, 70, 0.35), rgba(255, 150, 40, 0.08) 60%, transparent);
+  animation: diwali-glow 2.4s ease-in-out infinite;
+}
+.rocket-fuse-fire {
+  transform-box: fill-box;
+  transform-origin: 50% 70%;
+  animation: rocket-fuse 0.32s steps(2, jump-none) infinite alternate;
+}
+@keyframes rocket-fuse {
+  from { transform: scale(0.85) rotate(-6deg); opacity: 0.85; }
+  to { transform: scale(1.15) rotate(6deg); opacity: 1; }
+}
+.rocket.is-prepping svg { animation: rocket-prep 0.08s linear infinite alternate; }
+@keyframes rocket-prep {
+  from { transform: translateX(-1px); }
+  to { transform: translateX(1px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .rocket-pad.is-ready, .rocket-flame-halo, .rocket-fuse-fire, .rocket.is-prepping svg { animation: none; }
+}
