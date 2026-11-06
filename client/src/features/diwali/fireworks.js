@@ -21,17 +21,24 @@ export function createBurst(x, y, rand = Math.random, count = PARTICLES_PER_BURS
   });
 }
 
-/** A whole show for a stage of width × height: a few bursts, capped. */
-export function createShow(width, height, rand = Math.random) {
+/**
+ * A whole show for a stage of width × height: a few bursts, capped at
+ * MAX_PARTICLES. `gap` = seconds between bursts; `top`/`band` = vertical
+ * range (fractions of height) where bursts explode.
+ */
+export function createShow(width, height, rand = Math.random, { bursts = BURSTS, gap = 0.35, perBurst = PARTICLES_PER_BURST, top = 0.25, band = 0.3 } = {}) {
   const out = [];
-  for (let b = 0; b < BURSTS; b++) {
-    const x = width * (0.25 + 0.5 * rand());
-    const y = height * (0.25 + 0.3 * rand());
-    // Later bursts start slightly later (negative age = waiting).
-    for (const p of createBurst(x, y, rand)) out.push({ ...p, delay: b * 0.35 });
+  for (let b = 0; b < bursts; b++) {
+    const x = width * (0.15 + 0.7 * rand());
+    const y = height * (top + band * rand());
+    // Later bursts start later (a positive delay = waiting to explode).
+    for (const p of createBurst(x, y, rand, Math.min(perBurst, PARTICLES_PER_BURST))) out.push({ ...p, delay: b * gap });
   }
   return out.slice(0, MAX_PARTICLES);
 }
+
+/** The automatic welcome show: 4 bursts of ≤40 across the top, ~3.5 s in total. */
+export const WELCOME_SHOW = Object.freeze({ bursts: 4, gap: 0.55, perBurst: 36, top: 0.18, band: 0.4 });
 
 /** Advances in place; returns the particles still alive. */
 export function step(particles, dt) {

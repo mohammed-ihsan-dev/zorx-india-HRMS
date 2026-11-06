@@ -25,3 +25,20 @@ test('particles expand outward, fade, and the show always ends (no endless loop)
   const first = moved.find((p) => p.delay <= 0);
   assert.ok(first && (Math.abs(first.x - start[0].x) > 1 || Math.abs(first.y - start[0].y) > 1));
 });
+
+test('the automatic welcome show: ≤40 per burst, capped, ~3–4 seconds, then ends', async () => {
+  const { WELCOME_SHOW, PARTICLES_PER_BURST } = await import('./fireworks.js');
+  let ps = createShow(1200, 500, seeded(3), WELCOME_SHOW);
+  assert.ok(WELCOME_SHOW.perBurst <= 40 && PARTICLES_PER_BURST <= 40);
+  assert.ok(ps.length <= MAX_PARTICLES);
+  const counts = ps.reduce((m, p) => m.set(p.delay, (m.get(p.delay) || 0) + 1), new Map());
+  assert.equal(counts.size, WELCOME_SHOW.bursts);
+  for (const n of counts.values()) assert.ok(n <= 40);
+  let frames = 0;
+  while (ps.length && frames < 1000) {
+    ps = step(ps, 1 / 60);
+    frames += 1;
+  }
+  const seconds = frames / 60;
+  assert.ok(seconds >= 2.5 && seconds <= 4, `lasted ${seconds.toFixed(2)}s`);
+});

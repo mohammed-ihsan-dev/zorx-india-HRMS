@@ -199,6 +199,7 @@ export function useTodayAttendance() {
         setLastVerification({ distance: thisPunch.distanceFromOffice, radius: allowedRadius });
         setRecord(result);
         toast.success(kind === 'in' ? 'Checked in successfully.' : 'Checked out successfully.');
+        return true; // confirmed by the server (callers may react, e.g. a festive effect)
       } catch (err) {
         if (err?.response) {
           toast.error(getErrorMessage(err));
@@ -209,6 +210,7 @@ export function useTodayAttendance() {
         } else {
           toast.error('Could not access your location. Please check browser permissions.');
         }
+        return false;
       } finally {
         setSubmitting(false);
       }
@@ -224,8 +226,10 @@ export function useTodayAttendance() {
       try {
         const result = await attendanceService.startBreak(type);
         setRecord(result);
+        return true;
       } catch (err) {
         toast.error(getErrorMessage(err, 'Could not start break.'));
+        return false;
       } finally {
         setBreakSubmitting(false);
       }
@@ -238,8 +242,10 @@ export function useTodayAttendance() {
     try {
       const result = await attendanceService.endBreak();
       setRecord(result);
+      return true;
     } catch (err) {
       toast.error(getErrorMessage(err, 'Could not end break.'));
+      return false;
     } finally {
       setBreakSubmitting(false);
     }

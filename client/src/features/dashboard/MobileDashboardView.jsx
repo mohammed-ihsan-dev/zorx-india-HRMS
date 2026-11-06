@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Bell,
@@ -36,6 +36,7 @@ import { formatDate, formatTime, formatMinutes } from '../../utils/formatters.js
 import { useDiwaliActive } from '../diwali/diwaliConfig.js';
 import { Diya, DiwaliHeaderDecor } from '../diwali/DiwaliArt.jsx';
 import { DiwaliBanner } from '../diwali/DiwaliBanner.jsx';
+import { AttendanceSparkle } from '../diwali/AttendanceSparkle.jsx';
 
 const OPEN_TASK_STATUSES = ['TODO', 'IN_PROGRESS', 'IN_REVIEW'];
 
@@ -158,11 +159,18 @@ export function MobileDashboardView({ attendance, tasks, tasksLoading }) {
 
   const name = employee?.firstName ? `${employee.firstName} ${employee.lastName || ''}`.trim() : user?.email;
   const diwali = useDiwaliActive();
+  // Diwali-only sparkle after a server-confirmed attendance action (this phone view only).
+  const [sparkle, setSparkle] = useState(null);
+  const celebrate = (kind) => (ok) => {
+    if (!ok || !diwali || window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
+    setSparkle({ kind, seed: Date.now() });
+  };
+  const clearSparkle = useCallback(() => setSparkle(null), []);
   const openTasks = (tasks || []).filter((t) => OPEN_TASK_STATUSES.includes(t.status)).length;
 
   const handleCheckIn = () => {
     celebration.markCheckInAttempt();
-    checkIn();
+    checkIn().then(celebrate('checkIn'));
   };
 
   const handleResetCheckIn = async () => {
@@ -291,7 +299,8 @@ export function MobileDashboardView({ attendance, tasks, tasksLoading }) {
 
       {/* Punch actions */}
       {!loading && (
-        <section aria-label="Attendance actions" className="rounded-3xl bg-zm-card border border-zm-border p-4 space-y-3">
+        <section aria-label="Attendance actions" className="relative rounded-3xl bg-zm-card border border-zm-border p-4 space-y-3">
+          {sparkle && <AttendanceSparkle key={sparkle.seed} kind={sparkle.kind} seed={sparkle.seed} onDone={clearSparkle} />}
           <div className="empty:hidden space-y-2">
             {attendance.onsiteToday ? <OnsiteTodayBanner onsiteToday={attendance.onsiteToday} /> : <WfhTodayBanner record={record} wfhToday={attendance.wfhToday} />}
             {wifiMode && <NetworkStatusBanner />}
@@ -354,7 +363,7 @@ export function MobileDashboardView({ attendance, tasks, tasksLoading }) {
               <button
                 type="button"
                 disabled={breakSubmitting}
-                onClick={() => startBreak('TEA')}
+                onClick={() => startBreak('TEA').then(celebrate('startBreak'))}
                 className="h-12 rounded-2xl bg-amber-500/15 border border-amber-400/40 text-amber-200 font-bold text-sm flex items-center justify-center gap-1.5 active:scale-95 transition disabled:opacity-50"
               >
                 {breakSubmitting ? <LoaderCircle size={18} className="animate-spin" aria-label="Starting break" /> : (<><Coffee size={17} aria-hidden="true" /> Start Break</>)}
@@ -375,7 +384,7 @@ export function MobileDashboardView({ attendance, tasks, tasksLoading }) {
               <button
                 type="button"
                 disabled={breakSubmitting}
-                onClick={endBreak}
+                onClick={() => endBreak().then(celebrate('endBreak'))}
                 className="w-full h-14 rounded-2xl bg-zm-green hover:bg-zm-green-dark active:scale-[0.99] text-white font-extrabold uppercase tracking-wide flex items-center justify-center gap-2 transition disabled:opacity-50"
               >
                 {breakSubmitting ? (
@@ -426,7 +435,7 @@ export function MobileDashboardView({ attendance, tasks, tasksLoading }) {
         onClose={() => !submitting && setConfirmCheckoutOpen(false)}
         onConfirm={async () => {
           try {
-            await checkOut();
+            celebrate('checkOut')(await checkOut());
           } finally {
             setConfirmCheckoutOpen(false);
           }

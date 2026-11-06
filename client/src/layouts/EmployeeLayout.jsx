@@ -8,6 +8,7 @@ import { BreakReminderWatcher } from '../features/attendance/BreakReminderWatche
 import { MobileShellProvider, useMediaQuery, MOBILE_QUERY } from '../context/MobileShellContext.jsx';
 import { employeeNavItems, employeeNavItemsFor } from '../routes/navConfig.js';
 import { useAuth } from '../hooks/useAuth.js';
+import { DiwaliWelcomeGate } from '../features/diwali/DiwaliWelcomeGate.jsx';
 
 function getTitle(pathname) {
   const match = employeeNavItems.find((item) => (item.end ? pathname === item.to : pathname.startsWith(item.to)));
@@ -32,6 +33,7 @@ export function EmployeeLayout() {
           </main>
           <MobileBottomNav />
           <BreakReminderWatcher />
+          <DiwaliWelcomeGate />
         </div>
       </MobileShellProvider>
     );
@@ -49,6 +51,7 @@ export function EmployeeLayout() {
         </main>
       </div>
       <BreakReminderWatcher />
+      <DiwaliWelcomeGate />
     </div>
   );
 }

@@ -5,6 +5,7 @@ import { Topbar } from '../components/Topbar.jsx';
 import { BreakReminderWatcher } from '../features/attendance/BreakReminderWatcher.jsx';
 import { getAdminNavItemsForRole, employeeNavItems } from '../routes/navConfig.js';
 import { useAuth } from '../hooks/useAuth.js';
+import { DiwaliWelcomeGate } from '../features/diwali/DiwaliWelcomeGate.jsx';
 
 export function AdminLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -32,6 +33,7 @@ export function AdminLayout() {
         </main>
       </div>
       <BreakReminderWatcher />
+      <DiwaliWelcomeGate />
     </div>
   );
 }

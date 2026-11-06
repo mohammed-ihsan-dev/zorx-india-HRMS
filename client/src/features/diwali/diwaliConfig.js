@@ -27,6 +27,31 @@ export function isDiwaliActive(now = new Date()) {
   return key >= DIWALI_START && key <= DIWALI_END;
 }
 
+const WELCOME_KEY = 'zorx_diwali_welcome_2026';
+
+/**
+ * The automatic welcome fireworks play once per browser tab: sessionStorage
+ * survives refreshes and in-app navigation but starts empty in a new tab.
+ * Never during reduced motion, never outside the Diwali dates.
+ */
+export function shouldPlayWelcome(now = new Date()) {
+  if (!isDiwaliActive(now)) return false;
+  if (typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return false;
+  try {
+    return sessionStorage.getItem(WELCOME_KEY) !== '1';
+  } catch {
+    return false; // storage blocked: skip rather than risk replaying on every page
+  }
+}
+
+export function markWelcomePlayed() {
+  try {
+    sessionStorage.setItem(WELCOME_KEY, '1');
+  } catch {
+    // ignore
+  }
+}
+
 /** Milliseconds until the next midnight in India time (when the answer can change). */
 export function msUntilNextIndiaMidnight(now = new Date()) {
   const parts = Object.fromEntries(
