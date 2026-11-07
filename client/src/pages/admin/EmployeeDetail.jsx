@@ -14,7 +14,7 @@ import * as employeeService from '../../services/employeeService.js';
 import * as departmentService from '../../services/departmentService.js';
 import * as attendanceService from '../../services/attendanceService.js';
 import * as taskService from '../../services/taskService.js';
-import { formatDate, formatTime, formatMinutes, titleCase, isNotProvided } from '../../utils/formatters.js';
+import { formatDate, formatTime, formatMinutes, titleCase, isNotProvided, timeZoneTag } from '../../utils/formatters.js';
 import { useToast } from '../../hooks/useToast.js';
 import { getErrorMessage } from '../../services/apiClient.js';
 
@@ -73,8 +73,9 @@ export function EmployeeDetail() {
 
   const attendanceColumns = [
     { key: 'date', header: 'Date', render: (r) => formatDate(r.date) },
-    { key: 'checkIn', header: 'Check In', render: (r) => (r.checkIn ? formatTime(r.checkIn.timestamp) : '—') },
-    { key: 'checkOut', header: 'Check Out', render: (r) => (r.checkOut ? formatTime(r.checkOut.timestamp) : '—') },
+    // In the employee's own office zone (e.g. Dubai), from the server's displayTimeZone.
+    { key: 'checkIn', header: 'Check In', render: (r) => (r.checkIn ? `${formatTime(r.checkIn.timestamp, r.displayTimeZone)}${timeZoneTag(r.displayTimeZone) ? ` (${timeZoneTag(r.displayTimeZone)})` : ''}` : '—') },
+    { key: 'checkOut', header: 'Check Out', render: (r) => (r.checkOut ? `${formatTime(r.checkOut.timestamp, r.displayTimeZone)}${timeZoneTag(r.displayTimeZone) ? ` (${timeZoneTag(r.displayTimeZone)})` : ''}` : '—') },
     { key: 'working', header: 'Working Hours', render: (r) => formatMinutes(r.totalWorkingMinutes) },
     { key: 'status', header: 'Status', render: (r) => <StatusBadge status={r.status} /> },
   ];

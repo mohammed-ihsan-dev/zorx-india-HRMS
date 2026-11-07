@@ -359,16 +359,12 @@ describe('temporary approved WFH — unchanged, through the same decision', () =
     await request(app).patch(`/api/work-from-home/${created.body.data._id}/approve`).set('Authorization', `Bearer ${admin.token}`).send({});
     expect((await WorkFromHome.findById(created.body.data._id)).status).toBe(WFH_STATUS.APPROVED);
 
-    // Temporary WFH keeps its existing behavior: coordinates are still required
-    // and recorded; only the radius is skipped.
-    expect((await checkIn(emp.token, NO_LOCATION)).status).toBe(400);
-
-    const res = await checkIn(emp.token, HOME_COORDS);
+    // Approved WFH for today: no GPS needed and no office geofence (2026-11-07 fix).
+    const res = await checkIn(emp.token, NO_LOCATION);
     expect(res.status).toBe(200);
     expect(res.body.data.attendanceMode).toBe(ATTENDANCE_MODE.WFH);
-    expect(res.body.data.checkIn.latitude).toBe(HOME_COORDS.latitude);
-    expect(res.body.data.checkIn.distanceFromOffice).toBeGreaterThan(200);
-    expect((await checkIn(other.token, HOME_COORDS)).status).toBe(403);
+    expect(res.body.data.checkIn).toMatchObject({ latitude: null, longitude: null, distanceFromOffice: null });
+    expect((await checkIn(other.token, HOME_COORDS)).status).toBe(403); // no bypass for anyone else
   });
 
   test('admin WFH management still lists and reviews requests', async () => {

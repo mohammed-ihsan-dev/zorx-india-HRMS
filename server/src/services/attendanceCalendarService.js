@@ -13,6 +13,7 @@ import { env } from '../config/env.js';
 import { overtimeForRecord } from './overtimeService.js';
 import { buildMonthGrid, dayKeyOf, employeeDisplayName, formatClockTime, formatOvertime } from './salaryReportService.js';
 import { LEAVE_DURATION, LEAVE_STATUS, LEAVE_TYPE } from '../utils/constants.js';
+import { displayTimeZoneFor, timeZoneLabel } from '../config/employeeTimeZones.js';
 
 // Weekly off. No setting exists in the app; Sunday is the only day nobody has
 // ever checked in on (audited 2026-11-06) and the Salary calendar already shades it.
@@ -99,6 +100,7 @@ export function classifyDay({ dateKey, weekday, holiday, record, leaves = [], jo
 export function buildAttendanceCalendar({ range, employee, records = [], leaves = [], holidays = [], officeSettings = null, today = new Date(), timeZone = env.timezone }) {
   const byDay = new Map(records.map((r) => [keyOf(r.date), r]));
   const todayKey = dayKeyOf(today, timeZone);
+  const clock = displayTimeZoneFor(employee, timeZone); // clock times only (e.g. Dubai); days and rules stay on office time
   const joiningKey = employee?.joiningDate ? keyOf(employee.joiningDate) : null;
   const summary = {};
   let totalOvertimeMinutes = 0;
@@ -112,8 +114,8 @@ export function buildAttendanceCalendar({ range, employee, records = [], leaves 
       const overtimeMinutes = overtimeForRecord(record, employee, officeSettings, timeZone);
       totalOvertimeMinutes += overtimeMinutes || 0;
       Object.assign(cell, {
-        checkIn: formatClockTime(record.checkIn.timestamp, timeZone),
-        checkOut: record.checkOut?.timestamp ? formatClockTime(record.checkOut.timestamp, timeZone) : null,
+        checkIn: formatClockTime(record.checkIn.timestamp, clock),
+        checkOut: record.checkOut?.timestamp ? formatClockTime(record.checkOut.timestamp, clock) : null,
         overtimeMinutes,
         overtime: formatOvertime(overtimeMinutes),
         hasOvertime: overtimeMinutes > 0,
@@ -128,6 +130,8 @@ export function buildAttendanceCalendar({ range, employee, records = [], leaves 
     employeeName: employeeDisplayName(employee),
     employeeCode: employee?.employeeCode || '',
     monthLabel: range.label,
+    timeZone: clock,
+    timeZoneLabel: timeZoneLabel(clock, timeZone),
     weeks,
     summary,
     totalOvertimeMinutes,

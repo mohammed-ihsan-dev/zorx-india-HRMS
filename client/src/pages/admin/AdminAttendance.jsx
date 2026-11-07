@@ -9,7 +9,7 @@ import { Input, Select } from '../../components/Input.jsx';
 import { Modal } from '../../components/Modal.jsx';
 import { Button } from '../../components/Button.jsx';
 import * as attendanceService from '../../services/attendanceService.js';
-import { formatDate, formatTime, formatMinutes, formatMeters, titleCase } from '../../utils/formatters.js';
+import { formatDate, formatTime, formatMinutes, formatMeters, titleCase, timeZoneTag } from '../../utils/formatters.js';
 import { getTodayDateInputValue } from '../../utils/calendarDate.js';
 import { useToast } from '../../hooks/useToast.js';
 import { getErrorMessage } from '../../services/apiClient.js';
@@ -61,8 +61,9 @@ export function AdminAttendance() {
     },
     { key: 'department', header: 'Department', render: (r) => r.employeeId?.departmentId?.name || '—' },
     { key: 'date', header: 'Date', render: (r) => formatDate(r.date) },
-    { key: 'checkIn', header: 'Check In', render: (r) => (r.checkIn ? formatTime(r.checkIn.timestamp) : '—') },
-    { key: 'checkOut', header: 'Check Out', render: (r) => (r.checkOut ? formatTime(r.checkOut.timestamp) : '—') },
+    // Times in the employee's own office zone (e.g. Dubai for the UAE office), tagged when not India time.
+    { key: 'checkIn', header: 'Check In', render: (r) => (r.checkIn ? <ZonedTime value={r.checkIn.timestamp} zone={r.displayTimeZone} /> : '—') },
+    { key: 'checkOut', header: 'Check Out', render: (r) => (r.checkOut ? <ZonedTime value={r.checkOut.timestamp} zone={r.displayTimeZone} /> : '—') },
     { key: 'working', header: 'Working Hours', render: (r) => formatMinutes(r.totalWorkingMinutes) },
     { key: 'late', header: 'Late', render: (r) => (r.lateMinutes ? formatMinutes(r.lateMinutes) : '—') },
     {
@@ -170,7 +171,7 @@ export function AdminAttendance() {
                 <div key={i} className="flex items-center justify-between px-3.5 py-2.5 text-sm">
                   <span className="font-semibold text-slate-700">{titleCase(b.type)}</span>
                   <span className="text-slate-500">
-                    {formatTime(b.startTime)} → {b.endTime ? formatTime(b.endTime) : 'Active'}
+                    {formatTime(b.startTime, breaksRecord.displayTimeZone)} → {b.endTime ? formatTime(b.endTime, breaksRecord.displayTimeZone) : 'Active'}
                   </span>
                   <span className="font-medium text-slate-800">{formatMinutes(b.durationMinutes)}</span>
                 </div>
@@ -189,5 +190,15 @@ export function AdminAttendance() {
         )}
       </Modal>
     </Card>
+  );
+}
+
+function ZonedTime({ value, zone }) {
+  const tag = timeZoneTag(zone);
+  return (
+    <span className="whitespace-nowrap">
+      {formatTime(value, zone)}
+      {tag && <span className="ml-1.5 text-[10px] font-bold uppercase tracking-wide text-sky-700 bg-sky-50 border border-sky-200 rounded px-1 py-px">{tag}</span>}
+    </span>
   );
 }

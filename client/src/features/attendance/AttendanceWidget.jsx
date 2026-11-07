@@ -74,6 +74,8 @@ export function AttendanceWidget({ data }) {
       );
     }
     if (
+      // Never on a location-free day (e.g. approved WFH): no location is needed then.
+      !data.locationFree &&
       [LOCATION_STATUS.LOCATION_PERMISSION_DENIED, LOCATION_STATUS.LOCATION_UNAVAILABLE, LOCATION_STATUS.LOCATION_ERROR].includes(
         geolocation.status
       )

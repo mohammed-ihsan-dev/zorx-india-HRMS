@@ -4,7 +4,8 @@ import { requireAuth } from '../middleware/auth.js';
 import { requireRole } from '../middleware/rbac.js';
 import { validateBody } from '../middleware/validate.js';
 import { punchSchema, startBreakSchema } from '../validators/attendanceValidators.js';
-import { isDefaultWfhEmployee } from '../services/wfhService.js';
+import { isDefaultWfhEmployee, resolveWfhSource } from '../services/wfhService.js';
+import { isValidCoordinate } from '../utils/geo.js';
 import { assignedLocationRules } from '../services/attendanceService.js';
 import { OfficeSettings } from '../models/OfficeSettings.js';
 import { approvedOnsiteFor } from '../services/onsiteWorkService.js';
@@ -34,6 +35,14 @@ async function validatePunchBody(req, res, next) {
       (await isDefaultWfhEmployee(req.user.employeeId?._id))
     ) {
       req.body = {};
+      return next();
+    }
+    // Approved WFH for today (an APPROVED request for this exact day, or a recurring
+    // policy day) — looked up on the server for the signed-in employee, never taken
+    // from the request: GPS is optional. Valid coordinates are kept, anything else dropped.
+    if (await resolveWfhSource(req.user.employeeId?._id, getStartOfDayUTC(new Date(), settings.timezone))) {
+      const { latitude, longitude } = req.body || {};
+      req.body = isValidCoordinate(latitude, longitude) ? { latitude, longitude } : {};
       return next();
     }
   } catch (err) {

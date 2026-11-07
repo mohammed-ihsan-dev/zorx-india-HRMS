@@ -9,7 +9,7 @@ import { announceAttendanceRecord } from './BreakReminderWatcher.jsx';
 import { breakAllowanceUsage } from './breakReminders.js';
 import { netWorkedMinutes, requiredWorkingMinutes, progressPercent as toProgressPercent, overtimeMinutesAt } from './workingTime.js';
 
-import { ATTENDANCE_UI_STATE, deriveAttendanceUiState, isRetryableLoadError, RESYNC_MIN_GAP_MS, RETRY_DELAY_MS } from './attendanceUiState.js';
+import { ATTENDANCE_UI_STATE, deriveAttendanceUiState, isRetryableLoadError, isLocationFree, RESYNC_MIN_GAP_MS, RETRY_DELAY_MS } from './attendanceUiState.js';
 
 export { ATTENDANCE_UI_STATE };
 
@@ -185,8 +185,11 @@ export function useTodayAttendance() {
   // only — the backend independently enforces the Admin-selected mode.
   const verificationMode = officeSettings?.attendanceVerificationMode === 'WIFI' ? 'WIFI' : 'GPS';
   // An employee with their own site always sends GPS (the server checks it against that site).
-  // An approved onsite day always sends GPS (recorded; the server skips only the radius check).
-  const locationFree = !onsiteToday && (defaultWfh || (verificationMode === 'WIFI' && !attendanceLocation));
+  // No GPS on any approved WFH day — permanent WFH, an APPROVED request for today or a
+  // recurring policy day (/work-from-home/my/today → approved; the server re-checks it
+  // itself on every punch). An approved onsite day always sends GPS (recorded; the
+  // server skips only the radius check).
+  const locationFree = isLocationFree({ onsiteToday, defaultWfh, wfhToday, verificationMode, attendanceLocation });
 
   const punch = useCallback(
     async (kind) => {

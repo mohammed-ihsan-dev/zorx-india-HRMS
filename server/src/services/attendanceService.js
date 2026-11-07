@@ -80,8 +80,8 @@ export function verifyCompanyNetwork(clientIp) {
  * - permanent WFH (Employee.workMode): no location or network check at all;
  * - Company Wi-Fi mode: office employees must come from the company network;
  *   approved-WFH employees (not in the office) skip it; no location is stored;
- * - GPS mode, APPROVED WFH for this day: coordinates required and recorded,
- *   only the office-radius check is skipped;
+ * - GPS mode, APPROVED WFH for this day (request or recurring policy): no GPS
+ *   needed and no office-radius check (coordinates kept only if sent);
  * - GPS mode otherwise: exactly validateLocation, as before.
  */
 /**
@@ -127,8 +127,11 @@ async function resolvePunchLocation(employeeId, coords, officeSettings, dateKey,
     const distanceFromOffice = validateLocation(coords, officeSettings);
     return { isWfh: false, location: { latitude: coords.latitude, longitude: coords.longitude, distanceFromOffice } };
   }
+  // Approved WFH for this exact day (request or recurring policy), decided above from
+  // server data only: no GPS is needed and no office geofence applies. If valid
+  // coordinates happen to be sent they are kept for the record; otherwise none are stored.
   if (!coords || !isValidCoordinate(coords.latitude, coords.longitude)) {
-    throw ApiError.badRequest('Invalid location coordinates were received.');
+    return { isWfh: true, location: NO_LOCATION };
   }
   const distanceFromOffice = calculateDistance(coords, officeSettings);
   return { isWfh: true, location: { latitude: coords.latitude, longitude: coords.longitude, distanceFromOffice } };

@@ -3,9 +3,16 @@ export function formatDate(value, options = { day: '2-digit', month: 'short', ye
   return new Date(value).toLocaleDateString('en-IN', options);
 }
 
-export function formatTime(value) {
+/** Clock time; `timeZone` (e.g. 'Asia/Dubai') shows it in that zone instead of the viewer's own. */
+export function formatTime(value, timeZone) {
   if (!value) return '—';
-  return new Date(value).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
+  return new Date(value).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true, ...(timeZone ? { timeZone } : {}) });
+}
+
+const ZONE_LABELS = { 'Asia/Dubai': 'Dubai time', 'Asia/Kolkata': 'India time' };
+/** "Dubai time" for an employee shown outside the office zone (India), else null. */
+export function timeZoneTag(timeZone) {
+  return timeZone && timeZone !== 'Asia/Kolkata' ? ZONE_LABELS[timeZone] || timeZone : null;
 }
 
 export function formatDateTime(value) {

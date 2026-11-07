@@ -129,6 +129,7 @@ export function AttendanceCalendarReport() {
               <h3 className="text-base font-bold text-slate-900">
                 {calendar.employeeName}
                 {calendar.employeeCode ? <span className="text-slate-400 font-medium"> ({calendar.employeeCode})</span> : null} — {calendar.monthLabel}
+                {calendar.timeZoneLabel && <span className="ml-2 align-middle text-[11px] font-bold uppercase tracking-wide text-sky-700 bg-sky-50 border border-sky-200 rounded px-1.5 py-0.5">Times in {calendar.timeZoneLabel}</span>}
               </h3>
               <p className="text-sm text-slate-500">
                 {summaryItems(calendar.summary)

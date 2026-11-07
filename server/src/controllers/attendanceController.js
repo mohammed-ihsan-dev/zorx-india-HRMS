@@ -8,6 +8,7 @@ import { isValidCoordinate } from '../utils/geo.js';
 import { getStartOfDayUTC } from '../utils/dateUtils.js';
 import { overtimeForRecord } from '../services/overtimeService.js';
 import { approvedOnsiteFor } from '../services/onsiteWorkService.js';
+import { displayTimeZoneFor } from '../config/employeeTimeZones.js';
 import { env } from '../config/env.js';
 import {
   VIRTUAL_EMPLOYEE_ID,
@@ -290,11 +291,14 @@ export const listAttendance = asyncHandler(async (req, res) => {
 
   const total = await Attendance.countDocuments(filter);
 
-  sendSuccess(res, { data: records, meta: { total, page: pageNum, limit: limitNum } });
+  // Each record says which clock its times are shown in (e.g. Dubai for the UAE office).
+  const withZone = records.map((r) => ({ ...(r.toObject?.() ?? r), displayTimeZone: displayTimeZoneFor(r.employeeId) }));
+  sendSuccess(res, { data: withZone, meta: { total, page: pageNum, limit: limitNum } });
 });
 
 export const getEmployeeAttendance = asyncHandler(async (req, res) => {
   const { employeeId } = req.params;
   const records = await Attendance.find({ employeeId }).sort({ date: -1 }).limit(90);
-  sendSuccess(res, { data: records });
+  const displayTimeZone = displayTimeZoneFor(employeeId);
+  sendSuccess(res, { data: records.map((r) => ({ ...r.toObject(), displayTimeZone })), meta: { displayTimeZone } });
 });

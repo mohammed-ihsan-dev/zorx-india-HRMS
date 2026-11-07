@@ -4,6 +4,7 @@
 import { getZonedParts } from '../utils/dateUtils.js';
 import { env } from '../config/env.js';
 import { overtimeForRecord } from './overtimeService.js';
+import { displayTimeZoneFor, timeZoneLabel } from '../config/employeeTimeZones.js';
 
 const toValidDate = (value) => {
   if (!value) return null;
@@ -61,13 +62,15 @@ export function buildSalaryRows(records, officeSettings = null, timeZone = env.t
     .filter((r) => r.checkIn?.timestamp)
     .map((r) => {
       const overtimeMinutes = overtimeForRecord(r, r.employeeId, officeSettings, timeZone);
+      const clock = displayTimeZoneFor(r.employeeId, timeZone); // e.g. Dubai for the UAE office (display only)
       return {
         employeeName: employeeDisplayName(r.employeeId),
         employeeCode: r.employeeId?.employeeCode || '',
         dateKey: new Date(r.date).toISOString().slice(0, 10),
         date: formatReportDate(r.date),
-        checkIn: formatClockTime(r.checkIn?.timestamp, timeZone),
-        checkOut: formatClockTime(r.checkOut?.timestamp, timeZone),
+        checkIn: formatClockTime(r.checkIn?.timestamp, clock),
+        checkOut: formatClockTime(r.checkOut?.timestamp, clock),
+        timeZoneLabel: timeZoneLabel(clock, timeZone),
         overtimeMinutes,
         overtime: formatOvertime(overtimeMinutes),
       };
@@ -125,6 +128,7 @@ export function buildMonthGrid(range, { holidays = [] } = {}, makeCell) {
 export function buildCalendarMonth({ range, records, employee, holidays = [], officeSettings = null, today = new Date(), timeZone = env.timezone }) {
   const byDay = new Map(records.map((r) => [new Date(r.date).toISOString().slice(0, 10), r]));
   const todayKey = dayKeyOf(today, timeZone);
+  const clock = displayTimeZoneFor(employee, timeZone); // clock times only; days and rules stay on office time
   let daysWithRecords = 0;
   let totalOvertimeMinutes = 0;
   const weeks = buildMonthGrid(range, { holidays }, (base) => {
@@ -137,8 +141,8 @@ export function buildCalendarMonth({ range, records, employee, holidays = [], of
       totalOvertimeMinutes += overtimeMinutes || 0;
       Object.assign(cell, {
         kind: 'record',
-        checkIn: formatClockTime(r.checkIn.timestamp, timeZone),
-        checkOut: r.checkOut?.timestamp ? formatClockTime(r.checkOut.timestamp, timeZone) : null,
+        checkIn: formatClockTime(r.checkIn.timestamp, clock),
+        checkOut: r.checkOut?.timestamp ? formatClockTime(r.checkOut.timestamp, clock) : null,
         overtimeMinutes,
         overtime: formatOvertime(overtimeMinutes),
         status: r.status,
@@ -158,6 +162,8 @@ export function buildCalendarMonth({ range, records, employee, holidays = [], of
     employeeName: employeeDisplayName(employee),
     employeeCode: employee?.employeeCode || '',
     monthLabel: range.label,
+    timeZone: clock,
+    timeZoneLabel: timeZoneLabel(clock, timeZone),
     weeks,
     daysWithRecords,
     totalOvertimeMinutes,
@@ -165,11 +171,14 @@ export function buildCalendarMonth({ range, records, employee, holidays = [], of
   };
 }
 
+const withZone = (time, label) => (label && time && time !== '—' ? `${time} (${label.replace(' time', '')})` : time);
+
 export const SALARY_COLUMNS = [
   { label: 'Employee Name', value: (r) => r.employeeName },
   { label: 'Date', value: (r) => r.date },
-  { label: 'Check-in Time', value: (r) => r.checkIn },
-  { label: 'Check-out Time', value: (r) => r.checkOut },
+  // Times outside the office zone carry their zone in the cell, e.g. "11:41 AM (Dubai)"; the columns stay as they were.
+  { label: 'Check-in Time', value: (r) => withZone(r.checkIn, r.timeZoneLabel) },
+  { label: 'Check-out Time', value: (r) => withZone(r.checkOut, r.timeZoneLabel) },
   { label: 'Overtime Used', value: (r) => r.overtime },
 ];
 

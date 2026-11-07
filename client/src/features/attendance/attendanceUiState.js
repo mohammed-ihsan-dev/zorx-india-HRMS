@@ -27,3 +27,14 @@ export function deriveAttendanceUiState({ loaded, record }) {
 
 /** Worth retrying automatically: no response at all, a timeout, or a server error. Not 401/403/4xx. */
 export const isRetryableLoadError = (err) => !err?.response || err.response.status >= 500 || err.response.status === 429;
+
+/**
+ * Whether today's punch needs no GPS (display/flow hint; the server decides on
+ * its own for every punch): permanent WFH, an APPROVED WFH for today (request or
+ * recurring policy, from /work-from-home/my/today), or Company Wi-Fi mode for an
+ * employee without their own site. An approved onsite day always needs GPS.
+ */
+export function isLocationFree({ onsiteToday = null, defaultWfh = false, wfhToday = null, verificationMode = 'GPS', attendanceLocation = null } = {}) {
+  if (onsiteToday) return false;
+  return Boolean(defaultWfh || wfhToday?.approved || (verificationMode === 'WIFI' && !attendanceLocation));
+}

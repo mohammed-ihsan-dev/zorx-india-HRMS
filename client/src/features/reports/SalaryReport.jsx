@@ -170,6 +170,7 @@ export function SalaryReport() {
                     <h3 className="text-base font-bold text-slate-900">
                       {openCalendar.employeeName}
                       {openCalendar.employeeCode ? <span className="text-slate-400 font-medium"> ({openCalendar.employeeCode})</span> : null} — {openCalendar.monthLabel}
+                      {openCalendar.timeZoneLabel && <span className="ml-2 align-middle text-[11px] font-bold uppercase tracking-wide text-sky-700 bg-sky-50 border border-sky-200 rounded px-1.5 py-0.5">Times in {openCalendar.timeZoneLabel}</span>}
                     </h3>
                     <p className="text-sm text-slate-500">
                       Days with records: <span className="font-bold text-slate-800">{openCalendar.daysWithRecords}</span> · Total overtime:{' '}

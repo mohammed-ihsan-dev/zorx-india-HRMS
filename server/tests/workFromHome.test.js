@@ -409,10 +409,12 @@ describe('WFH attendance integration', () => {
     expect(outRes.body.data.attendanceMode).toBe(ATTENDANCE_MODE.WFH);
   });
 
-  test('approved WFH still requires valid coordinates', async () => {
+  test('approved WFH needs no GPS: invalid coordinates are ignored, nothing bogus is stored', async () => {
     const { employee, token } = await setupEmployee();
     await approvedWfhFor(employee._id, 0);
-    expect((await checkIn(token, { latitude: 999, longitude: 999 })).status).toBe(400);
+    const res = await checkIn(token, { latitude: 999, longitude: 999 });
+    expect(res.status).toBe(200);
+    expect(res.body.data.checkIn).toMatchObject({ latitude: null, longitude: null, distanceFromOffice: null });
   });
 
   test('approved WFH keeps the existing duplicate check-in rule', async () => {

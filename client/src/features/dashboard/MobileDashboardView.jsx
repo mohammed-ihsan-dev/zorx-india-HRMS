@@ -187,9 +187,10 @@ export function MobileDashboardView({ attendance, tasks, tasksLoading }) {
     }
   };
 
-  const locationError = [LOCATION_STATUS.LOCATION_PERMISSION_DENIED, LOCATION_STATUS.LOCATION_UNAVAILABLE, LOCATION_STATUS.LOCATION_ERROR].includes(
-    geolocation?.status
-  );
+  // Never on a location-free day (e.g. approved WFH): no location is needed then.
+  const locationError =
+    !attendance.locationFree &&
+    [LOCATION_STATUS.LOCATION_PERMISSION_DENIED, LOCATION_STATUS.LOCATION_UNAVAILABLE, LOCATION_STATUS.LOCATION_ERROR].includes(geolocation?.status);
 
   return (
     <div className="space-y-4 max-w-md mx-auto">

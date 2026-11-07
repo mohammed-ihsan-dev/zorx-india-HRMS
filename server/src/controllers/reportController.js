@@ -13,6 +13,7 @@ import { buildCalendarPdf } from '../utils/simplePdf.js';
 import { buildSalaryRows, buildCalendarMonth, monthRange, employeeDisplayName, slugify, SALARY_COLUMNS } from '../services/salaryReportService.js';
 import { overtimeForRecord, OVERTIME_THRESHOLD, OVERTIME_START } from '../services/overtimeService.js';
 import { buildAttendanceCalendar } from '../services/attendanceCalendarService.js';
+import { displayTimeZoneFor, timeZoneLabel } from '../config/employeeTimeZones.js';
 import { OfficeSettings } from '../models/OfficeSettings.js';
 import { Holiday } from '../models/Holiday.js';
 import { ROLES, LEAVE_STATUS } from '../utils/constants.js';
@@ -44,9 +45,9 @@ function formatDateOnly(value) {
 
 // Real point-in-time timestamps (check-in/out) must be shown in the office
 // timezone, not raw UTC, or admins reading the CSV see the wrong clock time.
-function formatIstTimestamp(value) {
+function formatIstTimestamp(value, timeZone = env.timezone) {
   if (!value) return '';
-  const { year, month, day, hour, minute, second } = getZonedParts(new Date(value));
+  const { year, month, day, hour, minute, second } = getZonedParts(new Date(value), timeZone);
   const pad = (n) => String(n).padStart(2, '0');
   return `${year}-${pad(month)}-${pad(day)} ${pad(hour)}:${pad(minute)}:${pad(second)}`;
 }
@@ -110,8 +111,9 @@ export const attendanceReport = asyncHandler(async (req, res) => {
     { label: 'Employee Code', value: (r) => r.employeeId?.employeeCode },
     { label: 'Employee Name', value: (r) => `${r.employeeId?.firstName} ${r.employeeId?.lastName}` },
     { label: 'Date', value: (r) => formatDateOnly(r.date) },
-    { label: 'Check In', value: (r) => formatIstTimestamp(r.checkIn?.timestamp) },
-    { label: 'Check Out', value: (r) => formatIstTimestamp(r.checkOut?.timestamp) },
+    // Shown in the employee's display time zone (e.g. Dubai for the UAE office); see "Time Zone".
+    { label: 'Check In', value: (r) => formatIstTimestamp(r.checkIn?.timestamp, displayTimeZoneFor(r.employeeId)) },
+    { label: 'Check Out', value: (r) => formatIstTimestamp(r.checkOut?.timestamp, displayTimeZoneFor(r.employeeId)) },
     { label: 'Working Hours', value: (r) => (r.totalWorkingMinutes != null ? (r.totalWorkingMinutes / 60).toFixed(2) : '') },
     { label: 'Break Duration (min)', value: (r) => r.breakMinutes },
     { label: 'Extra Break (min)', value: (r) => r.extraBreakMinutes },
@@ -120,6 +122,7 @@ export const attendanceReport = asyncHandler(async (req, res) => {
     { label: 'Overtime Minutes', value: (r) => overtimeForRecord(r, r.employeeId, officeSettings) ?? '' },
     { label: 'Status', value: (r) => r.status },
     { label: 'Work Mode', value: (r) => ({ WFH: 'WFH', ONSITE: 'Onsite Work' })[r.attendanceMode] || 'Office' },
+    { label: 'Time Zone', value: (r) => timeZoneLabel(displayTimeZoneFor(r.employeeId)) || 'India time' },
   ];
 
   if (req.query.format === 'csv') {
@@ -286,7 +289,7 @@ export const salaryReport = asyncHandler(async (req, res) => {
     title: 'Monthly Attendance Calendar',
     calendars: calendars.filter((c) => c.daysWithRecords > 0),
     lines: (cal) => [
-      `Days with attendance records: ${cal.daysWithRecords}  ·  Total overtime: ${cal.totalOvertime}  ·  Generated: ${generated} (${env.timezone})`,
+      `Days with attendance records: ${cal.daysWithRecords}  ·  Total overtime: ${cal.totalOvertime}  ·  Generated: ${generated} (${env.timezone})${cal.timeZoneLabel ? `  ·  Check-in/out times in ${cal.timeZoneLabel}` : ''}`,
       `Overtime: check-out after 7:00 PM counts from 6:00 PM (company time; employee-specific times where HR set them). "No record" = no attendance that day.`,
     ],
     footer: 'ZORX INDIA · Salary Report · Attendance-based, not a payroll statement',

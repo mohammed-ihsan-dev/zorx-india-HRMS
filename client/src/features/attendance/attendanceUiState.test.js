@@ -24,3 +24,15 @@ test('which load failures are retried automatically', () => {
   assert.equal(isRetryableLoadError({ response: { status: 401 } }), false);
   assert.equal(isRetryableLoadError({ response: { status: 403 } }), false);
 });
+
+test('isLocationFree: approved WFH today needs no GPS; office days and onsite days do', async () => {
+  const { isLocationFree } = await import('./attendanceUiState.js');
+  assert.equal(isLocationFree({ wfhToday: { approved: true, defaultWfh: false } }), true); // approved request today (Shijin, 7 Nov)
+  assert.equal(isLocationFree({ defaultWfh: true }), true); // permanent WFH
+  assert.equal(isLocationFree({ wfhToday: { approved: false } }), false); // pending / rejected / other day
+  assert.equal(isLocationFree({ wfhToday: null }), false); // lookup failed → normal GPS flow (server still decides)
+  assert.equal(isLocationFree({}), false); // normal office day
+  assert.equal(isLocationFree({ onsiteToday: { approved: true }, wfhToday: { approved: true } }), false); // onsite always records GPS
+  assert.equal(isLocationFree({ verificationMode: 'WIFI' }), true);
+  assert.equal(isLocationFree({ verificationMode: 'WIFI', attendanceLocation: { name: 'Dubai' } }), false); // own site → GPS
+});
