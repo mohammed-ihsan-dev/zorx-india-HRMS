@@ -1,5 +1,5 @@
 import { createContext, useCallback, useMemo, useState } from 'react';
-import { CheckCircle2, XCircle, Info, X } from 'lucide-react';
+import { CheckCircle2, XCircle, Info, PartyPopper, X } from 'lucide-react';
 
 export const ToastContext = createContext(null);
 
@@ -7,12 +7,14 @@ const ICONS = {
   success: CheckCircle2,
   error: XCircle,
   info: Info,
+  fun: PartyPopper,
 };
 
 const STYLES = {
   success: 'border-brand-200 bg-brand-50 text-brand-800',
   error: 'border-red-200 bg-red-50 text-red-700',
   info: 'border-slate-200 bg-white text-slate-700',
+  fun: 'border-amber-300 bg-gradient-to-r from-amber-50 via-pink-50 to-violet-50 text-violet-800 [&_p]:text-lg [&_p]:font-extrabold',
 };
 
 let idCounter = 0;

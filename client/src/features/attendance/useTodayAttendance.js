@@ -7,6 +7,7 @@ import { getErrorMessage } from '../../services/apiClient.js';
 import { formatCountdownSeconds } from '../../utils/formatters.js';
 import { announceAttendanceRecord } from './BreakReminderWatcher.jsx';
 import { breakAllowanceUsage } from './breakReminders.js';
+import { funCheckInMessage } from './funCheckInMessage.js';
 import { netWorkedMinutes, requiredWorkingMinutes, progressPercent as toProgressPercent, overtimeMinutesAt } from './workingTime.js';
 
 import { ATTENDANCE_UI_STATE, deriveAttendanceUiState, isRetryableLoadError, isLocationFree, RESYNC_MIN_GAP_MS, RETRY_DELAY_MS } from './attendanceUiState.js';
@@ -202,6 +203,9 @@ export function useTodayAttendance() {
         setLastVerification({ distance: thisPunch.distanceFromOffice, radius: allowedRadius });
         setRecord(result);
         toast.success(kind === 'in' ? 'Checked in successfully.' : 'Checked out successfully.');
+        // Temporary one-off joke for one employee on one day (see funCheckInMessage.js).
+        const fun = kind === 'in' ? funCheckInMessage(result) : null;
+        if (fun) toast.showToast(fun, 'fun', 9000);
         return true; // confirmed by the server (callers may react, e.g. a festive effect)
       } catch (err) {
         if (err?.response) {
