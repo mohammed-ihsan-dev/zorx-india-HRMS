@@ -18,6 +18,7 @@ import clientRoutes from './clientRoutes.js';
 import wfhRoutes from './wfhRoutes.js';
 import holidayRoutes from './holidayRoutes.js';
 import onsiteWorkRoutes from './onsiteWorkRoutes.js';
+import personalManagerIntegrationRoutes from './personalManagerIntegrationRoutes.js';
 
 const router = Router();
 
@@ -40,5 +41,7 @@ router.use('/clients', clientRoutes);
 router.use('/work-from-home', wfhRoutes);
 router.use('/holidays', holidayRoutes);
 router.use('/onsite-work', onsiteWorkRoutes);
+// Read-only, token-authenticated integration for one employee's Personal Manager app.
+router.use('/integrations/personal-manager/v1', personalManagerIntegrationRoutes);
 
 export default router;

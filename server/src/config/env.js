@@ -134,6 +134,14 @@ export const env = {
     trustProxy: process.env.TRUST_PROXY ?? '1',
   },
 
+  // Read-only Personal Manager attendance integration. The token is bound to
+  // exactly one employee here, server-side; requests can never choose it.
+  // Unset (or a token shorter than 32 characters) = the endpoint answers 503.
+  personalManagerIntegration: {
+    token: process.env.PERSONAL_MANAGER_INTEGRATION_TOKEN || '',
+    employeeId: process.env.PERSONAL_MANAGER_EMPLOYEE_ID || '',
+  },
+
   // Non-persisted virtual test account — see utils/virtualTestUser.js. Defaults
   // to fully disabled; must be explicitly opted into, and in production an
   // additional explicit flag is required on top of that.
