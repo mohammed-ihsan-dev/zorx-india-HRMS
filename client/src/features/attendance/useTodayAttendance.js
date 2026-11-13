@@ -8,6 +8,7 @@ import { formatCountdownSeconds } from '../../utils/formatters.js';
 import { announceAttendanceRecord } from './BreakReminderWatcher.jsx';
 import { breakAllowanceUsage } from './breakReminders.js';
 import { funCheckInMessage } from './funCheckInMessage.js';
+import { takeEarlyAttendance, markAttendanceSettled } from './attendanceBoot.js';
 import { netWorkedMinutes, requiredWorkingMinutes, progressPercent as toProgressPercent, overtimeMinutesAt } from './workingTime.js';
 
 import { ATTENDANCE_UI_STATE, deriveAttendanceUiState, isRetryableLoadError, isLocationFree, RESYNC_MIN_GAP_MS, RETRY_DELAY_MS } from './attendanceUiState.js';
@@ -59,13 +60,16 @@ export function useTodayAttendance() {
       lastSyncRef.current = Date.now();
       const load = () =>
         Promise.all([attendanceService.getMyAttendanceToday(), wfhService.getMyWfhToday().catch(() => null)]);
+      // First load after opening the app: use the request already started at boot
+      // (attendanceBoot.js) when it belongs to this same signed-in token.
+      const early = takeEarlyAttendance();
       try {
         let result;
         try {
-          result = await load();
+          result = await (early || load());
         } catch (err) {
-          if (!isRetryableLoadError(err)) throw err;
-          await new Promise((r) => setTimeout(r, RETRY_DELAY_MS)); // e.g. the API waking up
+          if (!early && !isRetryableLoadError(err)) throw err;
+          if (isRetryableLoadError(err)) await new Promise((r) => setTimeout(r, RETRY_DELAY_MS)); // e.g. the API waking up
           result = await load();
         }
         const [data, wfhToday] = result;
@@ -84,6 +88,7 @@ export function useTodayAttendance() {
         if (!quiet) toast.error(getErrorMessage(err, 'Could not load attendance status.'));
       } finally {
         setLoading(false);
+        markAttendanceSettled(); // secondary dashboard requests may start now
       }
     },
     [toast, setRecord]

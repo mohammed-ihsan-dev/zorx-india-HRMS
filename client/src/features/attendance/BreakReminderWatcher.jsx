@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { AlarmClock, X } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth.js';
+import { afterAttendance } from './attendanceBoot.js';
 import { useToast } from '../../hooks/useToast.js';
 import * as attendanceService from '../../services/attendanceService.js';
 import { ROLES } from '../../utils/constants.js';
@@ -116,10 +117,10 @@ export function BreakReminderWatcher() {
     let alive = true;
     // Daily allowance from office settings (the same value the End Break countdown uses).
     let allowanceMinutes;
-    const fetchRecord = async () => {
+    const fetchRecord = async ({ reuseMs = 0 } = {}) => {
       lastFetch = Date.now();
       try {
-        const data = await attendanceService.getMyAttendanceToday();
+        const data = await attendanceService.getMyAttendanceToday({ maxAgeMs: reuseMs });
         if (!alive) return;
         allowanceMinutes = data?.officeSettings?.breakDurationMinutes || undefined;
         scheduler.update(data?.attendance ?? null, allowanceMinutes);
@@ -138,7 +139,9 @@ export function BreakReminderWatcher() {
     window.addEventListener(ATTENDANCE_RECORD_EVENT, onRecord);
     document.addEventListener('visibilitychange', onVisible);
     window.addEventListener('focus', onVisible);
-    fetchRecord();
+    // Attendance-first: on opening a dashboard, wait for its attendance load and reuse
+    // that answer (seconds old, same user) instead of a second request at start-up.
+    afterAttendance().then(() => alive && fetchRecord({ reuseMs: 15_000 }));
 
     return () => {
       alive = false;

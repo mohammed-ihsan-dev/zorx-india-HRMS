@@ -37,6 +37,7 @@ import { useDiwaliActive } from '../diwali/diwaliConfig.js';
 import { Diya, DiwaliHeaderDecor } from '../diwali/DiwaliArt.jsx';
 import { DiwaliBanner } from '../diwali/DiwaliBanner.jsx';
 import { AttendanceSparkle } from '../diwali/AttendanceSparkle.jsx';
+import { afterAttendance } from '../attendance/attendanceBoot.js';
 
 const OPEN_TASK_STATUSES = ['TODO', 'IN_PROGRESS', 'IN_REVIEW'];
 
@@ -50,8 +51,13 @@ function useUnreadCount() {
         .listNotifications({ limit: 1 })
         .then((res) => alive && setCount(res?.meta?.unreadCount || 0))
         .catch(() => {});
-    load();
-    const id = setInterval(load, 60000);
+    let id = null;
+    // After today's attendance has loaded (attendance-first), then every minute.
+    afterAttendance().then(() => {
+      if (!alive) return;
+      load();
+      id = setInterval(load, 60000);
+    });
     return () => {
       alive = false;
       clearInterval(id);

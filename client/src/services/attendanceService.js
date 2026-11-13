@@ -26,13 +26,31 @@ export async function endBreak() {
 }
 
 // Components asking at the same moment (dashboard + break reminders) share one
-// request. Only while it is in flight — nothing is cached, so it is never stale.
+// request while it is in flight. By default nothing is cached, so the dashboard
+// (and every Check-in / Check-out decision) always gets a fresh server answer.
+// Only a caller that passes `maxAgeMs` (the break-reminder watcher) may reuse an
+// answer that recent — and only for the same signed-in token.
 let todayInFlight = null;
-export function getMyAttendanceToday() {
+let lastToday = null; // { at, token, data }
+const currentToken = () => {
+  try {
+    return localStorage.getItem('zorx_token');
+  } catch {
+    return null;
+  }
+};
+export function getMyAttendanceToday({ maxAgeMs = 0 } = {}) {
+  if (maxAgeMs > 0 && lastToday && lastToday.token === currentToken() && Date.now() - lastToday.at <= maxAgeMs) {
+    return Promise.resolve(lastToday.data);
+  }
   if (!todayInFlight) {
+    const token = currentToken();
     todayInFlight = apiClient
       .get('/attendance/me/today')
-      .then(({ data }) => data.data)
+      .then(({ data }) => {
+        lastToday = { at: Date.now(), token, data: data.data };
+        return data.data;
+      })
       .finally(() => {
         todayInFlight = null;
       });

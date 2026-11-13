@@ -4,12 +4,12 @@ import helmet from 'helmet';
 import morgan from 'morgan';
 import cookieParser from 'cookie-parser';
 import mongoSanitize from 'express-mongo-sanitize';
-import rateLimit from 'express-rate-limit';
 
 import { env, isTest } from './config/env.js';
 import routes from './routes/index.js';
 import { notFoundHandler, errorHandler } from './middleware/errorHandler.js';
 import { PROFILE_PICTURES_DIR } from './services/fileStorageService.js';
+import { createApiLimiter } from './middleware/apiRateLimit.js';
 
 /** "1" → 1 (hop count), "true"/"false" → boolean, anything else → Express trust string (e.g. "loopback, 10.0.0.0/8"). */
 function parseTrustProxy(value) {
@@ -54,6 +54,14 @@ export function createApp() {
   // let a browser, proxy or CDN reuse one. /uploads stays cacheable (served below).
   app.use('/api', (req, res, next) => {
     res.setHeader('Cache-Control', 'no-store');
+    // Timing instrumentation: total server time per API call, shown in the browser's
+    // DevTools (Network → Timing) as "app" — no effect on the response body.
+    const started = process.hrtime.bigint();
+    const json = res.json.bind(res);
+    res.json = (body) => {
+      if (!res.headersSent) res.setHeader('Server-Timing', `app;dur=${(Number(process.hrtime.bigint() - started) / 1e6).toFixed(1)}`);
+      return json(body);
+    };
     next();
   });
   app.use(express.json({ limit: '2mb' }));
@@ -61,16 +69,12 @@ export function createApp() {
   app.use(mongoSanitize());
 
   if (!isTest) {
-    app.use(morgan(env.nodeEnv === 'production' ? 'combined' : 'dev'));
+    // Production log line = Apache "combined" + response time, to spot slow requests in Render logs.
+    app.use(morgan(env.nodeEnv === 'production' ? ':remote-addr - :remote-user [:date[clf]] ":method :url HTTP/:http-version" :status :res[content-length] ":referrer" ":user-agent" :response-time ms' : 'dev'));
   }
 
-  const apiLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000,
-    limit: env.nodeEnv === 'development' ? 5000 : 300,
-    skip: () => env.nodeEnv === 'development',
-    standardHeaders: true,
-    legacyHeaders: false,
-  });
+  // Per signed-in user (not per IP: the office shares one IP) — see apiRateLimit.js.
+  const apiLimiter = createApiLimiter({ skip: () => env.nodeEnv === 'development' });
   app.use('/api', apiLimiter);
 
   app.get('/health', (req, res) => {

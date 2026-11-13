@@ -12,9 +12,12 @@ import { useState } from 'react';
 export function ZorxLogo({ variant = 'green', size = 'md', className = '', showTagline = true }) {
   const [imgError, setImgError] = useState(false);
 
-  const primarySrc = variant === 'white' ? '/assets/zorx-logo-white.png' : '/assets/zorx-logo-green.png';
-  const fallbackSrc = variant === 'white' ? '/assets/zorx-logo-green.png' : '/assets/zorx-logo-white.png';
-  const [currentSrc, setCurrentSrc] = useState(primarySrc);
+  // Small WebP first (~30 KB, 640 px — sharp at every size used); the original PNG,
+  // then the other colour, as fallbacks; then the text logo.
+  const other = variant === 'white' ? 'green' : 'white';
+  const sources = [`/assets/zorx-logo-${variant === 'white' ? 'white' : 'green'}.webp`, `/assets/zorx-logo-${variant === 'white' ? 'white' : 'green'}.png`, `/assets/zorx-logo-${other}.png`];
+  const [srcIndex, setSrcIndex] = useState(0);
+  const currentSrc = sources[srcIndex];
 
   const sizeStyles = {
     sm: 'w-28 sm:w-32',
@@ -27,11 +30,8 @@ export function ZorxLogo({ variant = 'green', size = 'md', className = '', showT
   }[size] || 'w-40';
 
   const handleError = () => {
-    if (currentSrc === primarySrc) {
-      setCurrentSrc(fallbackSrc);
-    } else {
-      setImgError(true);
-    }
+    if (srcIndex < sources.length - 1) setSrcIndex(srcIndex + 1);
+    else setImgError(true);
   };
 
   if (imgError) {
@@ -61,6 +61,9 @@ export function ZorxLogo({ variant = 'green', size = 'md', className = '', showT
       <img
         src={currentSrc}
         alt="ZORX India"
+        width={640}
+        height={213}
+        decoding="async"
         onError={handleError}
         className="w-full h-auto object-contain block"
       />

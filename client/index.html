@@ -19,6 +19,12 @@
     <meta name="apple-mobile-web-app-title" content="ZORX HRMS" />
 
     <title>ZORX INDIA — Office Management System</title>
+    <!-- Inter, without blocking start-up: the app (and the Check-in button) no longer
+         waits for Google Fonts; text shows in the system font for a moment, then swaps. -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" media="print" onload="this.media='all'" />
+    <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" /></noscript>
     <!-- Before React: start the phone app's pages dark (no white flash behind the status
          bar). Same rule as src/pwa/mobileChrome.js, which takes over once the app runs. -->
     <script>

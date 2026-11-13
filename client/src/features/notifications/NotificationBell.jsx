@@ -5,6 +5,7 @@ import { Dropdown } from '../../components/Dropdown.jsx';
 import * as notificationService from '../../services/notificationService.js';
 import { formatDateTime } from '../../utils/formatters.js';
 import { EmptyState } from '../../components/EmptyState.jsx';
+import { afterAttendance } from '../attendance/attendanceBoot.js';
 
 export function NotificationBell() {
   const navigate = useNavigate();
@@ -22,9 +23,18 @@ export function NotificationBell() {
   }, []);
 
   useEffect(() => {
-    load();
-    const interval = setInterval(load, 60000);
-    return () => clearInterval(interval);
+    let alive = true;
+    let interval = null;
+    // After today's attendance has loaded on a dashboard (attendance-first), then every minute.
+    afterAttendance().then(() => {
+      if (!alive) return;
+      load();
+      interval = setInterval(load, 60000);
+    });
+    return () => {
+      alive = false;
+      clearInterval(interval);
+    };
   }, [load]);
 
   const handleItemClick = async (notification) => {

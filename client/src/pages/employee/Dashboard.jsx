@@ -17,6 +17,7 @@ import { MobileDashboardView } from '../../features/dashboard/MobileDashboardVie
 import { useDiwaliActive } from '../../features/diwali/diwaliConfig.js';
 import { Diya, DiwaliHeaderDecor } from '../../features/diwali/DiwaliArt.jsx';
 import { DiwaliBanner } from '../../features/diwali/DiwaliBanner.jsx';
+import { afterAttendance } from '../../features/attendance/attendanceBoot.js';
 
 // The chart library is the app's largest download (~380 KB): load it only when
 // the desktop dashboard actually shows the chart, never on the phone Home.
@@ -82,23 +83,33 @@ export function Dashboard() {
   const [announcements, setAnnouncements] = useState([]);
   const [announcementsLoading, setAnnouncementsLoading] = useState(true);
 
+  // Secondary content loads after today's attendance (attendance-first; capped wait),
+  // each section on its own, so a slow or failing one never blocks the punch station.
   useEffect(() => {
-    if (isSuperAdmin) return; // administrative-only — never fetch/show the employee punch-station dashboard
-    taskService
-      .getMyTasks()
-      .then(setTasks)
+    if (isSuperAdmin) return undefined; // administrative-only — never fetch/show the employee punch-station dashboard
+    let alive = true;
+    afterAttendance()
+      .then(() => alive && taskService.getMyTasks())
+      .then((data) => alive && data && setTasks(data))
       .catch(() => {})
-      .finally(() => setTasksLoading(false));
+      .finally(() => alive && setTasksLoading(false));
+    return () => {
+      alive = false;
+    };
   }, [isSuperAdmin]);
 
   // Announcements are only shown on the tablet/desktop dashboard.
   useEffect(() => {
-    if (isSuperAdmin || mobile) return;
-    announcementService
-      .listAnnouncements()
-      .then(setAnnouncements)
+    if (isSuperAdmin || mobile) return undefined;
+    let alive = true;
+    afterAttendance()
+      .then(() => alive && announcementService.listAnnouncements())
+      .then((data) => alive && data && setAnnouncements(data))
       .catch(() => {})
-      .finally(() => setAnnouncementsLoading(false));
+      .finally(() => alive && setAnnouncementsLoading(false));
+    return () => {
+      alive = false;
+    };
   }, [isSuperAdmin, mobile]);
 
   // Super Admin never sees the employee punch-station dashboard, even via

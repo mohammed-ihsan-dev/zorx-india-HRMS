@@ -70,6 +70,11 @@ export default defineConfig({
       workbox: {
         // Only the built app-shell assets (JS/CSS/HTML/icons/fonts) are precached.
         globPatterns: ['**/*.{js,css,html,svg,png,ico,woff,woff2}'],
+        // Not pre-downloaded on install (~5 MB that competed with the first Check-in on
+        // slow phones): the one-off Gandhi Jayanti image, the large original logo PNGs
+        // (the app shows the small WebP logos) and the staff photos in public/profile(s)
+        // (up to 1.6 MB each, twice via the symlink). All still load normally when shown.
+        globIgnores: ['**/gandhi-jayanti-2026.png', '**/zorx-logo-white.png', '**/zorx-logo-green.png', 'profile/**', 'profiles/**'],
         // Belt-and-suspenders: even if something matched at runtime, never let
         // API calls be served from — or written into — the cache.
         navigateFallbackDenylist: [/^\/api\//],
