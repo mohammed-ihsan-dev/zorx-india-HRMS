@@ -1,5 +1,6 @@
 import { createContext, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import * as authService from '../services/authService.js';
+import { setCacheOwner } from '../services/readCache.js';
 
 export const AuthContext = createContext(null);
 
@@ -84,6 +85,12 @@ export function AuthProvider({ children }) {
     setUser(me);
     return me;
   }, []);
+
+  // Cached reference data belongs to exactly one signed-in account: a different
+  // user (or logout) clears it before anything can be read (services/readCache.js).
+  useEffect(() => {
+    setCacheOwner(user ? `${user.id || user._id}|${user.role}` : null);
+  }, [user]);
 
   const value = useMemo(
     () => ({ user, loading, authError, retryAuth: loadUser, login, logout, refreshUser }),

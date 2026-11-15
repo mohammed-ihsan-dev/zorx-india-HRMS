@@ -60,3 +60,13 @@ test('API responses carry a Server-Timing header (timing instrumentation)', asyn
   const header = res.headers['server-timing'] || res2.headers['server-timing'];
   expect(header).toMatch(/^app;dur=\d+(\.\d+)?$/);
 });
+
+test('GET /api/version reports the running build (no secrets)', async () => {
+  process.env.RENDER_GIT_COMMIT = '0a65051abcdef1234567890';
+  const { createApp } = await import('../src/app.js');
+  const res = await request(createApp()).get('/api/version');
+  expect(res.status).toBe(200);
+  expect(res.body).toMatchObject({ success: true, version: expect.any(String), commit: '0a65051' });
+  expect(Object.keys(res.body).sort()).toEqual(['branch', 'commit', 'startedAt', 'success', 'version']);
+  delete process.env.RENDER_GIT_COMMIT;
+});

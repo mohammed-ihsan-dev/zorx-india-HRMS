@@ -10,6 +10,10 @@ import routes from './routes/index.js';
 import { notFoundHandler, errorHandler } from './middleware/errorHandler.js';
 import { PROFILE_PICTURES_DIR } from './services/fileStorageService.js';
 import { createApiLimiter } from './middleware/apiRateLimit.js';
+import { readFileSync } from 'node:fs';
+
+const SERVER_VERSION = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')).version;
+const STARTED_AT = new Date().toISOString();
 
 /** "1" → 1 (hop count), "true"/"false" → boolean, anything else → Express trust string (e.g. "loopback, 10.0.0.0/8"). */
 function parseTrustProxy(value) {
@@ -83,6 +87,13 @@ export function createApp() {
 
   app.get('/api/health', (req, res) => {
     res.json({ success: true, status: 'ok', message: 'ZORX INDIA API is running.' });
+  });
+
+  // Deployment fingerprint (no secrets): which commit this backend runs. Render sets
+  // RENDER_GIT_COMMIT on every deploy; GIT_COMMIT can be set elsewhere.
+  app.get('/api/version', (req, res) => {
+    const commit = process.env.RENDER_GIT_COMMIT || process.env.GIT_COMMIT || null;
+    res.json({ success: true, version: SERVER_VERSION, commit: commit ? commit.slice(0, 7) : null, branch: process.env.RENDER_GIT_BRANCH || null, startedAt: STARTED_AT });
   });
 
   // Profile pictures only — intentionally public (rendered as <img> across the

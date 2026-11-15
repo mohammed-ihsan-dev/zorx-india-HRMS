@@ -224,8 +224,8 @@ export function AdminDashboard() {
 
       {isHr && <MyPunchStation />}
 
-      {/* Top Real Analytics Summary Cards — 7 Responsive Stat Cards with Visible Count-Up Animations */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-4">
+      {/* Top Real Analytics Summary Cards — 4 per row, 7 across only on wide screens (at 1280px seven were too narrow and the icons spilled out of the cards) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 2xl:grid-cols-7 gap-4">
         <StatCard key={`stat-total-${range}-${summary.totalWork}`} label="Total Work" value={summary.totalWork} icon={Briefcase} />
         <StatCard key={`stat-completed-${range}-${summary.completed}`} label="Completed" value={summary.completed} icon={CheckCircle2} tone="green" />
         <StatCard key={`stat-ongoing-${range}-${summary.ongoing}`} label="Ongoing" value={summary.ongoing} icon={Clock} tone="blue" />
