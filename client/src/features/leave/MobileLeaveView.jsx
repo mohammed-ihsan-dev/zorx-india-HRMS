@@ -9,7 +9,7 @@ const LEAVE_TYPE_ORDER = ['CASUAL', 'SICK', 'PAID'];
 
 // Card accent per tone; the text always states the balance too, so colour is never the only cue.
 const TONE_CLASS = {
-  green: { card: 'bg-zm-green/15 border-zm-green-light/40', label: 'text-zm-green-light', value: 'text-zm-pista' },
+  green: { card: 'bg-zm-accent/15 border-zm-accent-light/40', label: 'text-zm-accent-light', value: 'text-zm-accent-soft' },
   red: { card: 'bg-rose-500/10 border-rose-400/40', label: 'text-rose-300', value: 'text-rose-100' },
   amber: { card: 'bg-amber-500/10 border-amber-400/40', label: 'text-amber-300', value: 'text-amber-100' },
   neutral: { card: 'bg-zm-card border-zm-border', label: 'text-zm-muted', value: 'text-zm-text' },
@@ -36,7 +36,7 @@ export function MobileLeaveView({ leaves, summary, loading, onOpenRequest, onOpe
 
   const tabClass = (active) =>
     `flex-1 h-11 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-colors ${
-      active ? 'bg-zm-elev text-zm-green-light border border-zm-green/40' : 'text-zm-muted'
+      active ? 'bg-zm-elev text-zm-accent-light border border-zm-accent/40' : 'text-zm-muted'
     }`;
 
   return (
@@ -46,7 +46,7 @@ export function MobileLeaveView({ leaves, summary, loading, onOpenRequest, onOpe
       <div role="tablist" aria-label="Leave requests" className="flex gap-1 p-1 rounded-2xl bg-zm-card border border-zm-border">
         <button type="button" role="tab" aria-selected={tab === 'pending'} onClick={() => setTab('pending')} className={tabClass(tab === 'pending')}>
           <ClipboardList size={17} aria-hidden="true" /> Pending
-          {pending.length > 0 && <span className="min-w-[20px] h-5 px-1 rounded-full bg-zm-green text-white text-[11px] flex items-center justify-center">{pending.length}</span>}
+          {pending.length > 0 && <span className="min-w-[20px] h-5 px-1 rounded-full bg-zm-accent text-white text-[11px] flex items-center justify-center">{pending.length}</span>}
         </button>
         <button type="button" role="tab" aria-selected={tab === 'history'} onClick={() => setTab('history')} className={tabClass(tab === 'history')}>
           <HistoryIcon size={17} aria-hidden="true" /> History
@@ -72,7 +72,7 @@ export function MobileLeaveView({ leaves, summary, loading, onOpenRequest, onOpe
           [1, 2].map((i) => <div key={i} className="h-24 rounded-2xl bg-zm-card animate-pulse" />)
         ) : shown.length === 0 ? (
           <div className="flex flex-col items-center text-center py-14">
-            <span className="w-20 h-20 rounded-full bg-zm-card border border-zm-border text-zm-green-light flex items-center justify-center" aria-hidden="true">
+            <span className="w-20 h-20 rounded-full bg-zm-card border border-zm-border text-zm-accent-light flex items-center justify-center" aria-hidden="true">
               <SearchX size={32} />
             </span>
             <p className="mt-4 text-base font-bold text-zm-text">{tab === 'pending' ? 'No pending requests' : 'No leave history yet'}</p>
@@ -87,7 +87,7 @@ export function MobileLeaveView({ leaves, summary, loading, onOpenRequest, onOpe
                   <MobileStatusPill status={l.status} />
                 </span>
                 <span className="flex items-center gap-2 text-xs text-zm-muted">
-                  <CalendarDays size={14} className="text-zm-green-light shrink-0" aria-hidden="true" />
+                  <CalendarDays size={14} className="text-zm-accent-light shrink-0" aria-hidden="true" />
                   {formatDate(l.startDate)}
                   {l.startDate !== l.endDate && ` – ${formatDate(l.endDate)}`}
                   <span aria-hidden="true">·</span>
@@ -115,7 +115,7 @@ export function MobileLeaveView({ leaves, summary, loading, onOpenRequest, onOpe
         type="button"
         onClick={onOpenRequest}
         aria-label="Request leave"
-        className="fixed right-5 bottom-[calc(env(safe-area-inset-bottom,0px)+92px)] z-30 w-14 h-14 rounded-2xl bg-zm-green hover:bg-zm-green-dark active:scale-95 text-white flex items-center justify-center shadow-xl shadow-black/40 transition"
+        className="fixed right-5 bottom-[calc(env(safe-area-inset-bottom,0px)+92px)] z-30 w-14 h-14 rounded-2xl bg-zm-accent hover:bg-zm-accent-dark active:scale-95 text-white flex items-center justify-center shadow-xl shadow-black/40 transition"
       >
         <Plus size={28} strokeWidth={2.5} aria-hidden="true" />
       </button>

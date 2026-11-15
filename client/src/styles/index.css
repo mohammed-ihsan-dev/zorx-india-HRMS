@@ -9,15 +9,27 @@ html {
   -webkit-text-size-adjust: 100%;
 }
 
+/* ZORX INDIA brand palette (Nov 2026) — the five official colours. Tailwind exposes
+   the same values as zx-* (exact) and the brand/green/red scales (tailwind.config.js). */
+:root {
+  --brand-black: #000000;
+  --brand-sea-white: #e9eef4;
+  --brand-blueberry: #4881ff;
+  --brand-red: #f43737;
+  --brand-neon-green: #32ea6f;
+  --brand-blueberry-hover: #3570f5;
+  --brand-focus-ring: rgb(72 129 255 / 0.45);
+}
+
 html,
 body,
 #root {
   height: 100%;
-  background-color: #f8fafc;
+  background-color: var(--brand-sea-white);
 }
 
 body {
-  @apply bg-slate-50 text-slate-800 antialiased font-sans text-base leading-relaxed;
+  @apply bg-zx-sea text-slate-800 antialiased font-sans text-base leading-relaxed;
   font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
 }
 
@@ -70,15 +82,16 @@ input, select, textarea {
 /* and toasts follow while the shell is mounted (`.zm-toaster` below).        */
 /* ------------------------------------------------------------------------- */
 .zm-mobile {
-  --zm-bg: #101418;
-  --zm-card: #19232c;
-  --zm-elev: #222e38;
-  --zm-border: #2b3943;
-  --zm-text: #f4f7f5;
-  --zm-text-2: #d3dbe1;
-  --zm-muted: #a6b2bc;
-  --zm-green: #16834a;
-  --zm-green-light: #5cc98a;
+  --zm-bg: #000000;
+  --zm-card: #121519;
+  --zm-elev: #1b1f25;
+  --zm-border: #272c34;
+  --zm-text: #e9eef4;
+  --zm-text-2: #c9d1da;
+  --zm-muted: #9aa4b0;
+  --zm-accent: #4881ff;
+  --zm-accent-light: #7aa2ff;
+  --zm-success: #32ea6f;
   color: var(--zm-text);
   background-color: var(--zm-bg);
   color-scheme: dark;
@@ -101,9 +114,9 @@ input, select, textarea {
 .zm-mobile .bg-slate-100,
 .zm-mobile .bg-slate-100\/80 { background-color: var(--zm-elev); }
 .zm-mobile .bg-slate-200,
-.zm-mobile .bg-slate-300 { background-color: #33424e; }
-.zm-mobile .from-white { --tw-gradient-from: var(--zm-card) var(--tw-gradient-from-position); --tw-gradient-to: rgb(25 35 44 / 0) var(--tw-gradient-to-position); --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to); }
-.zm-mobile .via-white { --tw-gradient-to: rgb(25 35 44 / 0) var(--tw-gradient-to-position); --tw-gradient-stops: var(--tw-gradient-from), var(--zm-card) var(--tw-gradient-via-position), var(--tw-gradient-to); }
+.zm-mobile .bg-slate-300 { background-color: #2c323b; }
+.zm-mobile .from-white { --tw-gradient-from: var(--zm-card) var(--tw-gradient-from-position); --tw-gradient-to: rgb(18 21 25 / 0) var(--tw-gradient-to-position); --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to); }
+.zm-mobile .via-white { --tw-gradient-to: rgb(18 21 25 / 0) var(--tw-gradient-to-position); --tw-gradient-stops: var(--tw-gradient-from), var(--zm-card) var(--tw-gradient-via-position), var(--tw-gradient-to); }
 .zm-mobile .to-white,
 .zm-mobile .to-brand-50\/20 { --tw-gradient-to: var(--zm-card) var(--tw-gradient-to-position); }
 .zm-mobile .hover\:bg-slate-50:hover,
@@ -111,7 +124,7 @@ input, select, textarea {
 .zm-mobile .hover\:bg-slate-100\/80:hover,
 .zm-mobile .hover\:bg-slate-200:hover,
 .zm-mobile .hover\:bg-slate-200\/50:hover,
-.zm-mobile .hover\:bg-slate-200\/70:hover { background-color: #2a3742; }
+.zm-mobile .hover\:bg-slate-200\/70:hover { background-color: #22272e; }
 .zm-mobile .focus\:bg-white:focus { background-color: var(--zm-elev); }
 
 /* Text */
@@ -129,7 +142,7 @@ input, select, textarea {
 :where(.zm-mobile) .hover\:text-slate-600:hover { color: var(--zm-text-2); }
 .zm-mobile .text-slate-500,
 .zm-mobile .text-slate-400 { color: var(--zm-muted); }
-.zm-mobile .placeholder\:text-slate-400::placeholder { color: #7d8a95; }
+.zm-mobile .placeholder\:text-slate-400::placeholder { color: #7c8692; }
 
 /* Borders & dividers */
 .zm-mobile .border-slate-100,
@@ -151,45 +164,45 @@ input, select, textarea {
 .zm-mobile .hover\:text-brand-700:hover,
 .zm-mobile .hover\:text-brand-800:hover,
 .zm-mobile .hover\:text-brand-900:hover,
-.zm-mobile .group:hover .group-hover\:text-brand-700 { color: var(--zm-green-light); }
+.zm-mobile .group:hover .group-hover\:text-brand-700 { color: var(--zm-accent-light); }
 .zm-mobile .bg-brand-50,
 .zm-mobile .bg-brand-50\/40,
 .zm-mobile .bg-brand-50\/50,
 .zm-mobile .bg-brand-50\/60,
 .zm-mobile .hover\:bg-brand-50:hover,
-.zm-mobile .hover\:bg-brand-50\/30:hover { background-color: rgb(22 131 74 / 0.14); }
+.zm-mobile .hover\:bg-brand-50\/30:hover { background-color: rgb(72 129 255 / 0.14); }
 .zm-mobile .bg-brand-100,
 .zm-mobile .bg-brand-100\/90,
 .zm-mobile .hover\:bg-brand-100:hover,
 .zm-mobile .bg-brand-200,
-.zm-mobile .hover\:bg-brand-200:hover { background-color: rgb(22 131 74 / 0.24); }
+.zm-mobile .hover\:bg-brand-200:hover { background-color: rgb(72 129 255 / 0.24); }
 .zm-mobile .border-brand-100,
 .zm-mobile .border-brand-200,
 .zm-mobile .border-brand-200\/60,
 .zm-mobile .border-brand-200\/80,
-.zm-mobile .border-brand-300 { border-color: rgb(92 201 138 / 0.35); }
+.zm-mobile .border-brand-300 { border-color: rgb(122 162 255 / 0.35); }
 .zm-mobile .bg-brand-800,
-.zm-mobile .bg-brand-700 { background-color: var(--zm-green); }
-.zm-mobile .hover\:bg-brand-900:hover { background-color: #116b3a; }
+.zm-mobile .bg-brand-700 { background-color: var(--zm-accent); }
+.zm-mobile .hover\:bg-brand-900:hover { background-color: #3570f5; }
 .zm-mobile .focus\:ring-brand-200:focus,
-.zm-mobile .focus\:ring-brand-500\/20:focus { --tw-ring-color: rgb(92 201 138 / 0.35); }
+.zm-mobile .focus\:ring-brand-500\/20:focus { --tw-ring-color: rgb(122 162 255 / 0.35); }
 .zm-mobile .focus\:border-brand-500:focus,
-.zm-mobile .focus\:border-brand-600:focus { border-color: var(--zm-green-light); }
-.zm-mobile .text-brand-600 { color: var(--zm-green-light); }
-.zm-mobile .hover\:border-brand-400:hover { border-color: var(--zm-green-light); }
+.zm-mobile .focus\:border-brand-600:focus { border-color: var(--zm-accent-light); }
+.zm-mobile .text-brand-600 { color: var(--zm-accent-light); }
+.zm-mobile .hover\:border-brand-400:hover { border-color: var(--zm-accent-light); }
 .zm-mobile .bg-brand-800\/50,
-.zm-mobile .disabled\:bg-brand-800\/50:disabled { background-color: rgb(22 131 74 / 0.45); }
+.zm-mobile .disabled\:bg-brand-800\/50:disabled { background-color: rgb(72 129 255 / 0.45); }
 
 /* Semantic status tints — same hue, dark tint */
-.zm-mobile .bg-emerald-50, .zm-mobile .bg-emerald-50\/20, .zm-mobile .bg-emerald-100, .zm-mobile .bg-emerald-100\/80 { background-color: rgb(16 185 129 / 0.14); }
+.zm-mobile .bg-emerald-50, .zm-mobile .bg-emerald-50\/20, .zm-mobile .bg-emerald-100, .zm-mobile .bg-emerald-100\/80, .zm-mobile .bg-emerald-100\/90 { background-color: rgb(50 234 111 / 0.14); }
 .zm-mobile .bg-amber-50, .zm-mobile .bg-amber-50\/70, .zm-mobile .bg-amber-100, .zm-mobile .bg-amber-100\/80, .zm-mobile .bg-amber-100\/90 { background-color: rgb(245 158 11 / 0.14); }
 .zm-mobile .bg-red-50, .zm-mobile .bg-red-100\/90, .zm-mobile .bg-rose-50, .zm-mobile .bg-rose-100, .zm-mobile .bg-rose-100\/80, .zm-mobile .hover\:bg-rose-50:hover { background-color: rgb(244 63 94 / 0.14); }
 .zm-mobile .bg-sky-50, .zm-mobile .bg-sky-100\/80, .zm-mobile .bg-sky-100\/90, .zm-mobile .hover\:bg-sky-100:hover, .zm-mobile .bg-blue-50\/20 { background-color: rgb(14 165 233 / 0.14); }
-.zm-mobile .text-emerald-700, .zm-mobile .text-emerald-800, .zm-mobile .text-emerald-900, .zm-mobile .text-emerald-950 { color: #6ee7b7; }
+.zm-mobile .text-emerald-700, .zm-mobile .text-emerald-800, .zm-mobile .text-emerald-900, .zm-mobile .text-emerald-950 { color: #32ea6f; }
 .zm-mobile .text-amber-700, .zm-mobile .text-amber-800, .zm-mobile .text-amber-900, .zm-mobile .text-amber-950 { color: #fcd34d; }
 .zm-mobile .text-red-600, .zm-mobile .text-red-800, .zm-mobile .text-red-900, .zm-mobile .text-rose-600, .zm-mobile .text-rose-800, .zm-mobile .text-rose-900, .zm-mobile .text-rose-950, .zm-mobile .hover\:text-rose-600:hover, .zm-mobile .hover\:text-rose-800:hover { color: #fda4af; }
 .zm-mobile .text-sky-800, .zm-mobile .text-sky-900, .zm-mobile .text-sky-950 { color: #7dd3fc; }
-.zm-mobile .border-emerald-200, .zm-mobile .border-emerald-200\/80, .zm-mobile .border-emerald-200\/90 { border-color: rgb(110 231 183 / 0.3); }
+.zm-mobile .border-emerald-200, .zm-mobile .border-emerald-200\/80, .zm-mobile .border-emerald-200\/90, .zm-mobile .border-emerald-300 { border-color: rgb(50 234 111 / 0.3); }
 .zm-mobile .border-amber-200, .zm-mobile .border-amber-200\/90, .zm-mobile .border-amber-300, .zm-mobile .border-amber-300\/80 { border-color: rgb(252 211 77 / 0.3); }
 .zm-mobile .border-red-400, .zm-mobile .focus\:border-red-500:focus { border-color: #fb7185; }
 .zm-mobile .focus\:ring-red-100:focus { --tw-ring-color: rgb(251 113 133 / 0.3); }
@@ -210,13 +223,13 @@ input, select, textarea {
 :where(.zm-mobile) p { color: var(--zm-text-2); }
 
 /* Keyboard focus stays visible on dark surfaces */
-.zm-mobile :focus-visible { outline: 2px solid var(--zm-green-light); outline-offset: 2px; }
+.zm-mobile :focus-visible { outline: 2px solid var(--zm-accent-light); outline-offset: 2px; }
 
 /* Toasts render outside every layout; while the phone shell is mounted they
    take its dark tones (same hue per type). Nothing else ever has `.zm-mobile`. */
-:root:has(.zm-mobile) .zm-toaster > .bg-brand-50 { background-color: #14301f; border-color: rgb(92 201 138 / 0.4); color: #c9f0d8; }
+:root:has(.zm-mobile) .zm-toaster > .bg-brand-50 { background-color: #0f1a33; border-color: rgb(122 162 255 / 0.4); color: #dde7ff; }
 :root:has(.zm-mobile) .zm-toaster > .bg-red-50 { background-color: #3a1d26; border-color: rgb(253 164 175 / 0.4); color: #fecdd3; }
-:root:has(.zm-mobile) .zm-toaster > .bg-white { background-color: #222e38; border-color: #2b3943; color: #f4f7f5; }
+:root:has(.zm-mobile) .zm-toaster > .bg-white { background-color: #1b1f25; border-color: #272c34; color: #e9eef4; }
 :root:has(.zm-mobile) .zm-toaster p { color: inherit; }
 
 /* ------------------------------------------------------------------------- */
@@ -228,11 +241,11 @@ input, select, textarea {
 html[data-zm-chrome='dark'],
 html[data-zm-chrome='dark'] body,
 html[data-zm-chrome='dark'] #root {
-  background-color: #101418;
+  background-color: #000000;
   color-scheme: dark;
 }
-html[data-zm-chrome='dark'] .zm-loading-surface { background-color: #101418; }
-html[data-zm-chrome='dark'] .zm-loading-surface p { color: #a6b2bc; }
+html[data-zm-chrome='dark'] .zm-loading-surface { background-color: #000000; }
+html[data-zm-chrome='dark'] .zm-loading-surface p { color: #9aa4b0; }
 /* Toasts clear the status bar / notch. */
 html[data-zm-chrome='dark'] .zm-toaster { top: calc(env(safe-area-inset-top, 0px) + 1rem); }
 

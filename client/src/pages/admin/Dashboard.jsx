@@ -44,7 +44,8 @@ import { getErrorMessage } from '../../services/apiClient.js';
 import { CardSkeleton } from '../../components/Skeleton.jsx';
 import { useCountUp, usePrefersReducedMotion } from '../../hooks/useCountUp.js';
 
-const STATUS_COLORS = ['#1f5138', '#0ea5e9', '#f59e0b'];
+// Brand chart palette: Blueberry, near-black, amber (distinct hues; server colours are not used).
+const STATUS_COLORS = ['#4881FF', '#111827', '#f59e0b'];
 const PRIORITY_BADGES = {
   URGENT: 'bg-red-50 text-red-700 border-red-200',
   HIGH: 'bg-amber-50 text-amber-700 border-amber-200',
@@ -160,7 +161,7 @@ export function AdminDashboard() {
         <button
           type="button"
           onClick={() => fetchDashboardData(range)}
-          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-brand-800 text-white font-bold text-sm shadow-sm hover:bg-brand-900 transition-colors"
+          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-brand-500 text-white font-bold text-sm shadow-sm hover:bg-brand-600 transition-colors"
         >
           <RotateCcw size={16} />
           Retry
@@ -266,7 +267,7 @@ export function AdminDashboard() {
             {/* Progress Bar with 0% -> Target% CSS Fill Animation */}
             <div className="w-full bg-slate-100 h-4 rounded-full overflow-hidden my-4 border border-slate-200/60">
               <div
-                className="bg-brand-700 h-full rounded-full transition-all duration-700 ease-out"
+                className="bg-brand-500 h-full rounded-full transition-all duration-700 ease-out"
                 style={{ width: `${Math.min(100, Math.max(0, animatedProgressWidth))}%` }}
               />
             </div>
@@ -346,12 +347,12 @@ export function AdminDashboard() {
                 <AreaChart key={`area-${range}-${progressOverTime.length}-${summary.completed}`} data={progressOverTime} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
                   <defs>
                     <linearGradient id="colorCompleted" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#1f5138" stopOpacity={0.4} />
-                      <stop offset="95%" stopColor="#1f5138" stopOpacity={0.0} />
+                      <stop offset="5%" stopColor="#4881FF" stopOpacity={0.4} />
+                      <stop offset="95%" stopColor="#4881FF" stopOpacity={0.0} />
                     </linearGradient>
                     <linearGradient id="colorTotal" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#0ea5e9" stopOpacity={0.3} />
-                      <stop offset="95%" stopColor="#0ea5e9" stopOpacity={0.0} />
+                      <stop offset="5%" stopColor="#111827" stopOpacity={0.18} />
+                      <stop offset="95%" stopColor="#111827" stopOpacity={0.0} />
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
@@ -370,7 +371,7 @@ export function AdminDashboard() {
                     type="monotone"
                     dataKey="completed"
                     name="Completed Work"
-                    stroke="#1f5138"
+                    stroke="#4881FF"
                     strokeWidth={3}
                     fillOpacity={1}
                     fill="url(#colorCompleted)"
@@ -383,7 +384,7 @@ export function AdminDashboard() {
                     type="monotone"
                     dataKey="total"
                     name="Total Work"
-                    stroke="#0ea5e9"
+                    stroke="#111827"
                     strokeWidth={2}
                     strokeDasharray="4 4"
                     fillOpacity={1}
@@ -419,7 +420,7 @@ export function AdminDashboard() {
                     <div className="w-full bg-slate-100 h-3 rounded-full overflow-hidden flex border border-slate-200/50">
                       <div
                         style={{ width: animateWorkloadBars ? `${(emp.completed / (emp.total || 1)) * 100}%` : '0%' }}
-                        className="bg-brand-700 h-full transition-all duration-700 ease-out"
+                        className="bg-brand-500 h-full transition-all duration-700 ease-out"
                         title={`Completed: ${emp.completed}`}
                       />
                       <div
@@ -466,7 +467,7 @@ export function AdminDashboard() {
                       dataKey="completed"
                       name="Completed"
                       stackId="a"
-                      fill="#1f5138"
+                      fill="#4881FF"
                       radius={[0, 0, 0, 0]}
                       isAnimationActive={!reducedMotion}
                       animationDuration={700}
@@ -477,7 +478,7 @@ export function AdminDashboard() {
                       dataKey="ongoing"
                       name="Ongoing"
                       stackId="a"
-                      fill="#0ea5e9"
+                      fill="#111827"
                       radius={[0, 0, 0, 0]}
                       isAnimationActive={!reducedMotion}
                       animationDuration={700}

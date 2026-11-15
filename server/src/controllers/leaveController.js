@@ -15,7 +15,7 @@ import {
 import { notify } from '../services/notificationService.js';
 import { recordAudit } from '../services/auditService.js';
 import { VIRTUAL_EMPLOYEE_ID } from '../utils/virtualTestUser.js';
-import { LEAVE_STATUS, LEAVE_DURATION, NOTIFICATION_TYPE, BACK_OFFICE_ROLES } from '../utils/constants.js';
+import { LEAVE_STATUS, LEAVE_DURATION, NOTIFICATION_TYPE, BACK_OFFICE_ROLES, ROLES } from '../utils/constants.js';
 
 function requireEmployee(req) {
   const employeeId = req.user.employeeId?._id;
@@ -155,8 +155,35 @@ export const listLeaves = asyncHandler(async (req, res) => {
     Leave.countDocuments(filter),
   ]);
 
-  sendSuccess(res, { data: leaves, meta: { total, page: pageNum, limit: limitNum } });
+  // Additive field: the requester's account role, so reviewers can see HR / Admin
+  // requests (which only a Super Admin may review — see assertCanReviewLeave).
+  const employeeIds = [...new Set(leaves.map((l) => String(l.employeeId?._id || l.employeeId)).filter(Boolean))];
+  const users = employeeIds.length ? await User.find({ employeeId: { $in: employeeIds } }).select('employeeId role').lean() : [];
+  const roleByEmployee = new Map(users.map((u) => [String(u.employeeId), u.role]));
+  const data = leaves.map((l) => ({ ...l.toObject(), requesterRole: roleByEmployee.get(String(l.employeeId?._id || l.employeeId)) || null }));
+
+  sendSuccess(res, { data, meta: { total, page: pageNum, limit: limitNum } });
 });
+
+/**
+ * Who may approve or reject a leave request (server-enforced):
+ *  - nobody reviews their own leave request;
+ *  - a request from an HR / Admin (back-office) user is reviewed only by a Super Admin.
+ * Every other request keeps the existing rule (any back-office user, via requireRole).
+ */
+export async function assertCanReviewLeave(reviewer, leave) {
+  const leaveEmployeeId = String(leave.employeeId?._id || leave.employeeId);
+  const ownEmployeeId = reviewer.employeeId?._id || reviewer.employeeId;
+  if (ownEmployeeId && String(ownEmployeeId) === leaveEmployeeId) {
+    throw ApiError.forbidden('You cannot approve or reject your own leave request. A Super Admin must review it.');
+  }
+  if (reviewer.role !== ROLES.SUPER_ADMIN) {
+    const requester = await User.findOne({ employeeId: leaveEmployeeId }).select('role').lean();
+    if (requester && BACK_OFFICE_ROLES.includes(requester.role)) {
+      throw ApiError.forbidden('Leave requests from HR / Admin users can only be reviewed by a Super Admin.');
+    }
+  }
+}
 
 // Atomic PENDING -> next status: of several retried/concurrent review calls,
 // exactly one succeeds; the rest see a non-pending request.
@@ -176,6 +203,7 @@ export const approveLeave = asyncHandler(async (req, res) => {
   if (existing.status !== LEAVE_STATUS.PENDING) {
     throw ApiError.badRequest('Only pending leave requests can be approved.');
   }
+  await assertCanReviewLeave(req.user, existing);
 
   // Balance check + status change under the employee's lock, so two approvals
   // can't both spend the same remaining Casual Leave.
@@ -209,6 +237,7 @@ export const approveLeave = asyncHandler(async (req, res) => {
 export const rejectLeave = asyncHandler(async (req, res) => {
   const existing = await Leave.findById(req.params.id);
   if (!existing) throw ApiError.notFound('Leave request not found.');
+  await assertCanReviewLeave(req.user, existing);
   const leave = await transitionPending(req, LEAVE_STATUS.REJECTED, 'rejected');
 
   const employeeUser = await User.findOne({ employeeId: leave.employeeId._id });

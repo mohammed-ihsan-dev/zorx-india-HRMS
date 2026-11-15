@@ -42,14 +42,14 @@ export function Signup() {
   };
 
   return (
-    <div className="min-h-screen flex bg-slate-50 font-sans">
-      <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-brand-950 via-brand-900 to-brand-800 text-white flex-col justify-between p-12 lg:p-16 relative overflow-hidden shadow-2xl">
+    <div className="min-h-screen flex bg-zx-sea font-sans">
+      <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-black via-black to-brand-950 text-white flex-col justify-between p-12 lg:p-16 relative overflow-hidden shadow-2xl">
         <div className="absolute -right-24 -top-24 w-96 h-96 rounded-full bg-white/5 blur-xl pointer-events-none" />
         <div className="absolute -left-16 -bottom-24 w-80 h-80 rounded-full bg-white/5 blur-xl pointer-events-none" />
 
         <div className="relative">
           <ZorxLogo variant="white" size="login" />
-          <div className="mt-2 text-brand-200 text-sm font-semibold tracking-wider uppercase border-t border-white/10 pt-3 inline-block">
+          <div className="mt-2 text-brand-200 text-sm font-semibold tracking-wider uppercase border-t border-white/10 pt-3 block w-fit">
             Office Management System
           </div>
         </div>
@@ -91,7 +91,7 @@ export function Signup() {
           ) : (
             <>
               <div className="flex flex-col items-center mb-8 text-center">
-                <ZorxLogo variant="green" size="login" className="mb-4" />
+                <ZorxLogo variant="black" size="login" className="mb-4" />
                 <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight mt-2">Create Account</h1>
                 <p className="text-base text-slate-600 mt-1.5">Sign up to request access to ZORX INDIA HRMS.</p>
               </div>

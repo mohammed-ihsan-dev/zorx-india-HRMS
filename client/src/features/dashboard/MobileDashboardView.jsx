@@ -42,7 +42,7 @@ import { afterAttendance } from '../attendance/attendanceBoot.js';
 const OPEN_TASK_STATUSES = ['TODO', 'IN_PROGRESS', 'IN_REVIEW'];
 
 /** Unread count from the existing notifications API (same source as the desktop bell). */
-function useUnreadCount() {
+export function useUnreadCount() {
   const [count, setCount] = useState(0);
   useEffect(() => {
     let alive = true;
@@ -68,7 +68,7 @@ function useUnreadCount() {
 
 // Remaining-allowance bar colours; the exhausted state leaves only the neutral track.
 const BREAK_BAR = {
-  [BREAK_TONE.GREEN]: { bar: 'bg-zm-green-light', text: 'text-zm-green-light' },
+  [BREAK_TONE.GREEN]: { bar: 'bg-zm-success', text: 'text-zm-success' }, // plenty of break left = positive
   [BREAK_TONE.ORANGE]: { bar: 'bg-orange-400', text: 'text-orange-300' },
   [BREAK_TONE.RED]: { bar: 'bg-rose-500', text: 'text-rose-300' },
   [BREAK_TONE.EXHAUSTED]: { bar: '', text: 'text-rose-300' },
@@ -83,7 +83,7 @@ function BreakTimeLeft({ allowanceMinutes, remainingSeconds }) {
     <section aria-label="Break time left" className="rounded-2xl bg-zm-card border border-zm-border px-4 py-3">
       <div className="flex items-center justify-between gap-3">
         <p className="flex items-center gap-2 text-sm font-semibold text-zm-text">
-          <Coffee size={15} className="text-zm-green-light" aria-hidden="true" />
+          <Coffee size={15} className="text-zm-accent-light" aria-hidden="true" />
           Break Time Left
         </p>
         <p className={`text-sm font-bold tabular-nums ${style.text}`}>{text}</p>
@@ -216,7 +216,7 @@ export function MobileDashboardView({ attendance, tasks, tasksLoading }) {
           <Link
             to="/notifications"
             aria-label={unread > 0 ? `Notifications, ${unread} unread` : 'Notifications'}
-            className="relative w-11 h-11 shrink-0 rounded-full border border-zm-green/50 bg-zm-card text-zm-green-light flex items-center justify-center"
+            className="relative w-11 h-11 shrink-0 rounded-full border border-zm-accent/50 bg-zm-card text-zm-accent-light flex items-center justify-center"
           >
             <Bell size={20} aria-hidden="true" />
             {unread > 0 && (
@@ -229,7 +229,7 @@ export function MobileDashboardView({ attendance, tasks, tasksLoading }) {
 
         {/* Date */}
         <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-zm-card border border-zm-border text-xs font-semibold text-zm-text">
-          <CalendarDays size={14} className="text-zm-green-light" aria-hidden="true" />
+          <CalendarDays size={14} className="text-zm-accent-light" aria-hidden="true" />
           {formatDate(new Date(), { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' })}
         </div>
       </div>
@@ -243,7 +243,7 @@ export function MobileDashboardView({ attendance, tasks, tasksLoading }) {
       ) : (
         <section
           aria-label="Working hours"
-          className="relative overflow-hidden rounded-3xl p-5 text-white bg-gradient-to-br from-zm-green via-zm-green-dark to-[#0c4f2b] shadow-lg shadow-black/30"
+          className="relative overflow-hidden rounded-3xl p-5 text-white bg-gradient-to-br from-zm-accent via-zm-accent-dark to-[#1B3B8A] shadow-lg shadow-black/30"
         >
           <svg aria-hidden="true" className="absolute -right-12 -top-12 w-64 h-64 opacity-15 pointer-events-none" viewBox="0 0 200 200" fill="none" stroke="currentColor">
             <circle cx="150" cy="50" r="40" strokeWidth="1.2" />
@@ -252,20 +252,20 @@ export function MobileDashboardView({ attendance, tasks, tasksLoading }) {
           </svg>
           <div className="relative">
             <div className="flex items-center justify-between">
-              <p className="text-[11px] font-bold uppercase tracking-wider text-zm-pista/90">Working Hours</p>
+              <p className="text-[11px] font-bold uppercase tracking-wider text-zm-accent-soft/90">Working Hours</p>
               {record?.status && <MobileStatusPill status={record.status} className="!bg-black/20 !border-white/20" />}
             </div>
             <p className="mt-1.5 flex items-baseline gap-1 tabular-nums" aria-label={`${formatMinutes(workedMinutes)} worked`}>
               <span className="text-[44px] leading-none font-extrabold tracking-tight">
                 {hh}:{mm}
               </span>
-              <span className="text-xl font-bold text-zm-pista/80">:{ss}</span>
+              <span className="text-xl font-bold text-zm-accent-soft/80">:{ss}</span>
             </p>
             <div className="mt-3">
               <div className="h-1.5 rounded-full bg-black/25 overflow-hidden" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(progressPercent || 0)} aria-label="Progress toward the daily target">
-                <div className="h-full rounded-full bg-zm-pista transition-[width] duration-500" style={{ width: `${progressPercent || 0}%` }} />
+                <div className="h-full rounded-full bg-zm-accent-soft transition-[width] duration-500" style={{ width: `${progressPercent || 0}%` }} />
               </div>
-              <p className="mt-1.5 text-xs text-zm-pista/90 flex items-center gap-1.5">
+              <p className="mt-1.5 text-xs text-zm-accent-soft/90 flex items-center gap-1.5">
                 <Target size={13} aria-hidden="true" />
                 {notStarted
                   ? `${formatMinutes(requiredMinutes)} required today`
@@ -278,7 +278,7 @@ export function MobileDashboardView({ attendance, tasks, tasksLoading }) {
             </div>
             <dl className="mt-4 divide-y divide-white/15 border-t border-white/15 text-sm">
               <div className="flex items-center justify-between py-3">
-                <dt className="flex items-center gap-2.5 text-zm-pista/90">
+                <dt className="flex items-center gap-2.5 text-zm-accent-soft/90">
                   <span className="w-7 h-7 rounded-lg bg-white/15 flex items-center justify-center" aria-hidden="true">
                     <Coffee size={15} />
                   </span>
@@ -287,7 +287,7 @@ export function MobileDashboardView({ attendance, tasks, tasksLoading }) {
                 <dd className="font-bold tabular-nums">{formatMinutes(breakMinutesUsed || 0)}</dd>
               </div>
               <div className="flex items-center justify-between pt-3">
-                <dt className="flex items-center gap-2.5 text-zm-pista/90">
+                <dt className="flex items-center gap-2.5 text-zm-accent-soft/90">
                   <span className="w-7 h-7 rounded-lg bg-white/15 flex items-center justify-center" aria-hidden="true">
                     <Clock size={15} />
                   </span>
@@ -358,7 +358,7 @@ export function MobileDashboardView({ attendance, tasks, tasksLoading }) {
                 type="button"
                 disabled={submitting}
                 onClick={handleCheckIn}
-                className="w-full h-14 rounded-2xl bg-zm-green hover:bg-zm-green-dark active:scale-[0.99] text-white font-extrabold tracking-wide uppercase flex items-center justify-center gap-2 transition disabled:opacity-50"
+                className="w-full h-14 rounded-2xl bg-zm-accent hover:bg-zm-accent-dark active:scale-[0.99] text-white font-extrabold tracking-wide uppercase flex items-center justify-center gap-2 transition disabled:opacity-50"
               >
                 {submitting ? <LoaderCircle size={22} className="animate-spin" aria-label="Checking in" /> : (<><PunchIcon size={19} aria-hidden="true" /> Check In</>)}
               </button>
@@ -392,14 +392,14 @@ export function MobileDashboardView({ attendance, tasks, tasksLoading }) {
                 type="button"
                 disabled={breakSubmitting}
                 onClick={() => endBreak().then(celebrate('endBreak'))}
-                className="w-full h-14 rounded-2xl bg-zm-green hover:bg-zm-green-dark active:scale-[0.99] text-white font-extrabold uppercase tracking-wide flex items-center justify-center gap-2 transition disabled:opacity-50"
+                className="w-full h-14 rounded-2xl bg-zm-accent hover:bg-zm-accent-dark active:scale-[0.99] text-white font-extrabold uppercase tracking-wide flex items-center justify-center gap-2 transition disabled:opacity-50"
               >
                 {breakSubmitting ? (
                   <LoaderCircle size={22} className="animate-spin" aria-label="Ending break" />
                 ) : (
                   <>
                     <Play size={18} fill="currentColor" aria-hidden="true" /> End Break
-                    <span className="tabular-nums font-bold text-zm-pista">{breakCountdownStr || '60:00'}</span>
+                    <span className="tabular-nums font-bold text-zm-accent-soft">{breakCountdownStr || '60:00'}</span>
                   </>
                 )}
               </button>
@@ -426,7 +426,7 @@ export function MobileDashboardView({ attendance, tasks, tasksLoading }) {
       {/* Tasks shortcut */}
       <Link to="/tasks" className="flex items-center justify-between gap-3 rounded-2xl bg-zm-card border border-zm-border px-4 py-3.5">
         <span className="flex items-center gap-3">
-          <span className="w-9 h-9 rounded-xl bg-zm-green/20 text-zm-green-light flex items-center justify-center" aria-hidden="true">
+          <span className="w-9 h-9 rounded-xl bg-zm-accent/20 text-zm-accent-light flex items-center justify-center" aria-hidden="true">
             <ListChecks size={18} />
           </span>
           <span>

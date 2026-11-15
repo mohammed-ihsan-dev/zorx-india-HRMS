@@ -24,7 +24,7 @@ export function WorkingHoursCard({ data }) {
       </div>
 
       <div className="flex-1 flex flex-col items-center justify-center py-2">
-        <CircularProgress percent={notStarted ? 0 : progressPercent} trackColor="#eef2ee" progressColor={completed ? '#1f5138' : '#3f7a33'}>
+        <CircularProgress percent={notStarted ? 0 : progressPercent} trackColor="#E9EEF4" progressColor={completed ? '#14A24A' : '#4881FF'}>
           {notStarted ? (
             <>
               <span className="text-sm font-bold text-slate-400">Not started</span>

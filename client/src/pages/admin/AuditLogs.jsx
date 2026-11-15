@@ -60,7 +60,7 @@ export function AuditLogs() {
         <button
           type="button"
           onClick={() => fetchLogs(page)}
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-brand-800 text-white font-bold text-sm hover:bg-brand-900 transition-colors shadow-xs"
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-brand-500 text-white font-bold text-sm hover:bg-brand-600 transition-colors shadow-xs"
         >
           <RotateCcw size={16} />
           Retry

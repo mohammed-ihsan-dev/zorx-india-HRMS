@@ -1,5 +1,6 @@
 const COLOR_MAP = {
-  green: 'bg-brand-100/90 text-brand-900 border-brand-300 font-bold',
+  // Positive statuses (Present, Approved…) = success green (Neon Green scale).
+  green: 'bg-emerald-100/90 text-emerald-800 border-emerald-300 font-bold',
   amber: 'bg-amber-100/90 text-amber-900 border-amber-300 font-bold',
   red: 'bg-red-100/90 text-red-900 border-red-300 font-bold',
   blue: 'bg-sky-100/90 text-sky-900 border-sky-300 font-bold',

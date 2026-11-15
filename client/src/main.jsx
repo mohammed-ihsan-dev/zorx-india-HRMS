@@ -17,7 +17,7 @@ import { getMyWfhToday } from './services/wfhService.js';
 // Attendance-first: for a signed-in user opening a dashboard, start today's
 // attendance request and the dashboard code now, in parallel with /auth/me.
 if (startAttendanceBoot({ load: () => Promise.all([getMyAttendanceToday(), getMyWfhToday().catch(() => null)]) })) {
-  if (window.location.pathname === '/admin') import('./pages/admin/Dashboard.jsx');
+  if (window.location.pathname === '/admin') import('./pages/admin/AdminHome.jsx');
   else import('./pages/employee/Dashboard.jsx');
 }
 

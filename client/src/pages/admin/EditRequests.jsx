@@ -228,7 +228,7 @@ export function EditRequests() {
             onClick={() => setActiveTab('edits')}
             className={`px-4 py-2 rounded-xl text-sm font-extrabold transition-all ${
               activeTab === 'edits'
-                ? 'bg-brand-900 text-white shadow-sm'
+                ? 'bg-brand-500 text-white shadow-sm'
                 : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
             }`}
           >
@@ -239,7 +239,7 @@ export function EditRequests() {
             onClick={() => setActiveTab('documents')}
             className={`px-4 py-2 rounded-xl text-sm font-extrabold transition-all flex items-center gap-2 ${
               activeTab === 'documents'
-                ? 'bg-brand-900 text-white shadow-sm'
+                ? 'bg-brand-500 text-white shadow-sm'
                 : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
             }`}
           >

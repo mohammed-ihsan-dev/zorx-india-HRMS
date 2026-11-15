@@ -66,7 +66,7 @@ export function InstallPrompt() {
           <p className="text-sm font-semibold text-slate-800 flex-1">Install ZORX HRMS for quicker access.</p>
           <button
             onClick={handleInstall}
-            className="text-xs font-extrabold uppercase tracking-wide bg-brand-800 text-white px-3 py-1.5 rounded-lg hover:bg-brand-900 transition-colors shrink-0"
+            className="text-xs font-extrabold uppercase tracking-wide bg-brand-500 text-white px-3 py-1.5 rounded-lg hover:bg-brand-600 transition-colors shrink-0"
           >
             Install
           </button>

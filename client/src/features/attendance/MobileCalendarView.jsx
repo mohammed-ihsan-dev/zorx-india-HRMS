@@ -129,7 +129,7 @@ export function MobileCalendarView() {
   );
 
   const toggleClass = (active) =>
-    `w-10 h-9 rounded-full flex items-center justify-center ${active ? 'bg-zm-elev text-zm-green-light' : 'text-zm-muted'}`;
+    `w-10 h-9 rounded-full flex items-center justify-center ${active ? 'bg-zm-elev text-zm-accent-light' : 'text-zm-muted'}`;
 
   return (
     <div className="space-y-4 max-w-md mx-auto">
@@ -164,7 +164,7 @@ export function MobileCalendarView() {
           type="button"
           onClick={() => go(-1)}
           aria-label="Previous month"
-          className="w-11 h-11 rounded-full bg-zm-card border border-zm-border text-zm-green-light flex items-center justify-center"
+          className="w-11 h-11 rounded-full bg-zm-card border border-zm-border text-zm-accent-light flex items-center justify-center"
         >
           <ChevronLeft size={22} aria-hidden="true" />
         </button>
@@ -175,7 +175,7 @@ export function MobileCalendarView() {
           type="button"
           onClick={() => go(1)}
           aria-label="Next month"
-          className="w-11 h-11 rounded-full bg-zm-card border border-zm-border text-zm-green-light flex items-center justify-center"
+          className="w-11 h-11 rounded-full bg-zm-card border border-zm-border text-zm-accent-light flex items-center justify-center"
         >
           <ChevronRight size={22} aria-hidden="true" />
         </button>
@@ -218,9 +218,9 @@ export function MobileCalendarView() {
                         title={[wfh && 'Work from home', onsite && 'Onsite work', overtime && 'Overtime recorded'].filter(Boolean).join(' · ') || undefined}
                         className={`relative aspect-square rounded-xl border text-sm font-bold flex items-center justify-center ${tone} ${
                           isSelected
-                            ? 'ring-2 ring-zm-green-light ring-offset-2 ring-offset-zm-card'
+                            ? 'ring-2 ring-zm-accent-light ring-offset-2 ring-offset-zm-card'
                             : isToday
-                              ? '!border-zm-green-light !border-2'
+                              ? '!border-zm-accent-light !border-2'
                               : ''
                         }`}
                       >
@@ -240,7 +240,7 @@ export function MobileCalendarView() {
 
           <ul className="flex flex-wrap gap-1.5" aria-label="Legend">
             <li className="flex items-center gap-1.5 h-7 px-2.5 rounded-full bg-zm-card border border-zm-border text-xs text-zm-muted">
-              <span className="w-2.5 h-2.5 rounded-full border-2 border-zm-green-light" aria-hidden="true" /> Today
+              <span className="w-2.5 h-2.5 rounded-full border-2 border-zm-accent-light" aria-hidden="true" /> Today
             </li>
             {LEGEND.map((l) => (
               <li
@@ -390,7 +390,7 @@ export function MobileCalendarView() {
                     </div>
                     <div>
                       <dt className="text-zm-muted">Worked</dt>
-                      <dd className="font-semibold text-zm-green-light">{r.checkOut ? formatMinutes(r.totalWorkingMinutes) : '—'}</dd>
+                      <dd className="font-semibold text-zm-accent-light">{r.checkOut ? formatMinutes(r.totalWorkingMinutes) : '—'}</dd>
                     </div>
                   </dl>
                 </li>

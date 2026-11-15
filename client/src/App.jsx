@@ -33,7 +33,11 @@ const Payslips = lazy(() => import('./pages/employee/Payslips.jsx').then((m) => 
 const AdminPayslips = lazy(() => import('./pages/admin/AdminPayslips.jsx').then((m) => ({ default: m.AdminPayslips })));
 const AdminHolidays = lazy(() => import('./pages/admin/AdminHolidays.jsx').then((m) => ({ default: m.AdminHolidays })));
 
-const AdminDashboard = lazy(() => import('./pages/admin/Dashboard.jsx').then((m) => ({ default: m.AdminDashboard })));
+const AdminHome = lazy(() => import('./pages/admin/AdminHome.jsx').then((m) => ({ default: m.AdminHome })));
+const AdminOverview = lazy(() => import('./pages/admin/AdminHome.jsx').then((m) => ({ default: m.AdminOverview })));
+// HR / Super Admin phone screens (AdminLayout's mobile shell).
+const AdminMenuPage = lazy(() => import('./features/adminMobile/AdminMenuPage.jsx').then((m) => ({ default: m.AdminMenuPage })));
+const AdminApprovalsPage = lazy(() => import('./features/adminMobile/AdminApprovalsPage.jsx').then((m) => ({ default: m.AdminApprovalsPage })));
 const Employees = lazy(() => import('./pages/admin/Employees.jsx').then((m) => ({ default: m.Employees })));
 const EmployeeDetail = lazy(() => import('./pages/admin/EmployeeDetail.jsx').then((m) => ({ default: m.EmployeeDetail })));
 const AdminAttendance = lazy(() => import('./pages/admin/AdminAttendance.jsx').then((m) => ({ default: m.AdminAttendance })));
@@ -84,7 +88,10 @@ export default function App() {
 
           <Route element={<RoleRoute roles={MANAGEMENT_ROLES} />}>
             <Route element={<AdminLayout />}>
-              <Route path="/admin" element={<AdminDashboard />} />
+              <Route path="/admin" element={<AdminHome />} />
+              <Route path="/admin/menu" element={<AdminMenuPage />} />
+              <Route path="/admin/overview" element={<AdminOverview />} />
+              <Route path="/admin/approvals" element={<AdminApprovalsPage />} />
               <Route path="/admin/profile" element={<Profile />} />
               <Route path="/admin/employees" element={<Employees />} />
               <Route path="/admin/employees/:id" element={<EmployeeDetail />} />

@@ -87,7 +87,7 @@ export function Topbar({ onMenuClick, title, profilePath }) {
           <Menu size={22} />
         </button>
         <div className="lg:hidden shrink-0 pr-2 border-r border-slate-200">
-          <ZorxLogo variant="green" size="sm" />
+          <ZorxLogo variant="black" size="sm" />
         </div>
         <h1 className="text-sm sm:text-2xl font-extrabold text-slate-900 truncate tracking-tight">{title}</h1>
       </div>

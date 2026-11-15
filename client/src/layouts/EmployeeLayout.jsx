@@ -40,7 +40,7 @@ export function EmployeeLayout() {
   }
 
   return (
-    <div className="h-screen w-full flex overflow-hidden bg-slate-50">
+    <div className="h-screen w-full flex overflow-hidden bg-zx-sea">
       <Sidebar items={employeeNavItemsFor(user)} open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       <div className="flex-1 min-w-0 flex flex-col h-full overflow-hidden">
         <Topbar onMenuClick={() => setSidebarOpen(true)} title={getTitle(location.pathname)} profilePath="/profile" />

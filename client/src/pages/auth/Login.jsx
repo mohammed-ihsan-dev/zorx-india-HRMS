@@ -48,16 +48,16 @@ export function Login() {
   }
 
   return (
-    <div className={mobile ? 'zm-mobile zm-viewport-min-h flex font-sans pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]' : 'min-h-screen flex bg-slate-50 font-sans'}>
+    <div className={mobile ? 'zm-mobile zm-viewport-min-h flex font-sans pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]' : 'min-h-screen flex bg-zx-sea font-sans'}>
       {/* Left Branding Panel (Dark Deep Green Background) */}
-      <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-brand-950 via-brand-900 to-brand-800 text-white flex-col justify-between p-12 lg:p-16 relative overflow-hidden shadow-2xl">
+      <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-black via-black to-brand-950 text-white flex-col justify-between p-12 lg:p-16 relative overflow-hidden shadow-2xl">
         <div className="absolute -right-24 -top-24 w-96 h-96 rounded-full bg-white/5 blur-xl pointer-events-none" />
         <div className="absolute -left-16 -bottom-24 w-80 h-80 rounded-full bg-white/5 blur-xl pointer-events-none" />
 
-        {/* White Logo on Dark Green Background */}
+        {/* White logo on the black brand panel */}
         <div className="relative">
           <ZorxLogo variant="white" size="login" />
-          <div className="mt-2 text-brand-200 text-sm font-semibold tracking-wider uppercase border-t border-white/10 pt-3 inline-block">
+          <div className="mt-2 text-brand-200 text-sm font-semibold tracking-wider uppercase border-t border-white/10 pt-3 block w-fit">
             Office Management System
           </div>
         </div>
@@ -91,7 +91,7 @@ export function Login() {
         >
           <div className="flex flex-col items-center mb-8 text-center">
             {/* Official Green Logo on Light Background */}
-            <ZorxLogo variant={mobile ? 'white' : 'green'} size="login" className="mb-4" />
+            <ZorxLogo variant={mobile ? 'white' : 'black'} size="login" className="mb-4" />
             <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight mt-2">Welcome Back</h1>
             <p className="text-base text-slate-600 mt-1.5">Sign in to access your ZORX INDIA workspace.</p>
           </div>

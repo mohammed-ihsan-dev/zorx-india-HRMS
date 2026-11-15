@@ -20,11 +20,11 @@ const GROUPS = [
   { title: 'Account', paths: ['/profile', '/settings'] },
 ];
 
-function MenuRow({ icon: Icon, label, to, onClick, detail, busy = false, tone = 'text-zm-text' }) {
+export function MenuRow({ icon: Icon, label, to, onClick, detail, busy = false, tone = 'text-zm-text' }) {
   const inner = (
     <>
       <span className="flex items-center gap-3 min-w-0">
-        <span className="w-9 h-9 rounded-xl bg-zm-elev text-zm-green-light flex items-center justify-center shrink-0" aria-hidden="true">
+        <span className="w-9 h-9 rounded-xl bg-zm-elev text-zm-accent-light flex items-center justify-center shrink-0" aria-hidden="true">
           <Icon size={18} />
         </span>
         <span className="min-w-0">
@@ -33,7 +33,7 @@ function MenuRow({ icon: Icon, label, to, onClick, detail, busy = false, tone = 
         </span>
       </span>
       {busy ? (
-        <Loader2 size={18} className="text-zm-green-light shrink-0 animate-spin" aria-hidden="true" />
+        <Loader2 size={18} className="text-zm-accent-light shrink-0 animate-spin" aria-hidden="true" />
       ) : (
         <ChevronRight size={18} className="text-zm-muted shrink-0" aria-hidden="true" />
       )}
@@ -51,10 +51,10 @@ function MenuRow({ icon: Icon, label, to, onClick, detail, busy = false, tone = 
   );
 }
 
-const UPDATE_TONE = { current: 'text-zm-green-light', available: 'text-amber-300', error: 'text-rose-300' };
+const UPDATE_TONE = { current: 'text-zm-accent-light', available: 'text-amber-300', error: 'text-rose-300' };
 
 /** Real check against the deployed version (same logic as automatic updates). */
-function CheckForUpdatesRow() {
+export function CheckForUpdatesRow() {
   const { state, run, title, detail } = useCheckForUpdates();
   return (
     <div aria-live="polite">
@@ -63,7 +63,7 @@ function CheckForUpdatesRow() {
   );
 }
 
-function Section({ title, children }) {
+export function Section({ title, children }) {
   return (
     <section className="space-y-2">
       <h2 className="px-1 text-xs font-bold uppercase tracking-wider text-zm-muted">{title}</h2>
@@ -112,12 +112,12 @@ export function MenuPage() {
             firstName={employee?.firstName}
             lastName={employee?.lastName}
             size="w-14 h-14"
-            className="ring-2 ring-zm-green shrink-0"
+            className="ring-2 ring-zm-accent shrink-0"
           />
           <span className="min-w-0">
             <span className="block text-lg font-bold text-zm-text truncate">{name}</span>
             {subtitle && <span className="block text-xs text-zm-muted truncate">{subtitle}</span>}
-            <span className="block text-xs font-semibold text-zm-green-light mt-0.5">My Profile</span>
+            <span className="block text-xs font-semibold text-zm-accent-light mt-0.5">My Profile</span>
           </span>
         </span>
         <ChevronRight size={20} className="text-zm-muted shrink-0" aria-hidden="true" />

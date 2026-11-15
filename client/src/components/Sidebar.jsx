@@ -15,7 +15,7 @@ export function Sidebar({ items, open, onClose, footer, theme = 'dark' }) {
       )}
       <aside
         className={`fixed lg:static inset-y-0 left-0 h-full w-72 flex flex-col z-40 shrink-0 transition-transform duration-200 ease-in-out border-r ${isDark
-            ? 'bg-brand-950 text-brand-100 border-brand-900'
+            ? 'bg-black text-zx-sea border-white/10'
             : 'bg-white text-slate-800 border-slate-200'
           } ${open ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}
       >
@@ -25,12 +25,12 @@ export function Sidebar({ items, open, onClose, footer, theme = 'dark' }) {
             }`}
         >
           <div className="flex items-center">
-            <ZorxLogo variant={isDark ? 'white' : 'green'} size="sidebar" />
+            <ZorxLogo variant={isDark ? 'white' : 'black'} size="sidebar" />
           </div>
           <button
             onClick={onClose}
             className={`lg:hidden p-1.5 rounded-lg transition-colors ${isDark
-                ? 'text-brand-300 hover:text-white hover:bg-white/10'
+                ? 'text-slate-400 hover:text-white hover:bg-white/10'
                 : 'text-slate-500 hover:text-slate-800 hover:bg-slate-100'
               }`}
           >
@@ -49,10 +49,10 @@ export function Sidebar({ items, open, onClose, footer, theme = 'dark' }) {
               className={({ isActive }) =>
                 `flex items-center gap-3.5 px-4 py-3 rounded-xl text-[15px] font-semibold transition-all duration-150 ${isActive
                   ? isDark
-                    ? 'bg-brand-800 text-white shadow-sm ring-1 ring-white/15'
-                    : 'bg-brand-50 text-brand-900 font-bold border-l-4 border-brand-700'
+                    ? 'bg-brand-500 text-white shadow-sm ring-1 ring-white/15'
+                    : 'bg-brand-50 text-brand-800 font-bold border-l-4 border-brand-500'
                   : isDark
-                    ? 'text-brand-200 hover:bg-white/10 hover:text-white'
+                    ? 'text-slate-300 hover:bg-white/10 hover:text-white'
                     : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
                 }`
               }

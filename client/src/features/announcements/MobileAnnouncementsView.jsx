@@ -34,7 +34,7 @@ export function MobileAnnouncementsView({ announcements, loading }) {
       <div className="flex items-center justify-between gap-3">
         <h1 className="text-2xl font-extrabold text-zm-text tracking-tight">Announcements</h1>
         {months.length > 0 && (
-          <label className="relative inline-flex items-center gap-2 h-10 px-3.5 rounded-full bg-zm-card border border-zm-green/40 text-sm font-semibold text-zm-green-light">
+          <label className="relative inline-flex items-center gap-2 h-10 px-3.5 rounded-full bg-zm-card border border-zm-accent/40 text-sm font-semibold text-zm-accent-light">
             <CalendarDays size={15} aria-hidden="true" />
             <span aria-hidden="true">{monthLabel}</span>
             <ChevronDown size={15} aria-hidden="true" />
@@ -59,7 +59,7 @@ export function MobileAnnouncementsView({ announcements, loading }) {
         [1, 2, 3].map((i) => <div key={i} className="h-24 rounded-2xl bg-zm-card animate-pulse" />)
       ) : shown.length === 0 ? (
         <div className="flex flex-col items-center text-center py-16">
-          <span className="w-24 h-24 rounded-full bg-zm-card border border-zm-border text-zm-green-light flex items-center justify-center" aria-hidden="true">
+          <span className="w-24 h-24 rounded-full bg-zm-card border border-zm-border text-zm-accent-light flex items-center justify-center" aria-hidden="true">
             <Megaphone size={34} />
           </span>
           <p className="mt-5 text-lg font-bold text-zm-text">No announcements yet</p>

@@ -1,23 +1,32 @@
 import { useState } from 'react';
 
 /**
- * ZorxLogo Component
- * 
+ * ZorxLogo — the official ZORX INDIA logo (Nov 2026 identity).
+ *
  * Props:
- * - variant: 'green' (default for light backgrounds) | 'white' (for dark green/black backgrounds)
+ * - variant: 'black' (default, for light backgrounds) | 'white' (for dark backgrounds).
+ *            'green' is accepted as an alias of 'black' for older call sites.
  * - size: 'sm' | 'md' | 'lg' | 'xl' | 'sidebar' | 'navbar' | 'login'
- * - className: custom additional CSS classes
- * - showTagline: boolean (default true)
+ * - className: extra CSS classes
+ * - showTagline: show the full logo with "INTERACTIVE AGENCY" (default true). Compact
+ *   header sizes ('sm', 'navbar') always use the mark without the tagline, which keeps
+ *   those headers the same height as before.
+ *
+ * Assets: public/assets/zorx-logo-{black,white}[-without-text].{webp,png} — the
+ * supplied files (PNG, 1920px) plus 800px WebP copies. Proportions are never changed
+ * (width-driven, height auto).
  */
-export function ZorxLogo({ variant = 'green', size = 'md', className = '', showTagline = true }) {
-  const [imgError, setImgError] = useState(false);
+const COMPACT_SIZES = new Set(['sm', 'navbar']);
+const DIMENSIONS = { full: { width: 800, height: 333 }, mark: { width: 800, height: 258 } };
 
-  // Small WebP first (~30 KB, 640 px — sharp at every size used); the original PNG,
-  // then the other colour, as fallbacks; then the text logo.
-  const other = variant === 'white' ? 'green' : 'white';
-  const sources = [`/assets/zorx-logo-${variant === 'white' ? 'white' : 'green'}.webp`, `/assets/zorx-logo-${variant === 'white' ? 'white' : 'green'}.png`, `/assets/zorx-logo-${other}.png`];
+export function ZorxLogo({ variant = 'black', size = 'md', className = '', showTagline = true }) {
+  const color = variant === 'white' ? 'white' : 'black';
+  const withText = showTagline && !COMPACT_SIZES.has(size);
+  const base = `/assets/zorx-logo-${color}${withText ? '' : '-without-text'}`;
+  // Small WebP first, then the supplied PNG of the same logo (never an old logo).
+  const sources = [`${base}.webp`, `${base}.png`];
   const [srcIndex, setSrcIndex] = useState(0);
-  const currentSrc = sources[srcIndex];
+  const { width, height } = DIMENSIONS[withText ? 'full' : 'mark'];
 
   const sizeStyles = {
     sm: 'w-28 sm:w-32',
@@ -25,46 +34,20 @@ export function ZorxLogo({ variant = 'green', size = 'md', className = '', showT
     lg: 'w-48 sm:w-56',
     xl: 'w-60 sm:w-72',
     navbar: 'w-36 sm:w-44',
-    sidebar: 'w-44 sm:w-48',
+    sidebar: 'w-36 sm:w-40', // full logo is taller (2.4:1): same header height as before
     login: 'w-56 sm:w-64',
   }[size] || 'w-40';
-
-  const handleError = () => {
-    if (srcIndex < sources.length - 1) setSrcIndex(srcIndex + 1);
-    else setImgError(true);
-  };
-
-  if (imgError) {
-    // Text fallback if both image sources fail
-    const isDark = variant === 'white';
-    return (
-      <div className={`flex flex-col items-start font-sans shrink-0 ${className}`}>
-        <div className="flex items-center gap-2">
-          <div className={`px-2.5 py-1 rounded-lg font-black text-lg tracking-wider ${isDark ? 'bg-brand-200 text-brand-950' : 'bg-brand-800 text-white'}`}>
-            ZORX
-          </div>
-          <span className={`font-extrabold text-xl tracking-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>
-            INDIA
-          </span>
-        </div>
-        {showTagline && (
-          <span className={`text-[10px] font-semibold uppercase tracking-widest mt-1 ${isDark ? 'text-brand-200' : 'text-brand-700'}`}>
-            Fueling Brands Growth
-          </span>
-        )}
-      </div>
-    );
-  }
 
   return (
     <div className={`inline-flex items-center shrink-0 ${sizeStyles} ${className}`}>
       <img
-        src={currentSrc}
+        key={base}
+        src={sources[srcIndex]}
         alt="ZORX India"
-        width={640}
-        height={213}
+        width={width}
+        height={height}
         decoding="async"
-        onError={handleError}
+        onError={() => srcIndex < sources.length - 1 && setSrcIndex(srcIndex + 1)}
         className="w-full h-auto object-contain block"
       />
     </div>

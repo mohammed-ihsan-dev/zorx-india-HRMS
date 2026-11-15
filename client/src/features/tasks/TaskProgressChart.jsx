@@ -3,9 +3,9 @@ import { Card } from '../../components/Card.jsx';
 import { EmptyState } from '../../components/EmptyState.jsx';
 
 const SEGMENTS = [
-  { key: 'completed', label: 'Completed', color: '#1f5138' },
-  { key: 'inProgress', label: 'In Progress', color: '#78b568' },
-  { key: 'pending', label: 'Pending', color: '#c8e6c0' },
+  { key: 'completed', label: 'Completed', color: '#4881FF' },
+  { key: 'inProgress', label: 'In Progress', color: '#9DBBFF' },
+  { key: 'pending', label: 'Pending', color: '#DDE7FF' },
 ];
 
 export function TaskProgressChart({ tasks, loading }) {

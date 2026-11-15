@@ -4,8 +4,8 @@
 // inline boot script in index.html (it runs before React, without the user).
 import { BACK_OFFICE_ROLES } from '../utils/constants.js';
 
-export const DARK_BG = '#101418';
-export const BRAND_THEME = '#1f5138';
+export const DARK_BG = '#000000';
+export const BRAND_THEME = '#000000';
 
 // Pages that stay light on phones (admin area, sign-up/recovery, error pages).
 const LIGHT_PREFIXES = ['/admin', '/signup', '/forgot-password', '/reset-password', '/change-password', '/not-authorized'];

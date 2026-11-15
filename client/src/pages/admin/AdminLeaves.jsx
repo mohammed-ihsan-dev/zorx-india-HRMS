@@ -11,6 +11,7 @@ import { ConfirmDialog } from '../../components/ConfirmDialog.jsx';
 import * as leaveService from '../../services/leaveService.js';
 import { formatDate, titleCase } from '../../utils/formatters.js';
 import { useAuth } from '../../hooks/useAuth.js';
+import { leaveReviewBlock } from '../../features/leave/leaveReviewRules.js';
 import { BACK_OFFICE_ROLES } from '../../utils/constants.js';
 import { useToast } from '../../hooks/useToast.js';
 import { getErrorMessage } from '../../services/apiClient.js';
@@ -113,6 +114,10 @@ export function AdminLeaves() {
             header: '',
             render: (r) =>
               r.status === 'PENDING' ? (
+                leaveReviewBlock(user, r) ? (
+                  // Server refuses these (own / HR requests) — say who reviews instead of offering buttons.
+                  <span className="text-xs font-semibold text-slate-500">{leaveReviewBlock(user, r)}</span>
+                ) : (
                 <div className="flex items-center gap-2">
                   <Button size="sm" variant="secondary" icon={Check} onClick={() => setActionTarget({ leave: r, action: 'approve' })}>
                     Approve
@@ -121,6 +126,7 @@ export function AdminLeaves() {
                     Reject
                   </Button>
                 </div>
+                )
               ) : null,
           },
         ]

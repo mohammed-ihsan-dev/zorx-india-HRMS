@@ -20,7 +20,7 @@ export function UpdateToast() {
   return (
     <div
       role="status"
-      className="zm-update-toast fixed bottom-4 inset-x-4 sm:inset-x-auto sm:right-4 z-[200] max-w-sm sm:ml-auto bg-brand-950 text-white rounded-2xl shadow-popover border border-brand-800 px-4 py-3.5 flex items-center gap-3"
+      className="zm-update-toast fixed bottom-4 inset-x-4 sm:inset-x-auto sm:right-4 z-[200] max-w-sm sm:ml-auto bg-black text-white rounded-2xl shadow-popover border border-brand-800 px-4 py-3.5 flex items-center gap-3"
     >
       <RefreshCw size={18} className="text-brand-200 shrink-0" />
       <p className="text-sm font-semibold flex-1 text-white">{WAITING_TEXT[blockedBy] || 'New version available. Refresh to update.'}</p>

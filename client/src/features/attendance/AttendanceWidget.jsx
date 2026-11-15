@@ -179,7 +179,7 @@ export function AttendanceWidget({ data }) {
             type="button"
             disabled={submitting}
             onClick={handleCheckInClick}
-            className="w-32 h-32 sm:w-36 sm:h-36 rounded-full bg-gradient-to-br from-brand-800 via-brand-900 to-brand-950 text-white font-extrabold shadow-xl shadow-brand-950/30 hover:scale-105 active:scale-95 transition-all duration-200 flex flex-col items-center justify-center gap-1.5 cursor-pointer ring-4 ring-brand-100 hover:ring-brand-200 disabled:opacity-50 disabled:pointer-events-none"
+            className="w-32 h-32 sm:w-36 sm:h-36 rounded-full bg-gradient-to-br from-brand-500 via-brand-600 to-brand-700 text-white font-extrabold shadow-xl shadow-brand-950/30 hover:scale-105 active:scale-95 transition-all duration-200 flex flex-col items-center justify-center gap-1.5 cursor-pointer ring-4 ring-brand-100 hover:ring-brand-200 disabled:opacity-50 disabled:pointer-events-none"
           >
             {submitting ? (
               <LoaderCircle size={32} className="animate-spin" />

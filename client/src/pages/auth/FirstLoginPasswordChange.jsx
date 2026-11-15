@@ -60,7 +60,7 @@ export function FirstLoginPasswordChange() {
     <div className="min-h-screen flex items-center justify-center bg-slate-50 p-6 sm:p-12 font-sans">
       <div className="w-full max-w-md bg-white p-8 sm:p-10 rounded-3xl border border-slate-200/90 shadow-card-lg space-y-6">
         <div className="flex flex-col items-center text-center">
-          <ZorxLogo variant="green" size="login" className="mb-4" />
+          <ZorxLogo variant="black" size="login" className="mb-4" />
           <div className="w-12 h-12 rounded-2xl bg-amber-100 text-amber-800 flex items-center justify-center mb-3">
             <KeyRound size={24} />
           </div>

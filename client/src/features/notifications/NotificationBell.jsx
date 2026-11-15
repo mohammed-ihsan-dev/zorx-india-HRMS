@@ -90,7 +90,7 @@ export function NotificationBell() {
             >
               <div className="flex items-start justify-between gap-2">
                 <p className="text-sm font-extrabold text-slate-900 leading-snug">{n.title}</p>
-                {!n.read && <span className="w-2 h-2 rounded-full bg-brand-700 shrink-0 mt-1" />}
+                {!n.read && <span className="w-2 h-2 rounded-full bg-brand-500 shrink-0 mt-1" />}
               </div>
               <p className="text-xs sm:text-sm text-slate-600 mt-1 line-clamp-2 leading-relaxed">{n.message}</p>
               <p className="text-[11px] font-semibold text-slate-400 mt-1.5">{formatDateTime(n.createdAt)}</p>

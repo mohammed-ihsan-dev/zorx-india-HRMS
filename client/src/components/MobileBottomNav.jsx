@@ -13,14 +13,17 @@ const NAV_ITEMS = [
 // Plain Link (not NavLink): NavLink would replace aria-current with its own route match.
 const MENU_CHILDREN = ['/profile', '/tasks', '/work-from-home', '/onsite-work', '/content-calendar', '/notifications', '/payslips', '/settings'];
 
-function isActive(item, pathname) {
+function isActive(item, pathname, menuPath, menuChildren) {
   if (item.end) return pathname === item.to;
-  if (item.to === '/menu') return pathname.startsWith('/menu') || MENU_CHILDREN.some((p) => pathname.startsWith(p));
+  if (item.to === menuPath) return pathname.startsWith(menuPath) || menuChildren.some((p) => pathname.startsWith(p));
   return pathname.startsWith(item.to);
 }
 
-/** Phone-only bottom navigation (rendered by EmployeeLayout's mobile shell). */
-export function MobileBottomNav() {
+/**
+ * Phone-only bottom navigation. Defaults = the Employee shell (EmployeeLayout);
+ * the HR / Super Admin shells (AdminLayout) pass their own role-specific items.
+ */
+export function MobileBottomNav({ items = NAV_ITEMS, menuPath = '/menu', menuChildren = MENU_CHILDREN }) {
   const { pathname } = useLocation();
 
   return (
@@ -29,8 +32,8 @@ export function MobileBottomNav() {
       className="fixed bottom-0 inset-x-0 z-40 bg-zm-card/95 backdrop-blur-md border-t border-zm-border rounded-t-3xl px-3 pt-2.5 pb-[calc(env(safe-area-inset-bottom,0px)+10px)]"
     >
       <ul className="flex items-center justify-around max-w-md mx-auto">
-        {NAV_ITEMS.map((item) => {
-          const active = isActive(item, pathname);
+        {items.map((item) => {
+          const active = isActive(item, pathname, menuPath, menuChildren);
           const Icon = item.icon;
           return (
             <li key={item.to}>
@@ -39,7 +42,7 @@ export function MobileBottomNav() {
                 aria-label={item.label}
                 aria-current={active ? 'page' : undefined}
                 className={`w-12 h-12 rounded-full flex items-center justify-center transition-colors ${
-                  active ? 'bg-zm-green text-white shadow-lg shadow-zm-green/30' : 'text-zm-muted hover:text-zm-text'
+                  active ? 'bg-zm-accent text-white shadow-lg shadow-zm-accent/30' : 'text-zm-muted hover:text-zm-text'
                 }`}
               >
                 <Icon size={22} strokeWidth={active ? 2.2 : 1.8} aria-hidden="true" />

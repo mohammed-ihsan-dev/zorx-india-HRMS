@@ -3,7 +3,7 @@ export function CircularProgress({
   size = 148,
   strokeWidth = 12,
   trackColor = '#e7ede9',
-  progressColor = '#1f5138',
+  progressColor = '#4881FF',
   children,
 }) {
   const clamped = Math.min(100, Math.max(0, percent || 0));

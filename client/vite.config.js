@@ -58,9 +58,9 @@ export default defineConfig({
         scope: '/',
         display: 'standalone',
         orientation: 'portrait-primary',
-        theme_color: '#1f5138',
+        theme_color: '#000000',
         // Launch splash: the dark phone app's background, so it doesn't flash white.
-        background_color: '#101418',
+        background_color: '#000000',
         icons: [
           { src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' },
           { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png' },
@@ -71,10 +71,11 @@ export default defineConfig({
         // Only the built app-shell assets (JS/CSS/HTML/icons/fonts) are precached.
         globPatterns: ['**/*.{js,css,html,svg,png,ico,woff,woff2}'],
         // Not pre-downloaded on install (~5 MB that competed with the first Check-in on
-        // slow phones): the one-off Gandhi Jayanti image, the large original logo PNGs
-        // (the app shows the small WebP logos) and the staff photos in public/profile(s)
-        // (up to 1.6 MB each, twice via the symlink). All still load normally when shown.
-        globIgnores: ['**/gandhi-jayanti-2026.png', '**/zorx-logo-white.png', '**/zorx-logo-green.png', 'profile/**', 'profiles/**'],
+        // slow phones): the one-off Gandhi Jayanti image, the logo PNGs (the app shows the
+        // small WebP logos; PNGs are only an error fallback), the retired green logo and
+        // the staff photos in public/profile(s) (up to 1.6 MB each, twice via the symlink).
+        // All still load normally when shown.
+        globIgnores: ['**/gandhi-jayanti-2026.png', '**/zorx-logo-*.png', 'profile/**', 'profiles/**'],
         // Belt-and-suspenders: even if something matched at runtime, never let
         // API calls be served from — or written into — the cache.
         navigateFallbackDenylist: [/^\/api\//],

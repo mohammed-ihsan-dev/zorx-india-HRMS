@@ -53,7 +53,7 @@ export function Pagination({ page, pages, onPageChange, total, limit = 10, itemL
               type="button"
               onClick={() => onPageChange(1)}
               className={`w-8 h-8 rounded-lg text-xs font-bold transition-colors ${
-                page === 1 ? 'bg-brand-700 text-white shadow-xs' : 'text-slate-700 hover:bg-slate-100 border border-slate-200'
+                page === 1 ? 'bg-brand-500 text-white shadow-xs' : 'text-slate-700 hover:bg-slate-100 border border-slate-200'
               }`}
             >
               1
@@ -68,7 +68,7 @@ export function Pagination({ page, pages, onPageChange, total, limit = 10, itemL
             type="button"
             onClick={() => onPageChange(p)}
             className={`w-8 h-8 rounded-lg text-xs font-bold transition-colors ${
-              page === p ? 'bg-brand-700 text-white shadow-xs' : 'text-slate-700 hover:bg-slate-100 border border-slate-200'
+              page === p ? 'bg-brand-500 text-white shadow-xs' : 'text-slate-700 hover:bg-slate-100 border border-slate-200'
             }`}
           >
             {p}
@@ -82,7 +82,7 @@ export function Pagination({ page, pages, onPageChange, total, limit = 10, itemL
               type="button"
               onClick={() => onPageChange(pages)}
               className={`w-8 h-8 rounded-lg text-xs font-bold transition-colors ${
-                page === pages ? 'bg-brand-700 text-white shadow-xs' : 'text-slate-700 hover:bg-slate-100 border border-slate-200'
+                page === pages ? 'bg-brand-500 text-white shadow-xs' : 'text-slate-700 hover:bg-slate-100 border border-slate-200'
               }`}
             >
               {pages}
