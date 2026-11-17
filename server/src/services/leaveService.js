@@ -8,12 +8,13 @@ import {
   HALF_DAY_DAYS,
   MONTHLY_LEAVE_ALLOWANCE,
   LEAVE_ACCRUAL,
+  LEAVE_TYPE_LABEL,
 } from '../utils/constants.js';
 import { ApiError } from '../utils/ApiError.js';
 import { CASUAL_CREDIT_START_OVERRIDES } from '../config/leavePolicies.js';
 
 const ACTIVE_STATUSES = [LEAVE_STATUS.PENDING, LEAVE_STATUS.APPROVED];
-const TYPE_LABEL = { [LEAVE_TYPE.CASUAL]: 'Casual Leave', [LEAVE_TYPE.SICK]: 'Sick Leave', [LEAVE_TYPE.PAID]: 'Paid Leave' };
+const TYPE_LABEL = LEAVE_TYPE_LABEL;
 
 /**
  * Days a request consumes, computed on the server only: 0.5 for a half day
@@ -160,7 +161,7 @@ const monthYear = (d) => d.toLocaleDateString('en-IN', { month: 'long', year: 'n
  * Company leave policy, enforced on both submission and approval:
  * - Casual Leave and Sick Leave: only within the accrued balance (1/month,
  *   unlimited carry-forward; Sick from the second month after joining);
- * - Paid Leave: no allowance (taken at the employee's own risk).
+ * - LoP: no allowance (taken at the employee's own risk).
  * On submission, pending requests hold their days (no double-requesting the same
  * balance); on approval (`approving: true`) only already-approved leave counts,
  * so any one of several pending requests can still be approved.
@@ -181,7 +182,7 @@ export async function assertLeaveAllowed(employee, leaveType, startDate, days, e
       const { label } = monthWindow(startDate);
       throw ApiError.badRequest(
         `Not enough ${TYPE_LABEL[leaveType]}: ${available} day${available === 1 || available === 0.5 ? '' : 's'} available for ${label}, ${days} requested ` +
-          `(short by ${days - available}). You can choose Paid Leave instead.`,
+          `(short by ${days - available}). You can choose LoP instead.`,
         { leaveType, available, requested: days, shortfall: days - available }
       );
     }
@@ -196,8 +197,8 @@ export async function assertLeaveAllowed(employee, leaveType, startDate, days, e
     const { label } = monthWindow(startDate);
     throw ApiError.badRequest(
       used >= allowance
-        ? `You have already used your ${TYPE_LABEL[leaveType]} for ${label}. Please choose Paid Leave instead.`
-        : `${TYPE_LABEL[leaveType]} is limited to ${allowance} day per month. Please choose Paid Leave for the remaining days.`
+        ? `You have already used your ${TYPE_LABEL[leaveType]} for ${label}. Please choose LoP instead.`
+        : `${TYPE_LABEL[leaveType]} is limited to ${allowance} day per month. Please choose LoP for the remaining days.`
     );
   }
 }
@@ -255,10 +256,11 @@ async function accruedBalance(type, employee, referenceDate) {
   };
 }
 
-/** Current balances for the Leave page (Casual and Sick: accrued balance; Paid: used this month). */
+/** Current balances for the Leave page (Casual and Sick: accrued balance; LoP: used this month). */
 export async function getLeaveSummary(employee, referenceDate = new Date()) {
   const { start, label } = monthWindow(referenceDate);
   const eligibleFrom = getSickLeaveEligibleFrom(employee.joiningDate);
+  const lop = { allowance: null, used: await countMonthlyLeaveDays(employee._id, LEAVE_TYPE.LOP, start) };
   return {
     month: label,
     types: {
@@ -268,7 +270,9 @@ export async function getLeaveSummary(employee, referenceDate = new Date()) {
         eligibleFrom,
         eligibleNow: Boolean(eligibleFrom) && new Date(referenceDate) >= eligibleFrom,
       },
-      [LEAVE_TYPE.PAID]: { allowance: null, used: await countMonthlyLeaveDays(employee._id, LEAVE_TYPE.PAID, start) },
+      [LEAVE_TYPE.LOP]: lop,
+      // Same entry under the old key, so an app version cached before the rename still renders.
+      [LEAVE_TYPE.PAID]: lop,
     },
   };
 }

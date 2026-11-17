@@ -15,7 +15,13 @@ import {
 import { notify } from '../services/notificationService.js';
 import { recordAudit } from '../services/auditService.js';
 import { VIRTUAL_EMPLOYEE_ID } from '../utils/virtualTestUser.js';
-import { LEAVE_STATUS, LEAVE_DURATION, NOTIFICATION_TYPE, BACK_OFFICE_ROLES, ROLES } from '../utils/constants.js';
+import { LEAVE_STATUS, LEAVE_DURATION, NOTIFICATION_TYPE, BACK_OFFICE_ROLES, ROLES, LEAVE_TYPE_LABEL } from '../utils/constants.js';
+
+// "casual leave" / "sick leave" / "LoP" in notification sentences.
+const typeInSentence = (t) => {
+  const label = LEAVE_TYPE_LABEL[t] || `${t} leave`;
+  return label === 'LoP' ? label : label.toLowerCase();
+};
 
 function requireEmployee(req) {
   const employeeId = req.user.employeeId?._id;
@@ -106,7 +112,7 @@ export const createLeave = asyncHandler(async (req, res) => {
         userId: u._id,
         type: NOTIFICATION_TYPE.LEAVE_SUBMITTED,
         title: 'New leave request',
-        message: `${req.user.employeeId.firstName} ${req.user.employeeId.lastName} submitted a ${halfDaySession ? `half-day (${halfDaySession.toLowerCase()}) ` : ''}${leaveType.toLowerCase()} leave request.`,
+        message: `${req.user.employeeId.firstName} ${req.user.employeeId.lastName} submitted a ${halfDaySession ? `half-day (${halfDaySession.toLowerCase()}) ` : ''}${typeInSentence(leaveType)} request.`,
         link: '/admin/leaves',
       })
     )
@@ -218,7 +224,7 @@ export const approveLeave = asyncHandler(async (req, res) => {
       userId: employeeUser._id,
       type: NOTIFICATION_TYPE.LEAVE_APPROVED,
       title: 'Leave approved',
-      message: `Your ${leave.leaveType.toLowerCase()} leave request has been approved.`,
+      message: `Your ${typeInSentence(leave.leaveType)} request has been approved.`,
       link: '/leave',
     });
   }
@@ -246,7 +252,7 @@ export const rejectLeave = asyncHandler(async (req, res) => {
       userId: employeeUser._id,
       type: NOTIFICATION_TYPE.LEAVE_REJECTED,
       title: 'Leave rejected',
-      message: `Your ${leave.leaveType.toLowerCase()} leave request has been rejected.`,
+      message: `Your ${typeInSentence(leave.leaveType)} request has been rejected.`,
       link: '/leave',
     });
   }

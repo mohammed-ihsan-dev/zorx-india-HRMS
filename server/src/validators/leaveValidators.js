@@ -3,7 +3,8 @@ import { REQUESTABLE_LEAVE_TYPES, LEAVE_DURATION, HALF_DAY_SESSION } from '../ut
 
 export const createLeaveSchema = z
   .object({
-    leaveType: z.enum(REQUESTABLE_LEAVE_TYPES),
+    // 'PAID' is the old name of LoP (an app version cached before the rename still sends it).
+    leaveType: z.preprocess((v) => (v === 'PAID' ? 'LOP' : v), z.enum(REQUESTABLE_LEAVE_TYPES)),
     startDate: z.coerce.date(),
     endDate: z.coerce.date(),
     reason: z.string().min(3, 'Please provide a reason for your leave.'),

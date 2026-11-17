@@ -14,7 +14,7 @@ import { formatLeaveDays, accruedAvailable, ACCRUING_TYPES } from './leaveFormat
 const LEAVE_OPTIONS = [
   { type: 'CASUAL', label: 'Casual Leave' },
   { type: 'SICK', label: 'Sick Leave' },
-  { type: 'PAID', label: 'Paid Leave' },
+  { type: 'LOP', label: 'LoP (Loss of Pay)' },
 ];
 const ALLOWED_TYPES = ['application/pdf', 'image/jpeg', 'image/png'];
 const DURATIONS = [
@@ -117,7 +117,7 @@ export function LeaveRequestModal({ open, onClose, initialDate, initialHalfDaySe
   const blockedNotes = LEAVE_OPTIONS.map(({ type }) => unavailableReason(type)).filter(Boolean);
   const accruedShortfall =
     accruedLeft !== null && days > accruedLeft
-      ? `Not enough ${typeName}: ${accruedLeft} day${accruedLeft === 1 || accruedLeft === 0.5 ? '' : 's'} available for ${monthLabel(form.startDate)}, this request needs ${days} (short by ${days - accruedLeft}). You can choose Paid Leave instead.`
+      ? `Not enough ${typeName}: ${accruedLeft} day${accruedLeft === 1 || accruedLeft === 0.5 ? '' : 's'} available for ${monthLabel(form.startDate)}, this request needs ${days} (short by ${days - accruedLeft}). You can choose LoP instead.`
       : '';
   // The selected type is never changed automatically — the request is just blocked with the reason.
   const blockingReason = unavailableReason(form.leaveType) || accruedShortfall;
@@ -220,10 +220,10 @@ export function LeaveRequestModal({ open, onClose, initialDate, initialHalfDaySe
           </div>
         )}
 
-        {form.leaveType === 'PAID' && (
+        {form.leaveType === 'LOP' && (
           <div className="flex items-center gap-2 text-xs font-semibold text-amber-900 bg-amber-50 border border-amber-200 rounded-lg p-2.5">
             <AlertTriangle size={16} className="text-amber-600 shrink-0" />
-            <span>Paid Leave is outside the company allowance and is taken at your own risk.</span>
+            <span>LoP (Loss of Pay) is outside the company allowance and is taken at your own risk.</span>
           </div>
         )}
 

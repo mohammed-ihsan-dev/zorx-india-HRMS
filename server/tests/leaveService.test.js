@@ -159,9 +159,9 @@ describe('leaveService', () => {
         await expect(leaveService.assertLeaveAllowed(employee(), LEAVE_TYPE.CASUAL, a.startDate, 1, a._id, { approving: true })).resolves.toBeUndefined();
       });
 
-      test('Paid Leave is unaffected by the casual balance', async () => {
+      test('LoP is unaffected by the casual balance', async () => {
         await addLeave(LEAVE_TYPE.CASUAL, '2026-10-05');
-        await expect(leaveService.assertLeaveAllowed(employee(), LEAVE_TYPE.PAID, new Date('2026-10-20'), 4)).resolves.toBeUndefined();
+        await expect(leaveService.assertLeaveAllowed(employee(), LEAVE_TYPE.LOP, new Date('2026-10-20'), 4)).resolves.toBeUndefined();
         expect(await leaveService.getCasualAvailable(employee(), new Date('2026-10-20'))).toBe(0);
       });
     });
@@ -179,15 +179,15 @@ describe('leaveService', () => {
       await expect(leaveService.assertLeaveAllowed(employee(), LEAVE_TYPE.CASUAL, own.startDate, 1, own._id)).resolves.toBeUndefined();
     });
 
-    test('Paid Leave has no monthly limit', async () => {
-      await addLeave(LEAVE_TYPE.PAID, '2026-10-05', 'APPROVED', 5);
-      await expect(leaveService.assertLeaveAllowed(employee(), LEAVE_TYPE.PAID, new Date('2026-10-20'), 3)).resolves.toBeUndefined();
+    test('LoP has no monthly limit', async () => {
+      await addLeave(LEAVE_TYPE.LOP, '2026-10-05', 'APPROVED', 5);
+      await expect(leaveService.assertLeaveAllowed(employee(), LEAVE_TYPE.LOP, new Date('2026-10-20'), 3)).resolves.toBeUndefined();
     });
 
     test('the summary reports the casual balance, this month\'s sick/paid usage and Sick Leave eligibility', async () => {
       await addLeave(LEAVE_TYPE.CASUAL, '2026-10-05');
       await addLeave(LEAVE_TYPE.CASUAL, '2026-11-20', 'PENDING');
-      await addLeave(LEAVE_TYPE.PAID, '2026-10-08', 'PENDING', 2);
+      await addLeave(LEAVE_TYPE.LOP, '2026-10-08', 'PENDING', 2);
       await addLeave(LEAVE_TYPE.CASUAL, '2026-09-05');
       const summary = await leaveService.getLeaveSummary({ _id: employeeId, joiningDate: new Date('2026-09-01') }, new Date('2026-12-14'));
       expect(summary.types.CASUAL).toMatchObject({ accruesPerMonth: 1, credited: 3, approved: 1, pending: 1, available: 1 });
@@ -195,7 +195,7 @@ describe('leaveService', () => {
     });
 
     test('the summary for October 2026 shows this month\'s paid usage and sick eligibility', async () => {
-      await addLeave(LEAVE_TYPE.PAID, '2026-10-08', 'PENDING', 2);
+      await addLeave(LEAVE_TYPE.LOP, '2026-10-08', 'PENDING', 2);
       const summary = await leaveService.getLeaveSummary({ _id: employeeId, joiningDate: new Date('2026-09-01') }, new Date('2026-10-14'));
       expect(summary.types.CASUAL).toMatchObject({ credited: 1, available: 1 });
       expect(summary.types.PAID).toEqual({ allowance: null, used: 2 });

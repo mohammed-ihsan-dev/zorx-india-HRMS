@@ -9,7 +9,7 @@ test('Casual is green while any day is available (including carried-forward days
 });
 
 test('Paid is always amber; eligible Sick follows availability like Casual; Sick before eligibility is neutral', () => {
-  assert.equal(balanceTone('PAID', { allowance: null, used: 0 }), 'amber');
+  assert.equal(balanceTone('LOP', { allowance: null, used: 0 }), 'amber');
   assert.equal(balanceTone('SICK', { eligibleNow: true, available: 2 }), 'green');
   assert.equal(balanceTone('SICK', { eligibleNow: true, available: 0 }), 'red');
   assert.equal(balanceTone('SICK', { eligibleNow: false, available: 0 }), 'neutral');

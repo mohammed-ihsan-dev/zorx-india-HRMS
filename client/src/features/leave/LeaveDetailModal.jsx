@@ -3,8 +3,8 @@ import { Modal } from '../../components/Modal.jsx';
 import { Button } from '../../components/Button.jsx';
 import { StatusBadge } from '../../components/StatusBadge.jsx';
 import * as documentService from '../../services/documentService.js';
-import { formatDate, titleCase } from '../../utils/formatters.js';
-import { leaveDurationLabel, formatLeaveDays } from './leaveFormat.js';
+import { formatDate } from '../../utils/formatters.js';
+import { leaveDurationLabel, formatLeaveDays, leaveTypeName } from './leaveFormat.js';
 
 export function LeaveDetailModal({ open, onClose, leave, onRequestCancel, onRequestOtherHalf }) {
   if (!leave) return null;
@@ -33,7 +33,7 @@ export function LeaveDetailModal({ open, onClose, leave, onRequestCancel, onRequ
         <dl className="divide-y divide-slate-100">
           <div className="flex justify-between py-2.5">
             <dt className="text-sm font-semibold text-slate-500">Leave Type</dt>
-            <dd className="text-base font-medium text-slate-800">{titleCase(leave.leaveType)} Leave</dd>
+            <dd className="text-base font-medium text-slate-800">{leaveTypeName(leave.leaveType)}</dd>
           </div>
           <div className="flex justify-between py-2.5">
             <dt className="text-sm font-semibold text-slate-500">Duration</dt>

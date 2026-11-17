@@ -1,10 +1,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { leaveDurationLabel, leaveTitle, formatLeaveDays, isHalfDay } from './leaveFormat.js';
+import { leaveDurationLabel, leaveTitle, formatLeaveDays, isHalfDay, leaveTypeName, leaveTypeShort } from './leaveFormat.js';
 
 test('labels: half day with session, full day, and older records without a duration', () => {
   assert.equal(leaveTitle({ leaveType: 'CASUAL', duration: 'HALF_DAY', halfDaySession: 'MORNING' }), 'Casual Leave — Half Day (Morning)');
-  assert.equal(leaveTitle({ leaveType: 'PAID', duration: 'HALF_DAY', halfDaySession: 'EVENING' }), 'Paid Leave — Half Day (Evening)');
+  assert.equal(leaveTitle({ leaveType: 'LOP', duration: 'HALF_DAY', halfDaySession: 'EVENING' }), 'LoP — Half Day (Evening)');
   assert.equal(leaveTitle({ leaveType: 'SICK', duration: 'FULL_DAY' }), 'Sick Leave — Full Day');
   assert.equal(leaveDurationLabel({ leaveType: 'SICK' }), 'Full Day'); // older record
   assert.equal(isHalfDay({}), false);
@@ -32,5 +32,13 @@ test('balanceLine for HR review: same numbers as the summary', async () => {
   const sick = { creditStart: '2026-11-01T00:00:00.000Z', accruesPerMonth: 1, credited: 4, approved: 1, pending: 1, available: 2, eligibleNow: true };
   assert.equal(balanceLine('SICK', sick), 'Sick Leave: 2 available · 1 pending · 1 approved · 4 credited since Nov 2026.');
   assert.equal(balanceLine('SICK', { ...sick, eligibleNow: false }), 'Sick Leave: not yet eligible (first month Nov 2026).');
-  assert.equal(balanceLine('PAID', { allowance: null, used: 2 }), 'Paid Leave: 2 days used this month (no allowance).');
+  assert.equal(balanceLine('LOP', { allowance: null, used: 2 }), 'LoP: 2 days used this month (no allowance).');
+});
+
+test('LoP naming (old PAID records read as LoP)', () => {
+  assert.equal(leaveTypeName('LOP'), 'LoP');
+  assert.equal(leaveTypeName('PAID'), 'LoP');
+  assert.equal(leaveTypeName('CASUAL'), 'Casual Leave');
+  assert.equal(leaveTypeShort('SICK'), 'Sick');
+  assert.equal(leaveTypeShort('LOP'), 'LoP');
 });

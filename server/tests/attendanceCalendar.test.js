@@ -46,10 +46,11 @@ describe('status per day (priority: leave → absent → half day → late → p
     expect(classify({ dateKey: '2026-10-06', record: rec('2026-10-06', 'PRESENT') }).status).toBe(DAY_STATUS.PRESENT);
   });
 
-  test('approved Sick / Casual / Paid leave show as that leave, never Absent', () => {
+  test('approved Sick / Casual / LoP leave show as that leave, never Absent', () => {
     expect(classify({ dateKey: '2026-10-06', leaves: [leave('2026-10-06', '2026-10-06', 'SICK')] }).status).toBe(DAY_STATUS.SICK_LEAVE);
     expect(classify({ dateKey: '2026-10-07', leaves: [leave('2026-10-06', '2026-10-08', 'CASUAL')] }).status).toBe(DAY_STATUS.CASUAL_LEAVE);
-    expect(classify({ dateKey: '2026-10-06', leaves: [leave('2026-10-06', '2026-10-06', 'PAID')] }).status).toBe(DAY_STATUS.PAID_LEAVE);
+    expect(classify({ dateKey: '2026-10-06', leaves: [leave('2026-10-06', '2026-10-06', 'LOP')] }).status).toBe(DAY_STATUS.LOP_LEAVE);
+    expect(classify({ dateKey: '2026-10-06', leaves: [leave('2026-10-06', '2026-10-06', 'PAID')] }).status).toBe(DAY_STATUS.LOP_LEAVE); // pre-rename record
   });
 
   test('approved leave wins over a check-in; a full-day one is flagged, a half-day one is not', () => {

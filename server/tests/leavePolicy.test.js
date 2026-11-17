@@ -64,10 +64,10 @@ describe('leave types', () => {
     expect(await Leave.countDocuments({})).toBe(0);
   });
 
-  test('Paid Leave can be requested for several days, with no limit', async () => {
+  test('LoP can be requested for several days, with no limit', async () => {
     const { token } = await longServing();
-    expect((await submit(token, LEAVE_TYPE.PAID, future(20), future(24))).status).toBe(201);
-    expect((await submit(token, LEAVE_TYPE.PAID, future(26))).status).toBe(201);
+    expect((await submit(token, LEAVE_TYPE.LOP, future(20), future(24))).status).toBe(201);
+    expect((await submit(token, LEAVE_TYPE.LOP, future(26))).status).toBe(201);
   });
 });
 
@@ -102,12 +102,12 @@ describe('Casual Leave balance (accrual with carry-forward)', () => {
     expect(over.body.details).toMatchObject({ available: 0, requested: 1, shortfall: 1 });
   });
 
-  test('an over-balance request is refused, never converted to Paid Leave', async () => {
+  test('an over-balance request is refused, never converted to LoP', async () => {
     const { employee, token } = await longServing();
     await spendCasual(employee._id, 0);
     expect((await submit(token, LEAVE_TYPE.CASUAL, future(25))).status).toBe(400);
-    expect(await Leave.countDocuments({ leaveType: LEAVE_TYPE.PAID })).toBe(0);
-    expect((await submit(token, LEAVE_TYPE.PAID, future(25))).status).toBe(201);
+    expect(await Leave.countDocuments({ leaveType: LEAVE_TYPE.LOP })).toBe(0);
+    expect((await submit(token, LEAVE_TYPE.LOP, future(25))).status).toBe(201);
   });
 
   test('a pending request holds its day; cancelling it releases the day again', async () => {
@@ -186,9 +186,10 @@ describe('GET /api/leaves/me', () => {
     expect(calls[0].body.data.summary.types).toMatchObject({
       CASUAL: { accruesPerMonth: 1, approved: 0, pending: 0 },
       SICK: { accruesPerMonth: 1, approved: 0, pending: 0, eligibleNow: true },
-      PAID: { allowance: null, used: 0 },
+      LOP: { allowance: null, used: 0 },
+      PAID: { allowance: null, used: 0 }, // old key, for app versions cached before the LoP rename
     });
-    expect(Object.keys(calls[0].body.data.summary.types)).toEqual(['CASUAL', 'SICK', 'PAID']);
+    expect(Object.keys(calls[0].body.data.summary.types)).toEqual(['CASUAL', 'SICK', 'LOP', 'PAID']);
     expect(await LeaveBalance.countDocuments({})).toBe(0);
     expect(await Leave.countDocuments({})).toBe(0);
   });

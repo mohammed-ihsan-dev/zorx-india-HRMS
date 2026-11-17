@@ -112,16 +112,29 @@ export const BREAK_TYPE = Object.freeze({
 export const LEAVE_TYPE = Object.freeze({
   CASUAL: 'CASUAL',
   SICK: 'SICK',
-  PAID: 'PAID',
+  // LoP (Loss of Pay): no allowance, taken at the employee's own risk.
+  LOP: 'LOP',
   // Retired types — kept only so historical records still load. Not requestable.
+  // PAID was the old name of LoP (records migrated to LOP; old clients' 'PAID' is mapped to LOP).
+  PAID: 'PAID',
   EARNED: 'EARNED',
   UNPAID: 'UNPAID',
 });
 
-export const REQUESTABLE_LEAVE_TYPES = [LEAVE_TYPE.CASUAL, LEAVE_TYPE.SICK, LEAVE_TYPE.PAID];
+export const REQUESTABLE_LEAVE_TYPES = [LEAVE_TYPE.CASUAL, LEAVE_TYPE.SICK, LEAVE_TYPE.LOP];
+
+/** Display names, used in messages and notifications. */
+export const LEAVE_TYPE_LABEL = Object.freeze({
+  [LEAVE_TYPE.CASUAL]: 'Casual Leave',
+  [LEAVE_TYPE.SICK]: 'Sick Leave',
+  [LEAVE_TYPE.LOP]: 'LoP',
+  [LEAVE_TYPE.PAID]: 'LoP',
+  [LEAVE_TYPE.EARNED]: 'Earned Leave',
+  [LEAVE_TYPE.UNPAID]: 'Unpaid Leave',
+});
 
 // Non-accumulating limits: days per calendar month (by leave start date).
-// None remain: Casual and Sick Leave accrue (LEAVE_ACCRUAL); Paid Leave has no
+// None remain: Casual and Sick Leave accrue (LEAVE_ACCRUAL); LoP has no
 // allowance (taken at the employee's own risk).
 export const MONTHLY_LEAVE_ALLOWANCE = Object.freeze({});
 

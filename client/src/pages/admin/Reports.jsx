@@ -17,6 +17,7 @@ import { useAuth } from '../../hooks/useAuth.js';
 import { BACK_OFFICE_ROLES } from '../../utils/constants.js';
 import { SalaryReport } from '../../features/reports/SalaryReport.jsx';
 import { AttendanceCalendarReport } from '../../features/reports/AttendanceCalendarReport.jsx';
+import { leaveTypeName } from '../../features/leave/leaveFormat.js';
 
 const REPORT_TABS = [
   { key: 'attendance', label: 'Attendance', icon: CalendarClock },
@@ -28,7 +29,7 @@ const REPORT_TABS = [
 const SALARY_TAB = { key: 'salary', label: 'Salary', icon: Wallet };
 
 const LEAVE_STATUS_OPTIONS = ['', 'PENDING', 'APPROVED', 'REJECTED', 'CANCELLED'];
-const LEAVE_TYPE_OPTIONS = ['', 'CASUAL', 'SICK', 'PAID'];
+const LEAVE_TYPE_OPTIONS = ['', 'CASUAL', 'SICK', 'LOP'];
 const EMPLOYEE_STATUS_OPTIONS = ['', 'ACTIVE', 'INACTIVE'];
 const TASK_STATUS_OPTIONS = ['', 'TODO', 'IN_PROGRESS', 'IN_REVIEW', 'COMPLETED', 'CANCELLED'];
 
@@ -174,7 +175,7 @@ export function Reports() {
                 <Select label="Leave Type" className="w-40" value={filters.leave.leaveType} onChange={setFilter('leaveType')}>
                   {LEAVE_TYPE_OPTIONS.map((t) => (
                     <option key={t} value={t}>
-                      {t || 'All Types'}
+                      {t ? leaveTypeName(t) : 'All Types'}
                     </option>
                   ))}
                 </Select>

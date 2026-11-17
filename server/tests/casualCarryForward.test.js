@@ -85,14 +85,14 @@ describe('accumulated balance', () => {
     expect(await Leave.countDocuments({ employeeId: emp._id, status: 'PENDING' })).toBe(2);
   });
 
-  test('a request beyond the remaining balance is still refused, never converted to Paid Leave', async () => {
+  test('a request beyond the remaining balance is still refused, never converted to LoP', async () => {
     const { employee: emp, token } = await employee();
     await keepCasual(emp._id, 2);
     expect((await submit(token, LEAVE_TYPE.CASUAL, at(0, 10))).status).toBe(201);
     const over = await submit(token, LEAVE_TYPE.CASUAL, at(0, 20), at(0, 21));
     expect(over.status).toBe(400);
     expect(over.body.details).toMatchObject({ available: 1, requested: 2, shortfall: 1 });
-    expect(await Leave.countDocuments({ leaveType: LEAVE_TYPE.PAID })).toBe(0);
+    expect(await Leave.countDocuments({ leaveType: LEAVE_TYPE.LOP })).toBe(0);
   });
 });
 
@@ -151,15 +151,15 @@ describe('concurrency', () => {
 });
 
 describe('other leave types and history are unaffected', () => {
-  test('Sick Leave uses its own accrued balance (no 1-per-month cap), separate from Casual; Paid Leave stays unlimited', async () => {
+  test('Sick Leave uses its own accrued balance (no 1-per-month cap), separate from Casual; LoP stays unlimited', async () => {
     const { employee: emp, token } = await employee();
     await keepCasual(emp._id, 0);
     const sick = creditsThrough(LEAVE_TYPE.SICK, emp.joiningDate, new Date(at(0, 10)));
     expect(sick).toBeGreaterThanOrEqual(2);
     expect((await submit(token, LEAVE_TYPE.SICK, at(0, 10), at(0, 9 + sick))).status).toBe(201); // all accrued days together
     expect((await submit(token, LEAVE_TYPE.SICK, at(0, 25))).status).toBe(400);
-    expect((await submit(token, LEAVE_TYPE.PAID, at(0, 14), at(0, 18))).status).toBe(201);
-    expect((await submit(token, LEAVE_TYPE.PAID, at(0, 20))).status).toBe(201);
+    expect((await submit(token, LEAVE_TYPE.LOP, at(0, 14), at(0, 18))).status).toBe(201);
+    expect((await submit(token, LEAVE_TYPE.LOP, at(0, 20))).status).toBe(201);
   });
 
   test('existing leave records are not modified by new requests', async () => {

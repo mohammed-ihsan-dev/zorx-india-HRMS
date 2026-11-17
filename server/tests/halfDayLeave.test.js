@@ -48,7 +48,7 @@ beforeEach(async () => {
 describe('duration and session', () => {
   test('Full Day stays the default when no duration is sent (existing clients)', async () => {
     const { token } = await setup(ROLES.EMPLOYEE, 'a@zorx.test');
-    const res = await full(token, LEAVE_TYPE.PAID, at(0, 10), at(0, 11));
+    const res = await full(token, LEAVE_TYPE.LOP, at(0, 10), at(0, 11));
     expect(res.status).toBe(201);
     expect(res.body.data).toMatchObject({ days: 2, duration: 'FULL_DAY' });
     expect(res.body.data.halfDaySession ?? null).toBeNull();
@@ -56,7 +56,7 @@ describe('duration and session', () => {
 
   test.each(['MORNING', 'EVENING'])('a %s half day consumes 0.5 day', async (session) => {
     const { token } = await setup(ROLES.EMPLOYEE, 'a@zorx.test');
-    const res = await half(token, LEAVE_TYPE.PAID, at(0, 10), session);
+    const res = await half(token, LEAVE_TYPE.LOP, at(0, 10), session);
     expect(res.status).toBe(201);
     expect(res.body.data).toMatchObject({ days: 0.5, duration: 'HALF_DAY', halfDaySession: session });
   });
@@ -68,7 +68,7 @@ describe('duration and session', () => {
     ['a session on a full-day request', { duration: 'FULL_DAY', halfDaySession: 'MORNING' }, /only be chosen for a half-day/],
   ])('rejects a half day %s', async (_, override, message) => {
     const { token } = await setup(ROLES.EMPLOYEE, 'a@zorx.test');
-    const body = { leaveType: LEAVE_TYPE.PAID, startDate: at(0, 10), endDate: at(0, 10), duration: 'HALF_DAY', halfDaySession: 'MORNING', ...override };
+    const body = { leaveType: LEAVE_TYPE.LOP, startDate: at(0, 10), endDate: at(0, 10), duration: 'HALF_DAY', halfDaySession: 'MORNING', ...override };
     if (override.endDate === 'NEXT') body.endDate = at(0, 11);
     const res = await submit(token, body);
     expect(res.status).toBe(400);
@@ -96,7 +96,7 @@ describe('Casual balance with half days', () => {
     expect((await half(token, LEAVE_TYPE.CASUAL, at(0, 12), 'EVENING')).status).toBe(201);
     expect(await available(employee)).toBe(0);
     expect((await half(token, LEAVE_TYPE.CASUAL, at(0, 14), 'MORNING')).status).toBe(400);
-    expect(await Leave.countDocuments({ leaveType: LEAVE_TYPE.PAID })).toBe(0); // never converted
+    expect(await Leave.countDocuments({ leaveType: LEAVE_TYPE.LOP })).toBe(0); // never converted
   });
 
   test('approval keeps the 0.5 spent; rejection and cancellation release it', async () => {
@@ -128,18 +128,18 @@ describe('same-date rules', () => {
   test('Morning + Evening of one date are allowed (even different types); a repeated session or a full day is not', async () => {
     const { token } = await setup(ROLES.EMPLOYEE, 'a@zorx.test');
     expect((await half(token, LEAVE_TYPE.CASUAL, at(0, 10), 'MORNING')).status).toBe(201);
-    const same = await half(token, LEAVE_TYPE.PAID, at(0, 10), 'MORNING');
+    const same = await half(token, LEAVE_TYPE.LOP, at(0, 10), 'MORNING');
     expect(same.status).toBe(400);
     expect(same.body.message).toMatch(/already have a half-day leave for this session/);
-    expect((await full(token, LEAVE_TYPE.PAID, at(0, 10))).status).toBe(400);
-    expect((await half(token, LEAVE_TYPE.PAID, at(0, 10), 'EVENING')).status).toBe(201);
-    expect((await half(token, LEAVE_TYPE.PAID, at(0, 10), 'EVENING')).status).toBe(400);
+    expect((await full(token, LEAVE_TYPE.LOP, at(0, 10))).status).toBe(400);
+    expect((await half(token, LEAVE_TYPE.LOP, at(0, 10), 'EVENING')).status).toBe(201);
+    expect((await half(token, LEAVE_TYPE.LOP, at(0, 10), 'EVENING')).status).toBe(400);
   });
 
   test('a half day cannot be added inside an existing full-day leave', async () => {
     const { token } = await setup(ROLES.EMPLOYEE, 'a@zorx.test');
-    expect((await full(token, LEAVE_TYPE.PAID, at(0, 10), at(0, 12))).status).toBe(201);
-    expect((await half(token, LEAVE_TYPE.PAID, at(0, 11), 'EVENING')).status).toBe(400);
+    expect((await full(token, LEAVE_TYPE.LOP, at(0, 10), at(0, 12))).status).toBe(201);
+    expect((await half(token, LEAVE_TYPE.LOP, at(0, 11), 'EVENING')).status).toBe(400);
   });
 });
 
@@ -164,7 +164,7 @@ describe('Sick and Paid rules unchanged', () => {
 
   test('Paid half days have no allowance, as before', async () => {
     const { token } = await setup(ROLES.EMPLOYEE, 'a@zorx.test');
-    for (const d of [10, 11, 12]) expect((await half(token, LEAVE_TYPE.PAID, at(0, d), 'MORNING')).status).toBe(201);
+    for (const d of [10, 11, 12]) expect((await half(token, LEAVE_TYPE.LOP, at(0, d), 'MORNING')).status).toBe(201);
   });
 });
 
@@ -173,7 +173,7 @@ describe('older records and reviewers', () => {
     const emp = await setup(ROLES.EMPLOYEE, 'a@zorx.test');
     const old = await Leave.collection.insertOne({ employeeId: emp.employee._id, leaveType: 'PAID', startDate: new Date(at(0, 10)), endDate: new Date(at(0, 10)), days: 1, reason: 'Old', status: 'PENDING', createdAt: new Date(), updatedAt: new Date() });
     // A full day already covers that date, so even a half day overlaps it.
-    expect((await half(emp.token, LEAVE_TYPE.PAID, at(0, 10), 'MORNING')).status).toBe(400);
+    expect((await half(emp.token, LEAVE_TYPE.LOP, at(0, 10), 'MORNING')).status).toBe(400);
     const mine = await request(app).get('/api/leaves/me').set(auth(emp.token));
     expect(mine.body.data.leaves[0].duration).toBeUndefined(); // UI treats missing as Full Day
     await request(app).patch(`/api/leaves/${old.insertedId}/cancel`).set(auth(emp.token));
@@ -186,7 +186,7 @@ describe('older records and reviewers', () => {
   test('HR/Admin see the duration and session in the review list', async () => {
     const emp = await setup(ROLES.EMPLOYEE, 'a@zorx.test');
     const adm = await setup(ROLES.ADMIN, 'hr@zorx.test');
-    await half(emp.token, LEAVE_TYPE.PAID, at(0, 10), 'EVENING');
+    await half(emp.token, LEAVE_TYPE.LOP, at(0, 10), 'EVENING');
     const list = await request(app).get('/api/leaves').set(auth(adm.token));
     expect(list.body.data[0]).toMatchObject({ duration: 'HALF_DAY', halfDaySession: 'EVENING', days: 0.5 });
   });

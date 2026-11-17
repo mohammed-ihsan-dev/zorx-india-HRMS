@@ -9,13 +9,13 @@ import { Select } from '../../components/Input.jsx';
 import { Button } from '../../components/Button.jsx';
 import { ConfirmDialog } from '../../components/ConfirmDialog.jsx';
 import * as leaveService from '../../services/leaveService.js';
-import { formatDate, titleCase } from '../../utils/formatters.js';
+import { formatDate } from '../../utils/formatters.js';
 import { useAuth } from '../../hooks/useAuth.js';
 import { leaveReviewBlock } from '../../features/leave/leaveReviewRules.js';
 import { BACK_OFFICE_ROLES } from '../../utils/constants.js';
 import { useToast } from '../../hooks/useToast.js';
 import { getErrorMessage } from '../../services/apiClient.js';
-import { leaveDurationLabel, isHalfDay, balanceLine } from '../../features/leave/leaveFormat.js';
+import { leaveDurationLabel, isHalfDay, balanceLine, leaveTypeShort } from '../../features/leave/leaveFormat.js';
 
 export function AdminLeaves() {
   const toast = useToast();
@@ -97,7 +97,7 @@ export function AdminLeaves() {
       header: 'Type',
       render: (r) => (
         <div>
-          <p>{titleCase(r.leaveType)}</p>
+          <p>{leaveTypeShort(r.leaveType)}</p>
           <p className={`text-xs ${isHalfDay(r) ? 'font-semibold text-brand-700' : 'text-slate-400'}`}>{leaveDurationLabel(r)}</p>
         </div>
       ),

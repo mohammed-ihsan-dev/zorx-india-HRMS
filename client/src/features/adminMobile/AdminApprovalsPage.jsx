@@ -9,10 +9,10 @@ import * as leaveService from '../../services/leaveService.js';
 import * as wfhService from '../../services/wfhService.js';
 import { getErrorMessage } from '../../services/apiClient.js';
 import { formatDate } from '../../utils/formatters.js';
+import { leaveTypeName } from '../leave/leaveFormat.js';
 import { ROLES, PERMISSIONS } from '../../utils/constants.js';
 import { leaveReviewBlock } from '../leave/leaveReviewRules.js';
 
-const TYPE_LABEL = { CASUAL: 'Casual Leave', SICK: 'Sick Leave', PAID: 'Paid Leave' };
 const nameOf = (e) => (e ? `${e.firstName} ${e.lastName || ''}`.trim() : 'Employee');
 const idOf = (v) => String(v?._id || v || '');
 
@@ -141,7 +141,7 @@ export function AdminApprovalsPage() {
                 title={nameOf(l.employeeId)}
                 badge={l.requesterRole === ROLES.ADMIN ? 'HR' : null}
                 lines={[
-                  `${TYPE_LABEL[l.leaveType] || l.leaveType}${l.duration === 'HALF_DAY' ? ` · Half day${l.halfDaySession ? ` (${l.halfDaySession.toLowerCase()})` : ''}` : ''} · ${l.days} day${l.days === 1 ? '' : 's'}`,
+                  `${leaveTypeName(l.leaveType)}${l.duration === 'HALF_DAY' ? ` · Half day${l.halfDaySession ? ` (${l.halfDaySession.toLowerCase()})` : ''}` : ''} · ${l.days} day${l.days === 1 ? '' : 's'}`,
                   l.startDate === l.endDate ? formatDate(l.startDate) : `${formatDate(l.startDate)} → ${formatDate(l.endDate)}`,
                 ]}
                 reason={l.reason}

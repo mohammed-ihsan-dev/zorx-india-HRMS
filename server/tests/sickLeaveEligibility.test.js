@@ -126,7 +126,7 @@ describe('Sick Leave over the API (same workflow as Casual Leave)', () => {
     if (rest > 0) expect((await submit(token, at(3, 20), at(3, 19 + rest))).status).toBe(201);
     const over = await submit(token, at(3, 27));
     expect(over.status).toBe(400);
-    expect(over.body.message).toMatch(/Not enough Sick Leave: 0 days available .* You can choose Paid Leave instead\./);
+    expect(over.body.message).toMatch(/Not enough Sick Leave: 0 days available .* You can choose LoP instead\./);
     expect(await Leave.countDocuments({ leaveType: { $ne: LEAVE_TYPE.SICK } })).toBe(0);
   });
 

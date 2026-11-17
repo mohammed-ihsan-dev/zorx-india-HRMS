@@ -21,7 +21,7 @@ async function account(email, role) {
   return { user, employee: emp, token };
 }
 const auth = (t) => ({ Authorization: `Bearer ${t}` });
-const submit = (t) => request(app).post('/api/leaves').set(auth(t)).send({ leaveType: 'PAID', startDate: '2027-03-10', endDate: '2027-03-10', reason: 'Family function' });
+const submit = (t) => request(app).post('/api/leaves').set(auth(t)).send({ leaveType: 'LOP', startDate: '2027-03-10', endDate: '2027-03-10', reason: 'Family function' });
 const review = (t, id, verb) => request(app).patch(`/api/leaves/${id}/${verb}`).set(auth(t)).send({ reviewNote: '' });
 
 let hr, hr2, superAdmin, employee;
@@ -85,6 +85,21 @@ test('unchanged: HR still approves and rejects ordinary employee leave', async (
 test('unchanged: an employee cannot review any leave', async () => {
   const id = (await submit(hr.token)).body.data._id;
   expect((await review(employee.token, id, 'approve')).status).toBe(403);
+});
+
+test('an app version from before the LoP rename can still request it (PAID is stored as LOP)', async () => {
+  const res = await request(app).post('/api/leaves').set(auth(employee.token)).send({ leaveType: 'PAID', startDate: '2027-03-12', endDate: '2027-03-12', reason: 'Family function' });
+  expect(res.status).toBe(201);
+  expect(res.body.data.leaveType).toBe('LOP');
+});
+
+test('LoP notifications read naturally', async () => {
+  const id = (await submit(employee.token)).body.data._id;
+  await review(hr.token, id, 'approve');
+  const { Notification } = await import('../src/models/Notification.js');
+  const msgs = (await Notification.find({}).lean()).map((n) => n.message);
+  expect(msgs.some((m) => m.endsWith('submitted a LoP request.'))).toBe(true);
+  expect(msgs).toContain('Your LoP request has been approved.');
 });
 
 test('the leave list tells reviewers who is HR (requesterRole)', async () => {

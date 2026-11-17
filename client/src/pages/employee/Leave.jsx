@@ -6,14 +6,15 @@ import { LeaveCalendar } from '../../features/leave/LeaveCalendar.jsx';
 import { LeaveRequestModal } from '../../features/leave/LeaveRequestModal.jsx';
 import { LeaveDetailModal } from '../../features/leave/LeaveDetailModal.jsx';
 import * as leaveService from '../../services/leaveService.js';
-import { formatDate, titleCase } from '../../utils/formatters.js';
+import { formatDate } from '../../utils/formatters.js';
 import { useToast } from '../../hooks/useToast.js';
 import { getErrorMessage } from '../../services/apiClient.js';
 import { useMobileShell } from '../../context/MobileShellContext.jsx';
 import { MobileLeaveView } from '../../features/leave/MobileLeaveView.jsx';
+import { leaveTypeName } from '../../features/leave/leaveFormat.js';
 import { toDateInputValue } from '../../utils/calendarDate.js';
 
-const LEAVE_TYPE_ORDER = ['CASUAL', 'SICK', 'PAID'];
+const LEAVE_TYPE_ORDER = ['CASUAL', 'SICK', 'LOP'];
 
 export function Leave() {
   const toast = useToast();
@@ -164,14 +165,16 @@ export function Leave() {
       {summary && (
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
           {LEAVE_TYPE_ORDER.map((type) => {
-            const info = summary.types[type];
+            // Older API (before the LoP rename) returns it as PAID.
+            const info = summary.types[type] || (type === 'LOP' ? summary.types.PAID : null);
+            if (!info) return null;
             const isPaid = info.allowance === null;
             const sickLocked = type === 'SICK' && !info.eligibleNow;
 
             return (
               <div key={type} className="bg-white rounded-xl border border-slate-200 p-4">
                 <div className="flex items-center justify-between gap-1">
-                  <p className="text-sm text-slate-500 font-medium">{titleCase(type)} Leave</p>
+                  <p className="text-sm text-slate-500 font-medium">{leaveTypeName(type)}</p>
                   {isPaid && (
                     <span className="text-[10px] font-extrabold uppercase tracking-wider text-amber-800 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded">
                       User Risk

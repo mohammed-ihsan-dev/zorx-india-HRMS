@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import { ClipboardList, History as HistoryIcon, Plus, CalendarDays, Trash2, SearchX } from 'lucide-react';
 import { MobileStatusPill } from '../../components/MobileStatusPill.jsx';
-import { formatDate, titleCase } from '../../utils/formatters.js';
+import { formatDate } from '../../utils/formatters.js';
 import { balanceTone } from './balanceTone.js';
-import { leaveTitle, formatLeaveDays } from './leaveFormat.js';
+import { leaveTitle, formatLeaveDays, leaveTypeShort } from './leaveFormat.js';
 
-const LEAVE_TYPE_ORDER = ['CASUAL', 'SICK', 'PAID'];
+const LEAVE_TYPE_ORDER = ['CASUAL', 'SICK', 'LOP'];
 
 // Card accent per tone; the text always states the balance too, so colour is never the only cue.
 const TONE_CLASS = {
@@ -59,7 +59,7 @@ export function MobileLeaveView({ leaves, summary, loading, onOpenRequest, onOpe
             const tone = TONE_CLASS[balanceTone(type, summary.types[type])];
             return (
               <li key={type} data-tone={balanceTone(type, summary.types[type])} className={`rounded-2xl border px-3 py-2.5 min-w-0 ${tone.card}`}>
-                <p className={`text-[11px] font-bold uppercase tracking-wide ${tone.label}`}>{titleCase(type)}</p>
+                <p className={`text-[11px] font-bold uppercase tracking-wide ${tone.label}`}>{leaveTypeShort(type)}</p>
                 <p className={`text-xs font-bold mt-0.5 leading-snug ${tone.value}`}>{balanceText(type, summary.types[type])}</p>
               </li>
             );

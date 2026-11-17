@@ -26,7 +26,7 @@ export const DAY_STATUS = Object.freeze({
   HALF_DAY: 'HALF_DAY',
   SICK_LEAVE: 'SICK_LEAVE',
   CASUAL_LEAVE: 'CASUAL_LEAVE',
-  PAID_LEAVE: 'PAID_LEAVE',
+  LOP_LEAVE: 'LOP_LEAVE',
   OTHER_LEAVE: 'OTHER_LEAVE',
   ABSENT: 'ABSENT',
   HOLIDAY: 'HOLIDAY',
@@ -39,7 +39,8 @@ export const DAY_STATUS = Object.freeze({
 const LEAVE_STATUS_BY_TYPE = {
   [LEAVE_TYPE.SICK]: DAY_STATUS.SICK_LEAVE,
   [LEAVE_TYPE.CASUAL]: DAY_STATUS.CASUAL_LEAVE,
-  [LEAVE_TYPE.PAID]: DAY_STATUS.PAID_LEAVE,
+  [LEAVE_TYPE.LOP]: DAY_STATUS.LOP_LEAVE,
+  [LEAVE_TYPE.PAID]: DAY_STATUS.LOP_LEAVE,
 };
 export const DAY_LABEL = {
   PRESENT: 'Present',
@@ -47,7 +48,7 @@ export const DAY_LABEL = {
   HALF_DAY: 'Half Day',
   SICK_LEAVE: 'Sick Leave',
   CASUAL_LEAVE: 'Casual Leave',
-  PAID_LEAVE: 'Paid Leave',
+  LOP_LEAVE: 'LoP',
   OTHER_LEAVE: 'Leave',
   ABSENT: 'Absent',
   HOLIDAY: 'Holiday',
@@ -62,7 +63,7 @@ const covers = (leave, dateKey) => keyOf(leave.startDate) <= dateKey && dateKey 
 
 /**
  * The one classification for a day, in the required priority:
- *   1. approved leave (Sick / Casual / Paid / other)
+ *   1. approved leave (Sick / Casual / LoP / other)
  *   2. absent (completed working day, employed, no check-in, no approved leave, not a holiday / weekly off)
  *   3. half day  4. late  5. present (from the stored attendance status)
  * Never invents data: a full-day approved leave that also has a check-in is
