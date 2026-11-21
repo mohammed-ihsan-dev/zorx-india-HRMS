@@ -43,7 +43,18 @@
     </script>
   </head>
   <body>
-    <div id="root"></div>
+    <!-- Instant first paint while the app's code downloads (React replaces it). -->
+    <style>
+      .zx-boot { min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; background: #fff; font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; }
+      .zx-boot img { width: 132px; height: auto; }
+      .zx-boot .zx-boot-w { display: none; }
+      .zx-boot p { margin: 0; color: #64748b; font-size: 14px; }
+      html[data-zm-chrome='dark'] .zx-boot { background: #000; }
+      html[data-zm-chrome='dark'] .zx-boot .zx-boot-b { display: none; }
+      html[data-zm-chrome='dark'] .zx-boot .zx-boot-w { display: block; }
+      html[data-zm-chrome='dark'] .zx-boot p { color: #9aa4b0; }
+    </style>
+    <div id="root"><div class="zx-boot" aria-busy="true"><img class="zx-boot-b" src="/assets/zorx-logo-black-without-text.webp" alt="ZORX INDIA" width="800" height="258" /><img class="zx-boot-w" src="/assets/zorx-logo-white-without-text.webp" alt="ZORX INDIA" width="800" height="258" /><p>Opening ZORX INDIA…</p></div></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

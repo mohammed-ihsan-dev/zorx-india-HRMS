@@ -10,7 +10,9 @@ import routes from './routes/index.js';
 import { notFoundHandler, errorHandler } from './middleware/errorHandler.js';
 import { PROFILE_PICTURES_DIR } from './services/fileStorageService.js';
 import { createApiLimiter } from './middleware/apiRateLimit.js';
+import { isAllowedOrigin } from './utils/origins.js';
 import { readFileSync } from 'node:fs';
+import crypto from 'node:crypto';
 
 const SERVER_VERSION = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')).version;
 const STARTED_AT = new Date().toISOString();
@@ -23,7 +25,14 @@ function parseTrustProxy(value) {
   return v;
 }
 
-export function createApp() {
+/**
+ * `dbReady` (server.js): a promise for the MongoDB connection. Until it resolves,
+ * API requests wait for it (up to DB_WAIT_MS) instead of failing; health checks
+ * and the version endpoint never wait.
+ */
+const DB_WAIT_MS = 30_000;
+
+export function createApp({ dbReady = null } = {}) {
   const app = express();
 
   // Render (and most PaaS hosts) terminate TLS at a reverse proxy — without this,
@@ -34,23 +43,12 @@ export function createApp() {
   app.set('trust proxy', parseTrustProxy(env.attendanceNetwork.trustProxy));
 
   app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
-  const allowedOrigins = (env.clientOrigins || [env.clientOrigin]).map((o) =>
-    o.replace(/\/+$/, '')
-  );
-
   app.use(
     cors({
-      origin: (origin, callback) => {
-        if (!origin) return callback(null, true);
-        const cleanOrigin = origin.replace(/\/+$/, '');
-        if (allowedOrigins.includes(cleanOrigin) || env.nodeEnv === 'development') {
-          return callback(null, true);
-        }
-        return callback(null, false);
-      },
+      origin: (origin, callback) => callback(null, !origin || isAllowedOrigin(origin)),
       credentials: true,
       // Lets the browser read export filenames (reports CSV/PDF) across origins.
-      exposedHeaders: ['Content-Disposition'],
+      exposedHeaders: ['Content-Disposition', 'X-Request-Id', 'Server-Timing'],
       optionsSuccessStatus: 204,
     })
   );
@@ -61,6 +59,9 @@ export function createApp() {
     // Timing instrumentation: total server time per API call, shown in the browser's
     // DevTools (Network → Timing) as "app" — no effect on the response body.
     const started = process.hrtime.bigint();
+    // Request id for tracing one call through Cloudflare → Render logs (Cloudflare's ray id when present).
+    req.id = req.get('cf-ray') || crypto.randomUUID();
+    res.setHeader('X-Request-Id', req.id);
     const json = res.json.bind(res);
     res.json = (body) => {
       if (!res.headersSent) res.setHeader('Server-Timing', `app;dur=${(Number(process.hrtime.bigint() - started) / 1e6).toFixed(1)}`);
@@ -74,7 +75,9 @@ export function createApp() {
 
   if (!isTest) {
     // Production log line = Apache "combined" + response time, to spot slow requests in Render logs.
-    app.use(morgan(env.nodeEnv === 'production' ? ':remote-addr - :remote-user [:date[clf]] ":method :url HTTP/:http-version" :status :res[content-length] ":referrer" ":user-agent" :response-time ms' : 'dev'));
+    // Never logs headers or bodies (tokens, cookies, passwords stay out of the logs).
+    morgan.token('rid', (req) => req.id || '-');
+    app.use(morgan(env.nodeEnv === 'production' ? ':remote-addr - :remote-user [:date[clf]] ":method :url HTTP/:http-version" :status :res[content-length] ":referrer" ":user-agent" :response-time ms rid=:rid' : 'dev'));
   }
 
   // Per signed-in user (not per IP: the office shares one IP) — see apiRateLimit.js.
@@ -99,6 +102,25 @@ export function createApp() {
   // Profile pictures only — intentionally public (rendered as <img> across the
   // app), unlike the private/authenticated employee document downloads.
   app.use('/uploads/profile-pictures', express.static(PROFILE_PICTURES_DIR, { maxAge: '7d' }));
+
+  if (dbReady) {
+    let connected = false;
+    dbReady.then(() => (connected = true), () => {});
+    app.use('/api', (req, res, next) => {
+      if (connected) return next();
+      let timer;
+      const timeout = new Promise((_, reject) => {
+        timer = setTimeout(() => reject(new Error('db wait timeout')), DB_WAIT_MS);
+      });
+      Promise.race([dbReady, timeout])
+        .then(() => next())
+        .catch(() => {
+          res.setHeader('Retry-After', '5');
+          res.status(503).json({ success: false, code: 'SERVER_STARTING', message: 'The server is starting up. Please try again in a moment.' });
+        })
+        .finally(() => clearTimeout(timer));
+    });
+  }
 
   app.use('/api', routes);
 

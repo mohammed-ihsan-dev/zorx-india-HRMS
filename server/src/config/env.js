@@ -85,7 +85,22 @@ export const env = {
   mongoDb: process.env.MONGODB_DB || 'zorx_ms',
 
   jwtSecret: required('JWT_SECRET'),
+  // Lifetime of the legacy bearer token issued to app versions from before
+  // persistent sessions (they send no X-ZORX-Client header). See `auth` below.
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || '8h',
+
+  // Persistent sessions (services/authSessionService.js): a short-lived access JWT
+  // kept in memory by the app + a rotating refresh token in an httpOnly cookie,
+  // tracked server-side, valid at most SESSION_MAX_DAYS from sign-in.
+  auth: {
+    accessTokenTtl: process.env.ACCESS_TOKEN_TTL || '15m',
+    sessionMaxDays: Number(process.env.SESSION_MAX_DAYS) || 30,
+    // Secure cookies need HTTPS; on by default in production, off for http://localhost dev.
+    cookieSecure: process.env.SESSION_COOKIE_SECURE ? process.env.SESSION_COOKIE_SECURE === 'true' : process.env.NODE_ENV === 'production',
+    // Keep issuing the old 8h bearer token to app versions cached before this
+    // change, so they keep working until they update. Set to "false" to stop.
+    legacyLoginTokens: process.env.LEGACY_LOGIN_TOKENS !== 'false',
+  },
 
   clientOrigin: process.env.CLIENT_ORIGIN || 'http://localhost:5173',
   clientOrigins,

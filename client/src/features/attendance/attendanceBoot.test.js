@@ -2,15 +2,18 @@ import { test, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { startAttendanceBoot, takeEarlyAttendance, markAttendanceSettled, afterAttendance, _resetAttendanceBoot, EARLY_MAX_AGE_MS } from './attendanceBoot.js';
 
-const store = (token) => {
-  const m = new Map(token ? [['zorx_token', token]] : []);
-  return { getItem: (k) => (m.has(k) ? m.get(k) : null), setItem: (k, v) => m.set(k, v), removeItem: (k) => m.delete(k) };
+// `identity()` = the account signed in now; `load()` resolves to { identity, value }.
+const signedInAs = (who) => {
+  let current = who;
+  const identity = () => current;
+  identity.switchTo = (next) => (current = next);
+  return identity;
 };
-const fakeLoad = () => {
+const fakeLoad = (who = 'u1') => {
   let calls = 0;
   const fn = () => {
     calls += 1;
-    return Promise.resolve([{ attendance: null }, { approved: false }]);
+    return Promise.resolve({ identity: who, value: [{ attendance: null }, { approved: false }] });
   };
   fn.calls = () => calls;
   return fn;
@@ -20,7 +23,8 @@ beforeEach(() => _resetAttendanceBoot());
 
 test('a signed-in user opening a dashboard starts the attendance load at boot; the dashboard takes it once', async () => {
   const load = fakeLoad();
-  assert.equal(startAttendanceBoot({ pathname: '/', storage: store('t1'), load }), true);
+  assert.equal(startAttendanceBoot({ pathname: '/', signedIn: true, identity: signedInAs('u1'), load }), true);
+  await new Promise((r) => setTimeout(r, 0));
   assert.equal(load.calls(), 1);
   const p = takeEarlyAttendance();
   assert.ok(p);
@@ -28,33 +32,39 @@ test('a signed-in user opening a dashboard starts the attendance load at boot; t
   assert.equal(takeEarlyAttendance(), null); // only the first load uses it; later refreshes go to the server
 });
 
-test('no token, or not a dashboard page → nothing is started', () => {
+test('not signed in, or not a dashboard page → nothing is started', async () => {
   const load = fakeLoad();
-  assert.equal(startAttendanceBoot({ pathname: '/', storage: store(null), load }), false);
-  assert.equal(startAttendanceBoot({ pathname: '/leave', storage: store('t1'), load }), false);
+  assert.equal(startAttendanceBoot({ pathname: '/', signedIn: false, identity: signedInAs(null), load }), false);
+  assert.equal(startAttendanceBoot({ pathname: '/leave', signedIn: true, identity: signedInAs('u1'), load }), false);
+  await new Promise((r) => setTimeout(r, 0));
   assert.equal(load.calls(), 0);
   assert.equal(takeEarlyAttendance(), null);
 });
 
-test('never hands over another user’s data: token changed since boot → discarded', () => {
-  const s = store('user-A');
-  startAttendanceBoot({ pathname: '/', storage: s, load: fakeLoad() });
-  s.setItem('zorx_token', 'user-B');
-  assert.equal(takeEarlyAttendance(), null);
+test('never hands over another user’s data: a different account is signed in now → rejected (dashboard reloads)', async () => {
+  const identity = signedInAs('user-A');
+  startAttendanceBoot({ pathname: '/', signedIn: true, identity, load: fakeLoad('user-A') });
+  identity.switchTo('user-B');
+  await assert.rejects(takeEarlyAttendance(), /another session/);
+});
+
+test('a result without a confirmed identity is never used', async () => {
+  startAttendanceBoot({ pathname: '/', signedIn: true, identity: signedInAs(null), load: fakeLoad(null) });
+  await assert.rejects(takeEarlyAttendance(), /another session/);
 });
 
 test('a stale early result is discarded', () => {
-  startAttendanceBoot({ pathname: '/', storage: store('t1'), load: fakeLoad() });
+  startAttendanceBoot({ pathname: '/', signedIn: true, identity: signedInAs('u1'), load: fakeLoad() });
   assert.equal(takeEarlyAttendance(Date.now() + EARLY_MAX_AGE_MS + 1), null);
 });
 
 test('a failed early load is not swallowed into a fake answer (the dashboard reloads normally)', async () => {
-  startAttendanceBoot({ pathname: '/', storage: store('t1'), load: () => Promise.reject(new Error('network')) });
+  startAttendanceBoot({ pathname: '/', signedIn: true, identity: signedInAs('u1'), load: () => Promise.reject(new Error('network')) });
   await assert.rejects(takeEarlyAttendance(), /network/);
 });
 
 test('secondary requests wait for attendance, then go', async () => {
-  startAttendanceBoot({ pathname: '/', storage: store('t1'), load: fakeLoad(), maxWaitMs: 10_000 });
+  startAttendanceBoot({ pathname: '/', signedIn: true, identity: signedInAs('u1'), load: fakeLoad(), maxWaitMs: 10_000 });
   let released = false;
   const waiting = afterAttendance().then(() => {
     released = true;
@@ -67,7 +77,7 @@ test('secondary requests wait for attendance, then go', async () => {
 });
 
 test('secondary requests are never held longer than the cap', async () => {
-  startAttendanceBoot({ pathname: '/', storage: store('t1'), load: () => new Promise(() => {}), maxWaitMs: 30 });
+  startAttendanceBoot({ pathname: '/', signedIn: true, identity: signedInAs('u1'), load: () => new Promise(() => {}), maxWaitMs: 30 });
   const t = Date.now();
   await afterAttendance();
   assert.ok(Date.now() - t < 1000);

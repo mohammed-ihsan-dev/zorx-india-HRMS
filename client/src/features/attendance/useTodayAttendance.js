@@ -82,10 +82,12 @@ export function useTodayAttendance() {
         setWfhToday(wfhToday);
         setLoaded(true);
         setLoadError(false);
+        return data.attendance; // what the server has now (null = no record yet)
       } catch (err) {
         // Keep whatever the server last said; never fall back to "not checked in".
         setLoadError(true);
         if (!quiet) toast.error(getErrorMessage(err, 'Could not load attendance status.'));
+        return undefined; // unknown
       } finally {
         setLoading(false);
         markAttendanceSettled(); // secondary dashboard requests may start now
@@ -197,8 +199,41 @@ export function useTodayAttendance() {
   // server skips only the radius check).
   const locationFree = isLocationFree({ onsiteToday, defaultWfh, wfhToday, verificationMode, attendanceLocation });
 
+  // One punch at a time, whatever the UI does (double tap, two buttons, Enter key).
+  const punchingRef = useRef(false);
+  // A check-in/out whose response was lost: asking the server what it recorded.
+  const [confirming, setConfirming] = useState(false);
+
+  /**
+   * The request may or may not have reached the server (timeout, connection lost).
+   * Never re-send it blindly: ask the server what it has, twice, a few seconds apart.
+   * Returns the record when the punch is confirmed, null when it was not recorded,
+   * undefined when the server could not be asked.
+   */
+  const reconcilePunch = useCallback(
+    async (kind) => {
+      setConfirming(true);
+      try {
+        for (let i = 0; i < 2; i += 1) {
+          if (i) await new Promise((r) => setTimeout(r, 3000));
+          const current = await refresh({ quiet: true });
+          if (current === undefined) continue;
+          if (kind === 'in' ? current?.checkIn : current?.checkOut) return current;
+        }
+        const last = await refresh({ quiet: true });
+        if (last === undefined) return undefined;
+        return (kind === 'in' ? last?.checkIn : last?.checkOut) ? last : null;
+      } finally {
+        setConfirming(false);
+      }
+    },
+    [refresh]
+  );
+
   const punch = useCallback(
     async (kind) => {
+      if (punchingRef.current) return false;
+      punchingRef.current = true;
       setSubmitting(true);
       setLastVerification(null);
       try {
@@ -213,10 +248,28 @@ export function useTodayAttendance() {
         if (fun) toast.showToast(fun, 'fun', 9000);
         return true; // confirmed by the server (callers may react, e.g. a festive effect)
       } catch (err) {
-        if (err?.response) {
+        const label = kind === 'in' ? 'check-in' : 'check-out';
+        if (err?.response?.status === 409) {
+          // "Already checked in/out": an earlier attempt did go through — show what the server has.
+          const current = await refresh({ quiet: true });
+          if (kind === 'in' ? current?.checkIn : current?.checkOut) toast.success(`Your ${label} is already recorded.`);
+          else toast.error(getErrorMessage(err));
+        } else if (err?.response) {
           toast.error(getErrorMessage(err));
-          // The server refused (e.g. "already checked in"): show what it actually has.
+          // The server refused: show what it actually has.
           refresh({ quiet: true });
+        } else if (err?.isAxiosError) {
+          // No answer: it may have been saved. Ask the server before saying anything.
+          const confirmed = await reconcilePunch(kind);
+          if (confirmed) {
+            toast.success(kind === 'in' ? 'Checked in successfully.' : 'Checked out successfully.');
+            return true;
+          }
+          toast.error(
+            confirmed === null
+              ? `Your ${label} was not recorded. Please try again.`
+              : `We couldn't confirm your ${label} — the connection to the server was lost. It will show here as soon as the server answers; please check before trying again.`
+          );
         } else if (err?.message) {
           toast.error(err.message);
         } else {
@@ -224,10 +277,11 @@ export function useTodayAttendance() {
         }
         return false;
       } finally {
+        punchingRef.current = false;
         setSubmitting(false);
       }
     },
-    [geolocation, toast, locationFree, setRecord, refresh, allowedRadius]
+    [geolocation, toast, locationFree, setRecord, refresh, allowedRadius, reconcilePunch]
   );
 
   const [breakSubmitting, setBreakSubmitting] = useState(false);
@@ -276,6 +330,7 @@ export function useTodayAttendance() {
   return {
     loading,
     submitting,
+    confirming,
     record,
     officeSettings,
     uiState,

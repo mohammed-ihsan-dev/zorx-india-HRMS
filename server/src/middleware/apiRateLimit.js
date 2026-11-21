@@ -1,5 +1,6 @@
 import jwt from 'jsonwebtoken';
 import rateLimit from 'express-rate-limit';
+import { parseRefreshToken, REFRESH_COOKIE } from '../services/authSessionService.js';
 import { env } from '../config/env.js';
 
 // General /api rate limit.
@@ -27,12 +28,17 @@ export function apiRateLimitKey(req) {
   const token = tokenFrom(req);
   if (token) {
     try {
-      const { sub } = jwt.verify(token, env.jwtSecret);
+      // Signature checked; an expired token still identifies whose bucket it is
+      // (the app refreshes it right after — that should not count against the office IP).
+      const { sub } = jwt.verify(token, env.jwtSecret, { ignoreExpiration: true });
       if (sub) return `user:${sub}`;
     } catch {
-      // invalid / expired token → count against the IP
+      // invalid token → count against the IP
     }
   }
+  // Session restore (/auth/refresh) carries only the refresh cookie: one bucket per session.
+  const sessionId = parseRefreshToken(req.cookies?.[REFRESH_COOKIE])?.sessionId;
+  if (sessionId) return `session:${sessionId}`;
   return `ip:${req.ip}`;
 }
 

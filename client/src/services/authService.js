@@ -1,8 +1,9 @@
 import { apiClient } from './apiClient.js';
+import { loginRequest, logoutRequest, clearSession } from './session.js';
 
+/** Signs in and starts a persistent session (refresh cookie + in-memory access token). */
 export async function login(email, password) {
-  const { data } = await apiClient.post('/auth/login', { email, password });
-  return data.data;
+  return loginRequest(email, password);
 }
 
 export async function signup(payload) {
@@ -11,7 +12,16 @@ export async function signup(payload) {
 }
 
 export async function logout() {
-  await apiClient.post('/auth/logout');
+  await logoutRequest();
+}
+
+/** Signs this account out on every device. */
+export async function logoutAll() {
+  try {
+    await apiClient.post('/auth/logout-all');
+  } finally {
+    clearSession();
+  }
 }
 
 export async function getMe() {

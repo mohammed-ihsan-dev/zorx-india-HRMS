@@ -73,24 +73,27 @@ export const getMyWfh = asyncHandler(async (req, res) => {
 });
 
 export const getMyWfhToday = asyncHandler(async (req, res) => {
-  const employeeId = req.user.employeeId?._id;
-  const defaultWfh = await isDefaultWfhEmployee(employeeId);
+  sendSuccess(res, { data: await buildMyWfhToday(req.user) });
+});
+
+/** GET /work-from-home/my/today's payload (also sent with /auth/refresh?include=today). */
+export async function buildMyWfhToday(user) {
+  const employeeId = user.employeeId?._id;
+  const defaultWfh = await isDefaultWfhEmployee(employeeId, user.employeeId);
   const today = getStartOfDayUTC();
   const recurring = !defaultWfh && Boolean(recurringWfhPolicyFor(employeeId, today));
   const request = employeeId && !defaultWfh && !recurring
     ? await WorkFromHome.findOne({ employeeId, date: today, status: WFH_STATUS.APPROVED })
     : null;
-  sendSuccess(res, {
-    data: {
-      approved: defaultWfh || recurring || Boolean(request),
-      defaultWfh,
-      request,
-      // Today is a recurring WFH day, and the rule itself (calendar display only).
-      recurringToday: recurring,
-      recurringRule: employeeId ? recurringWfhRuleFor(employeeId) : null,
-    },
-  });
-});
+  return {
+    approved: defaultWfh || recurring || Boolean(request),
+    defaultWfh,
+    request,
+    // Today is a recurring WFH day, and the rule itself (calendar display only).
+    recurringToday: recurring,
+    recurringRule: employeeId ? recurringWfhRuleFor(employeeId) : null,
+  };
+}
 
 export const listWfh = asyncHandler(async (req, res) => {
   const { status, employeeId, from, to, page = 1, limit = 20 } = req.query;

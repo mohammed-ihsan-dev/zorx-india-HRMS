@@ -95,7 +95,13 @@ export function assignedLocationRules(employee) {
   return { officeName: loc.name, latitude: loc.latitude, longitude: loc.longitude, attendanceRadius: loc.radiusMeters };
 }
 
-async function resolvePunchLocation(employeeId, coords, officeSettings, dateKey, clientIp) {
+// `employee`: the signed-in employee's record already loaded for this request
+// (req.user.employeeId) — used instead of re-reading it; read here only when absent.
+const sameEmployee = (employee, employeeId) => Boolean(employee) && String(employee._id) === String(employeeId);
+const loadAttendanceLocation = (employeeId, employee) =>
+  sameEmployee(employee, employeeId) ? employee : Employee.findById(employeeId).select('attendanceLocation').lean();
+
+async function resolvePunchLocation(employeeId, coords, officeSettings, dateKey, clientIp, employee = null, wfhSource = undefined) {
   // APPROVED Onsite Work for this exact day (eligible employees only): GPS is
   // still required and the real coordinates are recorded — only the assigned
   // site / office radius check is skipped. Pending, rejected or cancelled
@@ -104,17 +110,18 @@ async function resolvePunchLocation(employeeId, coords, officeSettings, dateKey,
     if (!coords || !isValidCoordinate(coords.latitude, coords.longitude)) {
       throw ApiError.badRequest('Invalid location coordinates were received.');
     }
-    const site = assignedLocationRules(await Employee.findById(employeeId).select('attendanceLocation').lean()) || officeSettings;
+    const site = assignedLocationRules(await loadAttendanceLocation(employeeId, employee)) || officeSettings;
     const distanceFromOffice = calculateDistance(coords, site);
     return { isWfh: false, isOnsite: true, location: { latitude: coords.latitude, longitude: coords.longitude, distanceFromOffice } };
   }
-  const source = await resolveWfhSource(employeeId, dateKey);
+  // Already decided for this request by the punch pre-check (attendanceRoutes), or look it up.
+  const source = wfhSource !== undefined ? await wfhSource : await resolveWfhSource(employeeId, dateKey, { employee });
   if (source === WFH_SOURCE.DEFAULT) {
     return { isWfh: true, location: NO_LOCATION };
   }
   // An employee with their own active site is always GPS-checked against it
   // (never the main office, never the office Wi-Fi), on normal working days.
-  const own = source ? null : assignedLocationRules(await Employee.findById(employeeId).select('attendanceLocation').lean());
+  const own = source ? null : assignedLocationRules(await loadAttendanceLocation(employeeId, employee));
   if (own) {
     const distanceFromOffice = validateLocation(coords, own);
     return { isWfh: false, location: { latitude: coords.latitude, longitude: coords.longitude, distanceFromOffice } };
@@ -194,10 +201,14 @@ export function totalCompletedBreakMinutes(attendance) {
  * check-in time (Employee.workingStartTime) in place of the office's when set.
  * The grace period, working hours, overtime and half-day rules stay the office's.
  */
-async function lateRulesFor(employeeId, officeSettings, dateKey = null) {
+async function lateRulesFor(employeeId, officeSettings, dateKey = null, loadedEmployee = null) {
   // A recurring WFH policy day uses that policy's scheduled start.
   const policy = recurringWfhPolicyFor(employeeId, dateKey);
-  const employee = policy ? null : await Employee.findById(employeeId).select('workingStartTime').lean();
+  const employee = policy
+    ? null
+    : sameEmployee(loadedEmployee, employeeId)
+      ? loadedEmployee
+      : await Employee.findById(employeeId).select('workingStartTime').lean();
   const start = policy?.workingStartTime || employee?.workingStartTime;
   if (!start) return officeSettings;
   return { ...(officeSettings.toObject?.() ?? officeSettings), workingStartTime: start };
@@ -244,75 +255,82 @@ export function deriveStatus(lateMinutes, totalWorkingMinutes, officeSettings) {
   return lateMinutes > 0 ? ATTENDANCE_STATUS.LATE : ATTENDANCE_STATUS.PRESENT;
 }
 
-export async function performCheckIn(employeeId, coords, { clientIp } = {}) {
+export async function performCheckIn(employeeId, coords, { clientIp, employee = null, wfhSource } = {}) {
   const officeSettings = await OfficeSettings.getSingleton();
   const now = new Date();
   const dateKey = getStartOfDayUTC(now, officeSettings.timezone);
-  const { isWfh, isOnsite, location } = await resolvePunchLocation(employeeId, coords, officeSettings, dateKey, clientIp);
+  const [{ isWfh, isOnsite, location }, lateRules] = await Promise.all([
+    resolvePunchLocation(employeeId, coords, officeSettings, dateKey, clientIp, employee, wfhSource),
+    lateRulesFor(employeeId, officeSettings, dateKey, employee),
+  ]);
   const attendanceMode = isOnsite ? ATTENDANCE_MODE.ONSITE : isWfh ? ATTENDANCE_MODE.WFH : ATTENDANCE_MODE.OFFICE;
 
-  const existing = await Attendance.findOne({ employeeId, date: dateKey });
-  canCheckIn(existing);
-
-  const lateMinutes = calculateLateMinutes(now, await lateRulesFor(employeeId, officeSettings, dateKey));
+  const lateMinutes = calculateLateMinutes(now, lateRules);
   const status = lateMinutes > 0 ? ATTENDANCE_STATUS.LATE : ATTENDANCE_STATUS.PRESENT;
 
   const checkInPunch = { timestamp: now, ...location };
 
-  if (existing) {
-    existing.checkIn = checkInPunch;
-    existing.lateMinutes = lateMinutes;
-    existing.status = status;
-    existing.attendanceMode = attendanceMode;
-    await existing.save();
-    return existing;
-  }
-
+  // One atomic write: creates today's record, or fills in a record that exists
+  // without a check-in. If today already has a check-in the filter matches nothing,
+  // the upsert collides with the unique (employeeId, date) index, and the request is
+  // refused — so a double tap or a retried request can never record a second check-in.
   try {
-    return await Attendance.create({
-      employeeId,
-      date: dateKey,
-      checkIn: checkInPunch,
-      lateMinutes,
-      status,
-      attendanceMode,
-    });
+    return await Attendance.findOneAndUpdate(
+      { employeeId, date: dateKey, checkIn: null },
+      { $set: { checkIn: checkInPunch, lateMinutes, status, attendanceMode } },
+      { new: true, upsert: true, runValidators: true, setDefaultsOnInsert: true }
+    );
   } catch (err) {
-    // A simultaneous check-in already created today's record (unique employeeId+date).
     if (err?.code === 11000) throw ApiError.conflict('You have already checked in today.');
     throw err;
   }
 }
 
-export async function performCheckOut(employeeId, coords, { clientIp } = {}) {
+export async function performCheckOut(employeeId, coords, { clientIp, employee = null, wfhSource, attendanceToday } = {}) {
   const officeSettings = await OfficeSettings.getSingleton();
   const now = new Date();
   const dateKey = getStartOfDayUTC(now, officeSettings.timezone);
-  const { isOnsite, location } = await resolvePunchLocation(employeeId, coords, officeSettings, dateKey, clientIp);
-
-  const existing = await Attendance.findOne({ employeeId, date: dateKey });
+  // Independent reads in parallel; a location/network refusal is still reported first.
+  const [{ isOnsite, location }, existing, personal] = await Promise.all([
+    resolvePunchLocation(employeeId, coords, officeSettings, dateKey, clientIp, employee, wfhSource),
+    attendanceToday || Attendance.findOne({ employeeId, date: dateKey }),
+    sameEmployee(employee, employeeId) ? employee : Employee.findById(employeeId).select('workingEndTime overtimeCutoffTime').lean(),
+  ]);
   canCheckOut(existing);
-  // Approved after an in-office check-in: the day still counts as Onsite Work.
-  if (isOnsite) existing.attendanceMode = ATTENDANCE_MODE.ONSITE;
 
   // Effective working time is net of ACTUAL recorded break time, not the configured
   // allowance — the allowance is only used below to flag any excess.
   const breakMinutes = totalCompletedBreakMinutes(existing);
   const totalWorkingMinutes = calculateWorkingMinutes(existing.checkIn.timestamp, now, breakMinutes);
   // The app's one overtime rule (7 PM eligibility, counted from 6 PM; or the employee's own pair).
-  const personal = await Employee.findById(employeeId).select('workingEndTime overtimeCutoffTime').lean();
   const overtimeMinutes = overtimeForRecord({ date: existing.date, checkOut: { timestamp: now } }, personal, officeSettings) ?? 0;
   const status = deriveStatus(existing.lateMinutes, totalWorkingMinutes, officeSettings);
 
-  existing.checkOut = { timestamp: now, ...location };
-  existing.breakMinutes = breakMinutes;
-  existing.extraBreakMinutes = Math.max(0, breakMinutes - officeSettings.breakDurationMinutes);
-  existing.totalWorkingMinutes = totalWorkingMinutes;
-  existing.overtimeMinutes = overtimeMinutes;
-  existing.status = status;
-
-  await existing.save();
-  return existing;
+  // Atomic: only a record that is still checked in, with the same breaks we
+  // computed from, is checked out — a duplicate request (double tap, a retry after
+  // a lost response) can never overwrite the first check-out time.
+  const updated = await Attendance.findOneAndUpdate(
+    { _id: existing._id, checkOut: null, breaks: { $size: existing.breaks.length } },
+    {
+      $set: {
+        checkOut: { timestamp: now, ...location },
+        breakMinutes,
+        extraBreakMinutes: Math.max(0, breakMinutes - officeSettings.breakDurationMinutes),
+        totalWorkingMinutes,
+        overtimeMinutes,
+        status,
+        // Approved after an in-office check-in: the day still counts as Onsite Work.
+        ...(isOnsite ? { attendanceMode: ATTENDANCE_MODE.ONSITE } : {}),
+      },
+    },
+    { new: true }
+  );
+  if (!updated) {
+    const now2 = await Attendance.findById(existing._id);
+    canCheckOut(now2); // the specific reason (already checked out / break started meanwhile)
+    throw ApiError.conflict('Your attendance changed while checking out. Please try again.');
+  }
+  return updated;
 }
 
 export async function performStartBreak(employeeId, breakType) {

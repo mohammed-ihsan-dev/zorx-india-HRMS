@@ -214,7 +214,7 @@ describe('exports', () => {
     const a = await setup(ROLES.EMPLOYEE, 'asha@zorx.test');
     await punch(a.employee._id, '2026-10-20', '10:00', '19:30');
     const res = await report(hr.token, { month: '2026-10', format: 'csv' }).set('Origin', 'http://localhost:5173');
-    expect(res.headers['access-control-expose-headers']).toBe('Content-Disposition');
+    expect(res.headers['access-control-expose-headers'].split(',')).toContain('Content-Disposition');
   });
 
   test('PDF: A4 landscape calendar, one page per employee, every day and overtime value present', async () => {

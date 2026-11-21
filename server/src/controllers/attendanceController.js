@@ -85,7 +85,7 @@ export const checkIn = asyncHandler(async (req, res) => {
   }
 
   const employeeId = requireEmployee(req);
-  const attendance = await attendanceService.performCheckIn(employeeId, req.body, { clientIp: req.ip });
+  const attendance = await attendanceService.performCheckIn(employeeId, req.body, { clientIp: req.ip, employee: req.user.employeeId, wfhSource: req.wfhSourceToday });
   sendSuccess(res, { message: 'Checked in successfully.', data: attendance });
 });
 
@@ -128,7 +128,7 @@ export const checkOut = asyncHandler(async (req, res) => {
   }
 
   const employeeId = requireEmployee(req);
-  const attendance = await attendanceService.performCheckOut(employeeId, req.body, { clientIp: req.ip });
+  const attendance = await attendanceService.performCheckOut(employeeId, req.body, { clientIp: req.ip, employee: req.user.employeeId, wfhSource: req.wfhSourceToday, attendanceToday: req.attendanceToday });
   sendSuccess(res, { message: 'Checked out successfully.', data: attendance });
 });
 
@@ -201,7 +201,16 @@ export const getMyAttendanceToday = asyncHandler(async (req, res) => {
     return sendSuccess(res, { data: { attendance: getVirtualAttendanceSnapshot(), officeSettings } });
   }
 
-  const employeeId = requireEmployee(req);
+  requireEmployee(req);
+  sendSuccess(res, { data: await buildMyAttendanceToday(req.user) });
+});
+
+/**
+ * GET /attendance/me/today's payload for a signed-in employee (also sent with
+ * /auth/refresh?include=today so the app can enable Check-in after one request).
+ */
+export async function buildMyAttendanceToday(user) {
+  const employeeId = user.employeeId._id;
   const [attendance, officeSettings, onsite] = await Promise.all([
     attendanceService.getTodayAttendance(employeeId),
     OfficeSettings.getSingleton(),
@@ -209,14 +218,14 @@ export const getMyAttendanceToday = asyncHandler(async (req, res) => {
   ]);
   // Their own site's name and radius (if assigned), so the app requests GPS and
   // shows the right radius. Coordinates are not needed by the client.
-  const own = attendanceService.assignedLocationRules(req.user.employeeId);
+  const own = attendanceService.assignedLocationRules(user.employeeId);
   const attendanceLocation = own ? { name: own.officeName, radiusMeters: own.attendanceRadius } : null;
   // This employee's own schedule (dashboard target, shift timing, overtime cutoff).
-  const schedule = attendanceService.effectiveSchedule(req.user.employeeId, officeSettings);
+  const schedule = attendanceService.effectiveSchedule(user.employeeId, officeSettings);
   // Approved Onsite Work today (display + "request GPS"; check-in decides on its own).
   const onsiteToday = onsite ? { approved: true, workLocation: onsite.workLocation, reason: onsite.reason } : null;
-  sendSuccess(res, { data: { attendance, officeSettings, attendanceLocation, schedule, onsiteToday } });
-});
+  return { attendance, officeSettings, attendanceLocation, schedule, onsiteToday };
+}
 
 export const getMyAttendanceHistory = asyncHandler(async (req, res) => {
   const employeeId = requireEmployee(req);

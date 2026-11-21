@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import { LogIn, ShieldCheck, Eye, EyeOff } from 'lucide-react';
 import { Button } from '../../components/Button.jsx';
@@ -17,6 +17,16 @@ export function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  // Signing in is taking long: usually the server waking up after a quiet period.
+  const [slow, setSlow] = useState(false);
+  useEffect(() => {
+    if (!submitting) {
+      setSlow(false);
+      return undefined;
+    }
+    const t = setTimeout(() => setSlow(true), 4000);
+    return () => clearTimeout(t);
+  }, [submitting]);
   // Phones get the dark green app theme (the `.zm-mobile` layer); 768px+ is unchanged.
   const mobile = useMediaQuery(MOBILE_QUERY);
 
@@ -148,6 +158,11 @@ export function Login() {
             >
               Sign In
             </Button>
+            {slow && (
+              <p role="status" aria-live="polite" className="text-center text-sm text-slate-500">
+                Connecting to the server… After a quiet period this can take up to a minute.
+              </p>
+            )}
           </form>
 
           <p className="text-center text-sm text-slate-500 mt-6">

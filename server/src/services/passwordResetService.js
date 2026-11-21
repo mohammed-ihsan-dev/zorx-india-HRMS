@@ -1,3 +1,4 @@
+import { revokeAllSessions } from './authSessionService.js';
 import crypto from 'node:crypto';
 import { User } from '../models/User.js';
 import { PasswordResetOtp } from '../models/PasswordResetOtp.js';
@@ -154,7 +155,11 @@ export async function resetPassword(resetToken, newPassword) {
   user.mustChangePassword = false;
   user.passwordChangedAt = now;
   await user.save();
-  await PasswordResetOtp.deleteOne({ _id: record._id });
+  await Promise.all([
+    PasswordResetOtp.deleteOne({ _id: record._id }),
+    // Every signed-in device must log in again with the new password.
+    revokeAllSessions(user._id, 'password_reset'),
+  ]);
 
   await recordAudit({
     actorId: user._id,

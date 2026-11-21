@@ -1,4 +1,4 @@
-import { apiClient } from './apiClient.js';
+import { apiClient, authorizedFetch } from './apiClient.js';
 
 async function fetchReport(path, params) {
   const { data } = await apiClient.get(path, { params });
@@ -22,13 +22,12 @@ export async function downloadReportCsv(path, params = {}) {
 
 /** Downloads a server-generated export (`format` = 'csv' | 'pdf'). */
 export async function downloadReportFile(path, params = {}, format = 'csv') {
-  const token = localStorage.getItem('zorx_token');
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
   const cleanParams = Object.fromEntries(Object.entries(params).filter(([, v]) => v !== undefined && v !== ''));
   const query = new URLSearchParams({ ...cleanParams, format }).toString();
   const url = `${API_URL}${path}?${query}`;
 
-  const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+  const res = await authorizedFetch(url);
   if (!res.ok) {
     let message = 'Could not export this report.';
     try {

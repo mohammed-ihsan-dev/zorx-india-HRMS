@@ -11,23 +11,25 @@ export async function connectDB() {
 
   console.log(`[db] connected to MongoDB database "${env.mongoDb}"`);
 
-  // Ensure all collections exist in MongoDB (Compass / Atlas)
-  const modelList = Object.values(models);
-  for (const model of modelList) {
-    if (model && typeof model.createCollection === 'function') {
-      try {
-        await model.createCollection();
-      } catch {
-        // Ignore if collection already exists
-      }
-    }
-  }
-
   mongoose.connection.on('error', (err) => {
     console.error('[db] connection error:', err.message);
   });
 
   return mongoose.connection;
+}
+
+/**
+ * Makes every collection visible in Compass / Atlas even before its first document.
+ * Not needed to serve requests (MongoDB creates collections on first write), so the
+ * server runs it in the background after it has started — it used to cost one
+ * database round trip per model (~17) before the port opened on every cold start.
+ */
+export async function ensureCollections() {
+  await Promise.all(
+    Object.values(models)
+      .filter((model) => model && typeof model.createCollection === 'function')
+      .map((model) => model.createCollection().catch(() => {})) // already exists
+  );
 }
 
 export async function disconnectDB() {

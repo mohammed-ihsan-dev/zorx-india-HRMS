@@ -20,6 +20,7 @@ export function errorHandler(err, req, res, next) {
   res.status(statusCode).json({
     success: false,
     message,
+    ...(isApiError && err.code ? { code: err.code } : {}),
     ...(isApiError && err.details ? { details: err.details } : {}),
   });
 }

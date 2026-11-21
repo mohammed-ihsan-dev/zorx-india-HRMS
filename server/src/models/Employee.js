@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 import { EMPLOYMENT_TYPE, WORK_MODE } from '../utils/constants.js';
+import { invalidatePrincipalCacheOnWrite } from '../services/principalCache.js';
 
 const employeeSchema = new mongoose.Schema(
   {
@@ -59,6 +60,8 @@ const employeeSchema = new mongoose.Schema(
 
 employeeSchema.index({ departmentId: 1 });
 employeeSchema.index({ managerId: 1 });
+// requireAuth loads the employee by its account, in parallel with the account itself.
+employeeSchema.index({ userId: 1 });
 
 employeeSchema.virtual('fullName').get(function fullName() {
   return `${this.firstName} ${this.lastName || ''}`.trim();
@@ -70,5 +73,8 @@ employeeSchema.virtual('avatarUrl').get(function avatarUrl() {
 
 employeeSchema.set('toJSON', { virtuals: true });
 employeeSchema.set('toObject', { virtuals: true });
+
+// requireAuth's short-lived account cache is cleared by every write.
+invalidatePrincipalCacheOnWrite(employeeSchema);
 
 export const Employee = mongoose.model('Employee', employeeSchema);

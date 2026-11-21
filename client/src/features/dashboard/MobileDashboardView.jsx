@@ -313,6 +313,11 @@ export function MobileDashboardView({ attendance, tasks, tasksLoading }) {
             {wifiMode && <NetworkStatusBanner />}
           </div>
 
+          {attendance.confirming && (
+            <p role="status" className="flex items-center gap-2 text-xs font-semibold text-zm-text bg-zm-elev p-2.5 rounded-xl">
+              <LoaderCircle size={15} className="animate-spin" aria-hidden="true" /> Connection interrupted — checking with the server whether it was saved…
+            </p>
+          )}
           {submitting && geolocation?.status === LOCATION_STATUS.CHECKING_LOCATION && (
             <p role="status" className="flex items-center gap-2 text-xs font-semibold text-zm-text bg-zm-elev p-2.5 rounded-xl">
               <LoaderCircle size={15} className="animate-spin" aria-hidden="true" /> Checking your GPS location…

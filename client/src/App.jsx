@@ -6,10 +6,12 @@ import { RoleAwareLayout } from './routes/RoleAwareLayout.jsx';
 import { AdminLayout } from './layouts/AdminLayout.jsx';
 import { Loader } from './components/Loader.jsx';
 import { Login } from './pages/auth/Login.jsx';
-import { Signup } from './pages/auth/Signup.jsx';
-import { ForgotPassword } from './pages/auth/ForgotPassword.jsx';
 
 import { MANAGEMENT_ROLES, BACK_OFFICE_ROLES } from './utils/constants.js';
+
+// Rarely opened public pages: not part of the start-up download.
+const Signup = lazy(() => import('./pages/auth/Signup.jsx').then((m) => ({ default: m.Signup })));
+const ForgotPassword = lazy(() => import('./pages/auth/ForgotPassword.jsx').then((m) => ({ default: m.ForgotPassword })));
 
 // Route-level code splitting: everything behind auth loads on demand instead of
 // bloating the initial bundle every visitor downloads just to see the login page.

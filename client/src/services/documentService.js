@@ -1,4 +1,4 @@
-import { apiClient } from './apiClient.js';
+import { apiClient, authorizedFetch } from './apiClient.js';
 
 export async function uploadDocument(documentType, file) {
   const formData = new FormData();
@@ -17,11 +17,8 @@ export async function listMyDocuments() {
 
 /** Fetches the document as an authenticated blob and opens it in a new tab. */
 export async function openDocument(id) {
-  const token = localStorage.getItem('zorx_token');
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
-  const res = await fetch(`${API_URL}/documents/${id}/download`, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
+  const res = await authorizedFetch(`${API_URL}/documents/${id}/download`);
   if (!res.ok) {
     throw new Error('Unable to open this document.');
   }
@@ -71,11 +68,8 @@ export async function uploadPayslip({ employeeId, period, file, replace = false 
 }
 
 async function fetchDocumentBlob(id) {
-  const token = localStorage.getItem('zorx_token');
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
-  const res = await fetch(`${API_URL}/documents/${id}/download`, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
+  const res = await authorizedFetch(`${API_URL}/documents/${id}/download`);
   if (!res.ok) throw new Error('Unable to open this document.');
   return res.blob();
 }

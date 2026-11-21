@@ -1,3 +1,4 @@
+import { revokeAllSessions } from '../services/authSessionService.js';
 import { Employee } from '../models/Employee.js';
 import { User } from '../models/User.js';
 import { Attendance } from '../models/Attendance.js';
@@ -265,7 +266,9 @@ export const updateEmployeeStatus = asyncHandler(async (req, res) => {
   const employee = await Employee.findByIdAndUpdate(req.params.id, { status }, { new: true });
   if (!employee) throw ApiError.notFound('Employee not found.');
 
-  await User.findOneAndUpdate({ employeeId: employee._id }, { status: status === 'ACTIVE' ? 'ACTIVE' : 'INACTIVE' });
+  const account = await User.findOneAndUpdate({ employeeId: employee._id }, { status: status === 'ACTIVE' ? 'ACTIVE' : 'INACTIVE' });
+  // A deactivated employee is signed out of every device (each request also re-checks the status).
+  if (status !== 'ACTIVE' && account) await revokeAllSessions(account._id, 'deactivated');
 
   await recordAudit({
     actorId: req.user._id,

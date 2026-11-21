@@ -34,8 +34,11 @@ export function dateKeyFromInput(value) {
   return new Date(Date.UTC(y, m - 1, d));
 }
 
-export async function isDefaultWfhEmployee(employeeId) {
+export async function isDefaultWfhEmployee(employeeId, employee = null) {
   if (!employeeId) return false;
+  // The signed-in employee's record (req.user.employeeId) is already loaded and
+  // fresh for this request: use it instead of another database round trip.
+  if (employee && String(employee._id) === String(employeeId)) return employee.workMode === WORK_MODE.WFH;
   const match = await Employee.exists({ _id: employeeId, workMode: WORK_MODE.WFH });
   return Boolean(match);
 }
@@ -45,9 +48,9 @@ export async function isDefaultWfhEmployee(employeeId) {
  * read only from trusted server-side data: the employee's own workMode, or an
  * APPROVED request for that exact day. Returns null for a normal office day.
  */
-export async function resolveWfhSource(employeeId, dateKey) {
+export async function resolveWfhSource(employeeId, dateKey, { employee = null } = {}) {
   if (!employeeId) return null;
-  if (await isDefaultWfhEmployee(employeeId)) return WFH_SOURCE.DEFAULT;
+  if (await isDefaultWfhEmployee(employeeId, employee)) return WFH_SOURCE.DEFAULT;
   // A recurring policy day behaves exactly like an approved WFH request for that day.
   if (recurringWfhPolicyFor(employeeId, dateKey)) return WFH_SOURCE.RECURRING_POLICY;
   const approved = await WorkFromHome.exists({ employeeId, date: dateKey, status: WFH_STATUS.APPROVED });

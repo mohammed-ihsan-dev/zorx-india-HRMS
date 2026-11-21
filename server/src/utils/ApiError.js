@@ -11,8 +11,11 @@ export class ApiError extends Error {
     return new ApiError(400, message, details);
   }
 
-  static unauthorized(message = 'You are not authenticated.') {
-    return new ApiError(401, message);
+  /** `code` (e.g. TOKEN_EXPIRED) lets the app tell "refresh quietly" from "sign in again". */
+  static unauthorized(message = 'You are not authenticated.', code = undefined) {
+    const err = new ApiError(401, message);
+    if (code) err.code = code;
+    return err;
   }
 
   static forbidden(message = 'You do not have permission to perform this action.') {

@@ -1,6 +1,7 @@
 import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
 import { ROLE_VALUES, USER_STATUS, PERMISSION_VALUES } from '../utils/constants.js';
+import { invalidatePrincipalCacheOnWrite } from '../services/principalCache.js';
 
 const userSchema = new mongoose.Schema(
   {
@@ -54,6 +55,12 @@ const userSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    // "Sign out everywhere": every token issued before this moment is rejected
+    // (sessions are also revoked in AuthSession).
+    sessionsRevokedAt: {
+      type: Date,
+      default: null,
+    },
   },
   { timestamps: true }
 );
@@ -65,5 +72,8 @@ userSchema.methods.comparePassword = function comparePassword(plainPassword) {
 userSchema.statics.hashPassword = function hashPassword(plainPassword) {
   return bcrypt.hash(plainPassword, 12);
 };
+
+// requireAuth's short-lived account cache is cleared by every write.
+invalidatePrincipalCacheOnWrite(userSchema);
 
 export const User = mongoose.model('User', userSchema);

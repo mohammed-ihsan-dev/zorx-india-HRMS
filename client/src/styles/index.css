@@ -246,6 +246,9 @@ html[data-zm-chrome='dark'] #root {
 }
 html[data-zm-chrome='dark'] .zm-loading-surface { background-color: #000000; }
 html[data-zm-chrome='dark'] .zm-loading-surface p { color: #9aa4b0; }
+/* Session restore outline (SessionShell) on the dark phone shell. */
+html[data-zm-chrome='dark'] .zm-shell-border { border-color: #1f2630; }
+html[data-zm-chrome='dark'] .zm-shell-block { background-color: #141a21; }
 /* Toasts clear the status bar / notch. */
 html[data-zm-chrome='dark'] .zm-toaster { top: calc(env(safe-area-inset-top, 0px) + 1rem); }
 

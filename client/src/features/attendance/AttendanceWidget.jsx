@@ -66,6 +66,13 @@ export function AttendanceWidget({ data }) {
   }
 
   const transientBanner = (() => {
+    if (data.confirming) {
+      return (
+        <Banner tone="neutral" icon={LoaderCircle} spin>
+          Connection interrupted — checking with the server whether it was saved…
+        </Banner>
+      );
+    }
     if (submitting && geolocation.status === LOCATION_STATUS.CHECKING_LOCATION) {
       return (
         <Banner tone="neutral" icon={LoaderCircle} spin>

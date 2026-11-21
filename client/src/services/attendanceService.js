@@ -1,4 +1,5 @@
 import { apiClient } from './apiClient.js';
+import { currentIdentity } from './session.js';
 
 export async function checkIn(coords) {
   const { data } = await apiClient.post('/attendance/check-in', coords);
@@ -29,16 +30,10 @@ export async function endBreak() {
 // request while it is in flight. By default nothing is cached, so the dashboard
 // (and every Check-in / Check-out decision) always gets a fresh server answer.
 // Only a caller that passes `maxAgeMs` (the break-reminder watcher) may reuse an
-// answer that recent — and only for the same signed-in token.
+// answer that recent — and only for the same signed-in account.
 let todayInFlight = null;
-let lastToday = null; // { at, token, data }
-const currentToken = () => {
-  try {
-    return localStorage.getItem('zorx_token');
-  } catch {
-    return null;
-  }
-};
+let lastToday = null; // { at, token, data } — `token` is the signed-in identity
+const currentToken = () => currentIdentity();
 export function getMyAttendanceToday({ maxAgeMs = 0 } = {}) {
   if (maxAgeMs > 0 && lastToday && lastToday.token === currentToken() && Date.now() - lastToday.at <= maxAgeMs) {
     return Promise.resolve(lastToday.data);
@@ -56,6 +51,11 @@ export function getMyAttendanceToday({ maxAgeMs = 0 } = {}) {
       });
   }
   return todayInFlight;
+}
+
+/** Start-up: today's answer that arrived with the session restore (/auth/refresh?include=today). */
+export function primeAttendanceToday(data) {
+  if (data) lastToday = { at: Date.now(), token: currentToken(), data };
 }
 
 export async function getMyAttendanceHistory(params = {}) {
