@@ -138,17 +138,29 @@ export const LEAVE_TYPE_LABEL = Object.freeze({
 // allowance (taken at the employee's own risk).
 export const MONTHLY_LEAVE_ALLOWANCE = Object.freeze({});
 
-// Accruing leave types: DAYS_PER_MONTH credited per calendar month, unused days
-// carry forward with no cap. Credits start from the later of the policy start
-// (START_YEAR/START_MONTH_INDEX — no back-dated credits before it) and the
-// joining month + ELIGIBLE_AFTER_JOINING_MONTHS. One shared calculation for both
-// (leaveService.creditStart / creditsThrough / getAvailable).
+// Accruing leave types: DAYS_PER_MONTH credited per calendar month. Credits start
+// from the later of the policy start (START_YEAR/START_MONTH_INDEX — no back-dated
+// credits before it) and the joining month + ELIGIBLE_AFTER_JOINING_MONTHS. One
+// shared calculation for both (leaveService.creditStart / creditsThrough / getAvailable).
+//  - no YEARLY_RESET: unused days carry forward with no cap (Casual);
+//  - YEARLY_RESET 'JOINING_MONTH': the leave year starts in the employee's joining
+//    month every year; credits and usage count within one leave year only, at most
+//    MAX_PER_YEAR, and unused days lapse when the next leave year starts (Sick).
 export const LEAVE_ACCRUAL = Object.freeze({
   // Casual: from the joining month itself.
   [LEAVE_TYPE.CASUAL]: Object.freeze({ DAYS_PER_MONTH: 1, START_YEAR: 2026, START_MONTH_INDEX: 9, ELIGIBLE_AFTER_JOINING_MONTHS: 0 }),
-  // Sick: from the second calendar month after the joining month (Sep → Nov, Dec → Feb);
-  // needs a joining date. Same policy start as Casual Leave (October 2026).
-  [LEAVE_TYPE.SICK]: Object.freeze({ DAYS_PER_MONTH: 1, START_YEAR: 2026, START_MONTH_INDEX: 9, ELIGIBLE_AFTER_JOINING_MONTHS: 2, REQUIRES_JOINING_DATE: true }),
+  // Sick (rule of 2026-11-23): 12 days per leave year, credited 1 per month; first credit in
+  // the second calendar month after the joining month (Sep → Nov, Dec → Feb); the leave year
+  // resets every year in the joining month. Needs a joining date. Policy start October 2026.
+  [LEAVE_TYPE.SICK]: Object.freeze({
+    DAYS_PER_MONTH: 1,
+    START_YEAR: 2026,
+    START_MONTH_INDEX: 9,
+    ELIGIBLE_AFTER_JOINING_MONTHS: 2,
+    REQUIRES_JOINING_DATE: true,
+    MAX_PER_YEAR: 12,
+    YEARLY_RESET: 'JOINING_MONTH',
+  }),
 });
 export const ACCRUING_LEAVE_TYPES = Object.freeze(Object.keys(LEAVE_ACCRUAL));
 

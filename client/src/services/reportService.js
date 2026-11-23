@@ -10,6 +10,18 @@ export const getLeaveReport = (params) => fetchReport('/reports/leave', params);
 export const getEmployeeReport = (params) => fetchReport('/reports/employees', params);
 export const getTaskReport = (params) => fetchReport('/reports/tasks', params);
 
+/** Reports → Leave history: one page of leave records plus meta (total, pages, period). */
+export async function getLeaveHistory(params) {
+  const { data } = await apiClient.get('/reports/leave', { params });
+  return { rows: data.data, meta: data.meta };
+}
+
+/** Reports → Leave statistics: approved leave taken in the period (+ Sick Leave balance for one employee). */
+export async function getLeaveStats(params) {
+  const { data } = await apiClient.get('/reports/leave/stats', { params });
+  return data.data;
+}
+
 /** Salary Report rows plus meta (month label, employee scope, total). */
 export async function getSalaryReport(params) {
   const { data } = await apiClient.get('/reports/salary', { params });

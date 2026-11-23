@@ -9,7 +9,7 @@ import { useToast } from '../../hooks/useToast.js';
 import { getErrorMessage } from '../../services/apiClient.js';
 import { countDaysInclusive } from '../../utils/calendarDate.js';
 import { formatDate } from '../../utils/formatters.js';
-import { formatLeaveDays, accruedAvailable, ACCRUING_TYPES } from './leaveFormat.js';
+import { formatLeaveDays, accruedAvailable, renewalText, ACCRUING_TYPES } from './leaveFormat.js';
 
 const LEAVE_OPTIONS = [
   { type: 'CASUAL', label: 'Casual Leave' },
@@ -208,7 +208,7 @@ export function LeaveRequestModal({ open, onClose, initialDate, initialHalfDaySe
           <div className="flex items-center gap-2 text-xs font-semibold text-brand-900 bg-brand-50 border border-brand-200 rounded-lg p-2.5">
             <Info size={16} className="text-brand-600 shrink-0" />
             <span>
-              {accruedLeft} {typeName} day{accruedLeft === 1 || accruedLeft === 0.5 ? '' : 's'} available for {monthLabel(form.startDate)}. Unused days carry forward.
+              {accruedLeft} {typeName} day{accruedLeft === 1 || accruedLeft === 0.5 ? '' : 's'} available for {monthLabel(form.startDate)}. {renewalText(accrued)}
             </span>
           </div>
         )}

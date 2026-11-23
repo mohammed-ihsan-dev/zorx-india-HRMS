@@ -16,7 +16,17 @@ import { buildAttendanceCalendar } from '../services/attendanceCalendarService.j
 import { displayTimeZoneFor, timeZoneLabel } from '../config/employeeTimeZones.js';
 import { OfficeSettings } from '../models/OfficeSettings.js';
 import { Holiday } from '../models/Holiday.js';
-import { ROLES, LEAVE_STATUS } from '../utils/constants.js';
+import { ROLES, LEAVE_STATUS, LEAVE_TYPE, LEAVE_TYPE_LABEL, LEAVE_DURATION } from '../utils/constants.js';
+import { getLeaveSummary } from '../services/leaveService.js';
+import {
+  resolveLeavePeriod,
+  parseDayKey,
+  leaveTypeCondition,
+  daysInPeriod,
+  summarizeTaken,
+  sickBalanceFrom,
+  csvCell,
+} from '../services/leaveReportService.js';
 
 function toCsv(rows, columns) {
   const header = columns.map((c) => c.label).join(',');
@@ -82,22 +92,61 @@ async function buildAttendanceFilter({ from, to, employeeId, departmentId }) {
   return filter;
 }
 
-// A leave overlaps the requested [from, to] window iff it starts on/before `to`
-// and ends on/after `from` — comparing only startDate (the previous behavior)
-// missed any multi-day leave that started before the selected range.
-async function buildLeaveFilter({ from, to, employeeId, departmentId, status, leaveType }) {
-  const filter = {};
-  if (employeeId) filter.employeeId = employeeId;
-  if (status) filter.status = status;
-  if (leaveType) filter.leaveType = leaveType;
-  if (from) filter.endDate = { $gte: new Date(from) };
-  if (to) filter.startDate = { $lte: new Date(to) };
-  if (departmentId) {
-    const employeeIds = await departmentEmployeeIds(departmentId);
-    filter.employeeId = filter.employeeId ? filter.employeeId : { $in: employeeIds };
-  }
-  return filter;
+/** Legacy from/to (no `period`): "YYYY-MM-DD" or any valid date; anything else is a 400, not a 500. */
+function legacyDate(value, label) {
+  if (!value) return null;
+  const d = parseDayKey(value) || new Date(value);
+  if (!Number.isFinite(d.getTime())) throw ApiError.badRequest(`Invalid ${label}.`);
+  return d;
 }
+
+/**
+ * Validated Leave Report query: the Mongo filter plus the reporting range.
+ * A leave belongs to [from, to] iff it starts on/before `to` and ends on/after
+ * `from` (so a multi-day leave that started before the range is included).
+ * With `period` (current_month | previous_month | custom | all) the range is
+ * resolved on the server in the HRMS timezone; without it, the legacy optional
+ * from/to are used unchanged. `forStats`: the status filter is ignored (taken
+ * totals are always APPROVED leave) and the period defaults to the current month.
+ */
+async function leaveReportQuery(query, { forStats = false } = {}) {
+  const { employeeId, departmentId, status, leaveType, period } = query;
+  if (employeeId && !mongoose.isValidObjectId(employeeId)) throw ApiError.badRequest('Invalid employee.');
+  if (departmentId && !mongoose.isValidObjectId(departmentId)) throw ApiError.badRequest('Invalid department.');
+  if (!forStats && status && !Object.values(LEAVE_STATUS).includes(status)) throw ApiError.badRequest('Invalid status filter.');
+  if (leaveType && !Object.values(LEAVE_TYPE).includes(leaveType)) throw ApiError.badRequest('Invalid leave type filter.');
+
+  const range =
+    period || forStats
+      ? resolveLeavePeriod({ period: period || undefined, from: query.from, to: query.to })
+      : { period: null, from: legacyDate(query.from, 'start date'), to: legacyDate(query.to, 'end date'), label: null };
+
+  const filter = {};
+  if (employeeId) filter.employeeId = new mongoose.Types.ObjectId(employeeId);
+  if (!forStats && status) filter.status = status;
+  if (leaveType) filter.leaveType = leaveTypeCondition(leaveType);
+  if (range.from) filter.endDate = { $gte: range.from };
+  if (range.to) filter.startDate = { $lte: range.to };
+  if (departmentId && !employeeId) filter.employeeId = { $in: await departmentEmployeeIds(departmentId) };
+  return { filter, range };
+}
+
+/** Approved leave taken in the range (one query, projected; each record counted once). */
+async function takenInRange(filter, range) {
+  const approved = await Leave.find({ ...filter, status: LEAVE_STATUS.APPROVED })
+    .select('leaveType status startDate endDate days duration')
+    .lean();
+  return summarizeTaken(approved, range.from, range.to);
+}
+
+const personName = (user) => {
+  const e = user?.employeeId;
+  const name = `${e?.firstName || ''} ${e?.lastName || ''}`.replace(/\s+/g, ' ').trim();
+  return name || user?.email || null;
+};
+const leaveDurationText = (r) =>
+  r.duration === LEAVE_DURATION.HALF_DAY ? `Half Day${r.halfDaySession ? ` (${r.halfDaySession.charAt(0)}${r.halfDaySession.slice(1).toLowerCase()})` : ''}` : 'Full Day';
+const dayKeyString = (d) => (d ? d.toISOString().slice(0, 10) : null);
 
 export const attendanceReport = asyncHandler(async (req, res) => {
   const { from, to } = req.query;
@@ -131,28 +180,115 @@ export const attendanceReport = asyncHandler(async (req, res) => {
   sendSuccess(res, { data: records });
 });
 
+/**
+ * GET /reports/leave — leave history (back office).
+ * Filters: employeeId, departmentId, status, leaveType ('LOP' also matches PAID/UNPAID),
+ * period (current_month | previous_month | custom + from/to | all) or legacy from/to.
+ * `page` (+ `limit`, max 100) → one page and meta.total; without it, every match
+ * (unchanged response for older callers). `format=csv` → every match plus a summary
+ * of approved leave taken in the period (the same numbers as /reports/leave/stats).
+ */
 export const leaveReport = asyncHandler(async (req, res) => {
-  const { from, to } = req.query;
-  const filter = await buildLeaveFilter(req.query);
-  const records = await Leave.find(filter).populate('employeeId', 'firstName lastName employeeCode').sort({ startDate: -1 });
+  const { filter, range } = await leaveReportQuery(req.query);
+  const isCsv = req.query.format === 'csv';
+  const paged = req.query.page !== undefined && !isCsv;
+  const pageNum = Math.max(1, Number.parseInt(req.query.page, 10) || 1);
+  const limitNum = Math.min(100, Math.max(1, Number.parseInt(req.query.limit, 10) || 10));
 
-  const columns = [
-    { label: 'Employee Code', value: (r) => r.employeeId?.employeeCode },
-    { label: 'Employee Name', value: (r) => `${r.employeeId?.firstName} ${r.employeeId?.lastName}` },
-    { label: 'Leave Type', value: (r) => r.leaveType },
-    { label: 'Start Date', value: (r) => formatDateOnly(r.startDate) },
-    { label: 'End Date', value: (r) => formatDateOnly(r.endDate) },
-    { label: 'Number of Days', value: (r) => r.days },
-    { label: 'Reason', value: (r) => r.reason },
-    { label: 'Status', value: (r) => r.status },
-    { label: 'Requested Date', value: (r) => formatDateOnly(r.createdAt) },
-    { label: 'Reviewed Date', value: (r) => formatDateOnly(r.reviewedAt) },
-  ];
+  let query = Leave.find(filter)
+    .populate('employeeId', 'firstName lastName employeeCode')
+    .populate({ path: 'reviewedBy', select: 'email employeeId', populate: { path: 'employeeId', select: 'firstName lastName' } })
+    .sort({ startDate: -1, createdAt: -1 })
+    .lean();
+  if (paged) query = query.skip((pageNum - 1) * limitNum).limit(limitNum);
+  const [records, total] = await Promise.all([query, paged ? Leave.countDocuments(filter) : null]);
 
-  if (req.query.format === 'csv') {
-    return sendCsv(res, `leave-report${rangeSuffix(from, to)}.csv`, toCsv(records, columns));
+  const rows = records.map((r) => ({
+    ...r,
+    // Days of this leave inside the reporting range (0.5 for a half day; part of a leave crossing the range edge).
+    daysInPeriod: daysInPeriod(r, range.from, range.to),
+    approvedByName: r.status === LEAVE_STATUS.APPROVED ? personName(r.reviewedBy) : null,
+  }));
+
+  if (isCsv) {
+    // Same totals as the statistics cards (the history's status filter never changes "taken").
+    const taken = await takenInRange(filter, range);
+    let employeeLabel = 'All Employees';
+    if (req.query.employeeId) {
+      const e = await Employee.findById(req.query.employeeId).select('firstName lastName').lean();
+      if (e) employeeLabel = employeeDisplayName(e);
+    }
+    const columns = [
+      ['Employee Code', (r) => r.employeeId?.employeeCode || ''],
+      ['Employee Name', (r) => employeeDisplayName(r.employeeId)],
+      ['Leave Type', (r) => LEAVE_TYPE_LABEL[r.leaveType] || r.leaveType],
+      ['Duration', (r) => leaveDurationText(r)],
+      ['Start Date', (r) => formatDateOnly(r.startDate)],
+      ['End Date', (r) => formatDateOnly(r.endDate)],
+      ['Number of Days', (r) => r.days],
+      ['Days In Period', (r) => r.daysInPeriod],
+      ['Reason', (r) => r.reason],
+      ['Status', (r) => r.status],
+      ['Approved By', (r) => r.approvedByName || ''],
+      ['Applied On', (r) => formatIstTimestamp(r.createdAt).slice(0, 10)],
+      ['Reviewed Date', (r) => (r.reviewedAt ? formatIstTimestamp(r.reviewedAt).slice(0, 10) : '')],
+    ];
+    const lines = [columns.map(([label]) => csvCell(label)).join(','), ...rows.map((r) => columns.map(([, value]) => csvCell(value(r))).join(','))];
+    const periodText = range.label || (range.from || range.to ? `${dayKeyString(range.from) || 'start'} to ${dayKeyString(range.to) || 'today'}` : 'All time');
+    const summary = [
+      ['Summary', ''],
+      ['Employee', employeeLabel],
+      ['Reporting Period', periodText],
+      ['Casual Leave Taken (approved days)', taken.casual],
+      ['Sick Leave Taken (approved days)', taken.sick],
+      ['LoP Taken (approved days)', taken.lop],
+      ...(taken.other ? [['Other Leave Taken (approved days)', taken.other]] : []),
+      ['Total Leave Taken (approved days)', taken.total],
+    ];
+    lines.push('', ...summary.map(([k, v]) => `${csvCell(k)},${csvCell(v)}`));
+    const who = req.query.employeeId && employeeLabel !== 'All Employees' ? `-${slugify(employeeLabel)}` : '';
+    const when = range.period ? (range.from ? `-${dayKeyString(range.from)}-to-${dayKeyString(range.to)}` : '-all-time') : rangeSuffix(req.query.from, req.query.to);
+    return sendCsv(res, `leave-report${who}${when}.csv`, lines.join('\n'));
   }
-  sendSuccess(res, { data: records });
+
+  const period = range.period ? { key: range.period, from: dayKeyString(range.from), to: dayKeyString(range.to), label: range.label } : undefined;
+  if (paged) {
+    return sendSuccess(res, { data: rows, meta: { total, page: pageNum, limit: limitNum, pages: Math.max(1, Math.ceil(total / limitNum)), period } });
+  }
+  sendSuccess(res, { data: rows, ...(period ? { meta: { total: rows.length, period } } : {}) });
+});
+
+/**
+ * GET /reports/leave/stats — statistics cards (back office).
+ * Taken totals: APPROVED leave only, clipped to the reporting period, half day = 0.5,
+ * every record once; filters: employeeId, departmentId, leaveType, period (default
+ * current month). With an employee: their Sick Leave balance from the existing leave
+ * balance logic (leaveService.getLeaveSummary) — today's entitlement, not the period.
+ */
+export const leaveReportStats = asyncHandler(async (req, res) => {
+  const { filter, range } = await leaveReportQuery(req.query, { forStats: true });
+  const { employeeId } = req.query;
+  const [taken, balance] = await Promise.all([
+    takenInRange(filter, range),
+    employeeId
+      ? Employee.findById(employeeId)
+          .select('firstName lastName employeeCode joiningDate status')
+          .lean()
+          .then(async (employee) => (employee ? { employee, summary: await getLeaveSummary(employee) } : null))
+      : null,
+  ]);
+  if (employeeId && !balance) throw ApiError.notFound('Employee not found.');
+
+  sendSuccess(res, {
+    data: {
+      period: { key: range.period, from: dayKeyString(range.from), to: dayKeyString(range.to), label: range.label },
+      employee: balance
+        ? { _id: balance.employee._id, name: employeeDisplayName(balance.employee), employeeCode: balance.employee.employeeCode || '', status: balance.employee.status }
+        : null,
+      taken,
+      sickBalance: balance ? sickBalanceFrom(balance.summary.types[LEAVE_TYPE.SICK], balance.employee) : null,
+    },
+  });
 });
 
 export const employeeReport = asyncHandler(async (req, res) => {

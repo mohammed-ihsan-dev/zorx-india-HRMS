@@ -11,7 +11,7 @@ import { useToast } from '../../hooks/useToast.js';
 import { getErrorMessage } from '../../services/apiClient.js';
 import { useMobileShell } from '../../context/MobileShellContext.jsx';
 import { MobileLeaveView } from '../../features/leave/MobileLeaveView.jsx';
-import { leaveTypeName } from '../../features/leave/leaveFormat.js';
+import { leaveTypeName, renewalNote } from '../../features/leave/leaveFormat.js';
 import { toDateInputValue } from '../../utils/calendarDate.js';
 
 const LEAVE_TYPE_ORDER = ['CASUAL', 'SICK', 'LOP'];
@@ -187,7 +187,7 @@ export function Leave() {
                       {info.available}{' '}
                       <span className="text-sm font-normal text-slate-500">day{info.available === 1 ? '' : 's'} available</span>
                       <span className="block text-xs font-medium text-slate-400 mt-0.5">
-                        +1 each month · unused days carry forward
+                        +1 each month · {renewalNote(info)}
                         {info.pending > 0 ? ` · ${info.pending} pending` : ''}
                       </span>
                     </>

@@ -123,17 +123,61 @@ export function creditStart(type, joiningDate, employeeId = null) {
   return fromIndex(Math.max(policy, joined, own));
 }
 
-/** `type` days earned from its credit start month through the month of `date`, inclusive. */
-export function creditsThrough(type, joiningDate, date, employeeId = null) {
-  const cfg = LEAVE_ACCRUAL[type];
-  if (cfg.REQUIRES_JOINING_DATE && (!joiningDate || Number.isNaN(new Date(joiningDate).getTime()))) return 0;
-  const months = monthIndex(date) - monthIndex(creditStart(type, joiningDate, employeeId)) + 1;
-  return Math.max(0, months) * cfg.DAYS_PER_MONTH;
+const validDate = (d) => Boolean(d) && !Number.isNaN(new Date(d).getTime());
+
+/**
+ * For a type with a yearly reset (Sick): the leave year containing `date`, as month
+ * indexes { start, end } (end exclusive), anchored on the joining month — joined
+ * September → Sep–Aug every year. null for carry-forward types (Casual) or without a
+ * joining date.
+ */
+export function leaveYearOf(type, joiningDate, date) {
+  if (!LEAVE_ACCRUAL[type]?.YEARLY_RESET || !validDate(joiningDate)) return null;
+  const anchor = monthIndex(joiningDate);
+  const m = monthIndex(date);
+  const start = m < anchor ? anchor : anchor + Math.floor((m - anchor) / 12) * 12;
+  return { start, end: start + 12 };
 }
 
-/** `type` days with one of `statuses` since that type's accrual began (earlier leave never counts). */
-export async function daysTaken(type, employeeId, statuses = ACTIVE_STATUSES, excludeLeaveId = null) {
-  const match = { employeeId, leaveType: type, status: { $in: statuses }, startDate: { $gte: fromIndex(policyStartIndex(type)) } };
+/** The leave year of `date` as dates { start, end } (end = the reset day, exclusive), or null. */
+export function leaveYearDates(type, joiningDate, date) {
+  const y = leaveYearOf(type, joiningDate, date);
+  return y ? { start: fromIndex(y.start), end: fromIndex(y.end) } : null;
+}
+
+/**
+ * `type` days earned through the month of `date`, inclusive: from its credit start
+ * month (carry-forward types), or — with a yearly reset — from the later of the credit
+ * start and the start of that leave year, capped at MAX_PER_YEAR.
+ */
+export function creditsThrough(type, joiningDate, date, employeeId = null) {
+  const cfg = LEAVE_ACCRUAL[type];
+  if (cfg.REQUIRES_JOINING_DATE && !validDate(joiningDate)) return 0;
+  const year = leaveYearOf(type, joiningDate, date);
+  const first = Math.max(monthIndex(creditStart(type, joiningDate, employeeId)), year ? year.start : -Infinity);
+  const credits = Math.max(0, monthIndex(date) - first + 1) * cfg.DAYS_PER_MONTH;
+  return cfg.MAX_PER_YEAR ? Math.min(cfg.MAX_PER_YEAR, credits) : credits;
+}
+
+/**
+ * The full entitlement of the leave year containing `date` (credits through its last
+ * month): 12 in a full year; less in the first year (eligibility starts two months
+ * after joining) or where the policy start falls inside the year. null without a reset.
+ */
+export function yearlyAllowance(type, joiningDate, date, employeeId = null) {
+  const year = leaveYearOf(type, joiningDate, date);
+  return year ? creditsThrough(type, joiningDate, fromIndex(year.end - 1), employeeId) : null;
+}
+
+/**
+ * `type` days with one of `statuses` since that type's accrual began (earlier leave never
+ * counts) — with `year` ({ start, end } dates), only leave starting inside that leave year.
+ */
+export async function daysTaken(type, employeeId, statuses = ACTIVE_STATUSES, excludeLeaveId = null, year = null) {
+  const policyStart = fromIndex(policyStartIndex(type));
+  const startDate = { $gte: year && year.start > policyStart ? year.start : policyStart };
+  if (year) startDate.$lt = year.end;
+  const match = { employeeId, leaveType: type, status: { $in: statuses }, startDate };
   if (excludeLeaveId) match._id = { $ne: excludeLeaveId };
   const [row] = await Leave.aggregate([{ $match: match }, { $group: { _id: null, days: { $sum: '$days' } } }]);
   return row?.days || 0;
@@ -141,12 +185,13 @@ export async function daysTaken(type, employeeId, statuses = ACTIVE_STATUSES, ex
 
 /**
  * `type` days available for a leave starting on `date`: credits earned through
- * that month minus every other pending/approved day of that type (wherever dated).
- * Counting all other days, not just earlier ones, means no combination of
- * requests can ever spend more than has been earned.
+ * that month minus every other pending/approved day of that type (wherever dated —
+ * within the same leave year for a yearly-reset type). Counting all other days, not
+ * just earlier ones, means no combination of requests can ever spend more than has been earned.
  */
 export async function getAvailable(type, employee, date, { statuses = ACTIVE_STATUSES, excludeLeaveId = null } = {}) {
-  return creditsThrough(type, employee.joiningDate, date, employee._id) - (await daysTaken(type, employee._id, statuses, excludeLeaveId));
+  const year = leaveYearDates(type, employee.joiningDate, date);
+  return creditsThrough(type, employee.joiningDate, date, employee._id) - (await daysTaken(type, employee._id, statuses, excludeLeaveId, year));
 }
 
 // Casual Leave names, kept for existing callers (same results as before).
@@ -244,8 +289,12 @@ export async function withEmployeeLeaveLock(employeeId, fn) {
 /** One accruing type's balance (same shape for Casual and Sick). */
 async function accruedBalance(type, employee, referenceDate) {
   const credited = creditsThrough(type, employee.joiningDate, referenceDate, employee._id);
-  const approved = await daysTaken(type, employee._id, [LEAVE_STATUS.APPROVED]);
-  const pending = await daysTaken(type, employee._id, [LEAVE_STATUS.PENDING]);
+  // Yearly-reset types (Sick) count usage inside the current leave year only.
+  const year = leaveYearDates(type, employee.joiningDate, referenceDate);
+  const [approved, pending] = await Promise.all([
+    daysTaken(type, employee._id, [LEAVE_STATUS.APPROVED], null, year),
+    daysTaken(type, employee._id, [LEAVE_STATUS.PENDING], null, year),
+  ]);
   return {
     accruesPerMonth: LEAVE_ACCRUAL[type].DAYS_PER_MONTH,
     creditStart: creditStart(type, employee.joiningDate, employee._id),
@@ -253,6 +302,15 @@ async function accruedBalance(type, employee, referenceDate) {
     approved,
     pending,
     available: Math.max(0, credited - approved - pending),
+    ...(LEAVE_ACCRUAL[type].YEARLY_RESET
+      ? {
+          maxPerYear: LEAVE_ACCRUAL[type].MAX_PER_YEAR,
+          // This leave year (null without a joining date): its first month, the reset day and its full entitlement.
+          leaveYearStart: year?.start || null,
+          resetsOn: year?.end || null,
+          yearlyAllowance: year ? yearlyAllowance(type, employee.joiningDate, referenceDate, employee._id) : 0,
+        }
+      : {}),
   };
 }
 

@@ -10,6 +10,7 @@ router.use(requireAuth, requireRole(...BACK_OFFICE_ROLES));
 
 router.get('/attendance', reportController.attendanceReport);
 router.get('/leave', reportController.leaveReport);
+router.get('/leave/stats', reportController.leaveReportStats);
 router.get('/employees', reportController.employeeReport);
 router.get('/tasks', reportController.taskReport);
 router.get('/salary', reportController.salaryReport);

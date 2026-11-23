@@ -5,7 +5,7 @@ import { User } from '../src/models/User.js';
 import { Employee } from '../src/models/Employee.js';
 import { Leave } from '../src/models/Leave.js';
 import * as leaveService from '../src/services/leaveService.js';
-import { ROLES, LEAVE_TYPE } from '../src/utils/constants.js';
+import { ROLES, LEAVE_TYPE, LEAVE_STATUS } from '../src/utils/constants.js';
 
 // Sick Leave = the Casual Leave accrual (1/month, unlimited carry-forward,
 // pending holds, approval re-checks) with its own start: the second calendar
@@ -69,14 +69,33 @@ describe('eligibility: joining month + 2 calendar months', () => {
   });
 });
 
-describe('accrual and carry-forward (pure calculation)', () => {
-  test('September joiner: none in Sep/Oct, then 1 per month, carried forward without a cap', () => {
+describe('accrual within the leave year (pure calculation)', () => {
+  test('September joiner: none in Sep/Oct, then 1 per month; first leave year (Sep–Aug) gives 10', () => {
     expect(credits('2026-09-10', '2026-09-30')).toBe(0);
     expect(credits('2026-09-10', '2026-10-31')).toBe(0);
     expect(credits('2026-09-10', '2026-11-15')).toBe(1);
     expect(credits('2026-09-10', '2026-12-15')).toBe(2);
-    expect(credits('2026-09-10', '2027-02-15')).toBe(4);
-    expect(credits('2026-09-10', '2028-10-15')).toBe(24); // no cap
+    expect(credits('2026-09-10', '2027-02-15')).toBe(4); // carried forward inside the leave year
+    expect(credits('2026-09-10', '2027-08-31')).toBe(10); // Nov–Aug
+  });
+  test('yearly reset in the joining month: unused days lapse, credits restart, never more than 12 a year', () => {
+    expect(credits('2026-09-10', '2027-09-01')).toBe(1); // new leave year starts September 2027
+    expect(credits('2026-09-10', '2028-02-15')).toBe(6);
+    expect(credits('2026-09-10', '2028-08-15')).toBe(12); // a full leave year
+    expect(credits('2026-09-10', '2028-09-15')).toBe(1);
+  });
+  test('leave year boundaries and the yearly entitlement', () => {
+    const y = leaveService.leaveYearDates(LEAVE_TYPE.SICK, day('2026-09-10'), day('2027-03-01'));
+    expect([y.start.toISOString().slice(0, 10), y.end.toISOString().slice(0, 10)]).toEqual(['2026-09-01', '2027-09-01']);
+    expect(leaveService.yearlyAllowance(LEAVE_TYPE.SICK, day('2026-09-10'), day('2027-03-01'))).toBe(10); // first year
+    expect(leaveService.yearlyAllowance(LEAVE_TYPE.SICK, day('2026-09-10'), day('2027-10-01'))).toBe(12);
+    // Joined before the policy start: the 2026 leave year (Jan–Dec) only has Oct–Dec; 2027 is a full 12.
+    expect(leaveService.yearlyAllowance(LEAVE_TYPE.SICK, day('2025-01-20'), day('2026-11-23'))).toBe(3);
+    expect(leaveService.yearlyAllowance(LEAVE_TYPE.SICK, day('2025-01-20'), day('2027-01-05'))).toBe(12);
+  });
+  test('Casual Leave is unchanged: no leave year, no reset, no cap', () => {
+    expect(leaveService.leaveYearOf(LEAVE_TYPE.CASUAL, day('2026-09-10'), day('2027-09-01'))).toBeNull();
+    expect(leaveService.creditsThrough(LEAVE_TYPE.CASUAL, day('2026-09-10'), day('2028-10-15'))).toBe(25); // Oct 2026 – Oct 2028
   });
   test('November joiner: first credit in January 2027', () => {
     expect(credits('2026-11-05', '2026-12-31')).toBe(0);
@@ -89,9 +108,43 @@ describe('accrual and carry-forward (pure calculation)', () => {
   });
 });
 
+describe('yearly reset with real leave records', () => {
+  const emp = (id) => ({ _id: id, joiningDate: day('2026-09-10') });
+  const add = (employeeId, start, days, status = LEAVE_STATUS.APPROVED) =>
+    Leave.create({ employeeId, leaveType: LEAVE_TYPE.SICK, startDate: day(start), endDate: new Date(day(start).getTime() + (days - 1) * 86_400_000), days, reason: 'Unwell', status });
+
+  test('usage and unused days stay inside their own leave year', async () => {
+    const { employee } = await setup(ROLES.EMPLOYEE, 'reset@zorx.test', day('2026-09-10'));
+    const e = emp(employee._id);
+    await add(employee._id, '2027-08-02', 3); // 3 of the first year's 10
+    await expect(leaveService.assertLeaveAllowed(e, LEAVE_TYPE.SICK, day('2027-08-20'), 7)).resolves.toBeUndefined();
+    await expect(leaveService.assertLeaveAllowed(e, LEAVE_TYPE.SICK, day('2027-08-20'), 8)).rejects.toMatchObject({ statusCode: 400 });
+    // September 2027: a new leave year — 1 credit; last year's 7 unused days lapsed, last year's usage doesn't count.
+    await expect(leaveService.assertLeaveAllowed(e, LEAVE_TYPE.SICK, day('2027-09-15'), 1)).resolves.toBeUndefined();
+    await expect(leaveService.assertLeaveAllowed(e, LEAVE_TYPE.SICK, day('2027-09-15'), 2)).rejects.toMatchObject({ statusCode: 400 });
+    // A leave in the new year doesn't reduce the old year either.
+    await add(employee._id, '2027-09-15', 1);
+    await expect(leaveService.assertLeaveAllowed(e, LEAVE_TYPE.SICK, day('2027-08-20'), 7)).resolves.toBeUndefined();
+    // Rejected and cancelled leave never count.
+    await add(employee._id, '2027-08-05', 1, LEAVE_STATUS.REJECTED);
+    await add(employee._id, '2027-08-06', 1, LEAVE_STATUS.CANCELLED);
+    await expect(leaveService.assertLeaveAllowed(e, LEAVE_TYPE.SICK, day('2027-08-20'), 7)).resolves.toBeUndefined();
+  });
+
+  test('the summary reports the leave year, its entitlement and the reset day', async () => {
+    const { employee } = await setup(ROLES.EMPLOYEE, 'sum@zorx.test', day('2026-09-10'));
+    await add(employee._id, '2027-01-11', 0.5);
+    const s = (await leaveService.getLeaveSummary(emp(employee._id), day('2027-03-15'))).types.SICK;
+    expect(s).toMatchObject({ credited: 5, approved: 0.5, pending: 0, available: 4.5, yearlyAllowance: 10, maxPerYear: 12 });
+    expect(s.leaveYearStart.toISOString().slice(0, 10)).toBe('2026-09-01');
+    expect(s.resetsOn.toISOString().slice(0, 10)).toBe('2027-09-01');
+  });
+});
+
 describe('Sick Leave over the API (same workflow as Casual Leave)', () => {
-  // Joined long ago → credits since the policy start; balances come from creditsThrough.
-  const JOINED = '2026-05-01';
+  // Joined 8 months before this month: the leave year (anchored on the joining month)
+  // covers every month these tests use, so they hold whatever the current date is.
+  const JOINED = monthStart(-8).toISOString().slice(0, 10);
   const creditFor = (k) => leaveService.creditsThrough(LEAVE_TYPE.SICK, day(JOINED), monthStart(k));
 
   test('before the first eligible month a request is refused with the month', async () => {

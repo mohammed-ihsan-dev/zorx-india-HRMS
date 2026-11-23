@@ -7,7 +7,6 @@ import { Tabs } from '../../components/Tabs.jsx';
 import { EmptyState } from '../../components/EmptyState.jsx';
 import * as departmentService from '../../services/departmentService.js';
 import {
-  getLeaveReport,
   getEmployeeReport,
   getTaskReport,
   downloadReportCsv,
@@ -17,7 +16,7 @@ import { useAuth } from '../../hooks/useAuth.js';
 import { BACK_OFFICE_ROLES } from '../../utils/constants.js';
 import { SalaryReport } from '../../features/reports/SalaryReport.jsx';
 import { AttendanceCalendarReport } from '../../features/reports/AttendanceCalendarReport.jsx';
-import { leaveTypeName } from '../../features/leave/leaveFormat.js';
+import { LeaveReport } from '../../features/reports/LeaveReport.jsx';
 
 const REPORT_TABS = [
   { key: 'attendance', label: 'Attendance', icon: CalendarClock },
@@ -28,14 +27,11 @@ const REPORT_TABS = [
 // Super Admin and HR (Admin) only; the API enforces the same roles.
 const SALARY_TAB = { key: 'salary', label: 'Salary', icon: Wallet };
 
-const LEAVE_STATUS_OPTIONS = ['', 'PENDING', 'APPROVED', 'REJECTED', 'CANCELLED'];
-const LEAVE_TYPE_OPTIONS = ['', 'CASUAL', 'SICK', 'LOP'];
 const EMPLOYEE_STATUS_OPTIONS = ['', 'ACTIVE', 'INACTIVE'];
 const TASK_STATUS_OPTIONS = ['', 'TODO', 'IN_PROGRESS', 'IN_REVIEW', 'COMPLETED', 'CANCELLED'];
 
 const REPORT_CONFIG = {
   employees: { path: '/reports/employees', fetch: getEmployeeReport, label: 'Employee Report' },
-  leave: { path: '/reports/leave', fetch: getLeaveReport, label: 'Leave Report' },
   tasks: { path: '/reports/tasks', fetch: getTaskReport, label: 'Task Report' },
 };
 
@@ -46,13 +42,12 @@ export function Reports() {
   const tabs = canSeeSalary ? [...REPORT_TABS, SALARY_TAB] : REPORT_TABS;
   const [activeTab, setActiveTab] = useState('attendance');
   const isSalary = activeTab === 'salary';
-  // Calendar tabs load on their own (Salary: Generate Report; Attendance: employee + month).
-  const isCalendarTab = isSalary || activeTab === 'attendance';
+  // These tabs load their own data (Salary: Generate Report; Attendance: employee + month; Leave: filters + statistics).
+  const isCalendarTab = isSalary || activeTab === 'attendance' || activeTab === 'leave';
   const [departments, setDepartments] = useState([]);
 
   const [filters, setFilters] = useState({
     employees: { from: '', to: '', departmentId: '', status: '' },
-    leave: { from: '', to: '', status: '', leaveType: '' },
     tasks: { from: '', to: '', status: '' },
   });
 
@@ -126,6 +121,10 @@ export function Reports() {
           <div className="pt-6">
             <AttendanceCalendarReport />
           </div>
+        ) : activeTab === 'leave' ? (
+          <div className="pt-6">
+            <LeaveReport />
+          </div>
         ) : (
         <div className="pt-6">
           <CardHeader title={REPORT_CONFIG[activeTab].label} subtitle="Filters apply directly to the exported data." />
@@ -158,27 +157,6 @@ export function Reports() {
                   hint="Optional — filters by joining date"
                 />
                 <Input label="Joined To" type="date" className="w-44" value={filters.employees.to} onChange={setFilter('to')} />
-              </>
-            )}
-
-            {activeTab === 'leave' && (
-              <>
-                <Input label="Start Date" type="date" className="w-44" value={filters.leave.from} onChange={setFilter('from')} />
-                <Input label="End Date" type="date" className="w-44" value={filters.leave.to} onChange={setFilter('to')} />
-                <Select label="Status" className="w-40" value={filters.leave.status} onChange={setFilter('status')}>
-                  {LEAVE_STATUS_OPTIONS.map((s) => (
-                    <option key={s} value={s}>
-                      {s || 'All Statuses'}
-                    </option>
-                  ))}
-                </Select>
-                <Select label="Leave Type" className="w-40" value={filters.leave.leaveType} onChange={setFilter('leaveType')}>
-                  {LEAVE_TYPE_OPTIONS.map((t) => (
-                    <option key={t} value={t}>
-                      {t ? leaveTypeName(t) : 'All Types'}
-                    </option>
-                  ))}
-                </Select>
               </>
             )}
 

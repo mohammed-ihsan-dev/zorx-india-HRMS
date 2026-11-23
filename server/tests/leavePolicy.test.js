@@ -8,6 +8,7 @@ import { LeaveBalance } from '../src/models/LeaveBalance.js';
 import { LeaveLock } from '../src/models/LeaveLock.js';
 import { Notification } from '../src/models/Notification.js';
 import { ROLES, LEAVE_TYPE } from '../src/utils/constants.js';
+import { creditsThrough } from '../src/services/leaveService.js';
 
 const app = createApp();
 const PASSWORD = 'Test@12345';
@@ -80,9 +81,11 @@ describe('Sick Leave', () => {
     expect(res.body.message).toMatch(/second calendar month after your joining month/);
   });
 
-  test('accrues and carries forward like Casual Leave: all accrued days together, one more refused', async () => {
+  test('accrues within its leave year (reset in the joining month): all accrued days together, one more refused', async () => {
     const { token } = await longServing();
-    const n = CREDITS_BY_FUTURE_MONTH; // same policy start and 1/month as Casual for a long-serving employee
+    // 1/month like Casual, but counted inside the leave year that starts in the joining month (January here).
+    const n = creditsThrough(LEAVE_TYPE.SICK, new Date('2024-01-15'), new Date(future(10)));
+    expect(n).toBeGreaterThanOrEqual(1);
     expect((await submit(token, LEAVE_TYPE.SICK, future(10), addDays(future(10), n - 1))).status).toBe(201);
     const over = await submit(token, LEAVE_TYPE.SICK, future(25));
     expect(over.status).toBe(400);

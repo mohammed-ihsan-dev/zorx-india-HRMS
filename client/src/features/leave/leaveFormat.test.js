@@ -27,12 +27,29 @@ test('accruedAvailable: Casual and Sick both credit 1/month from creditStart and
   assert.equal(accruedAvailable(null, '2026-12-01'), null);
 });
 
+test('accruedAvailable: Sick Leave counts within its leave year (reset in the joining month, max 12)', async () => {
+  const { accruedAvailable, renewalText, renewalNote } = await import('./leaveFormat.js');
+  // Joined Sep 2026: leave year Sep 2026 – Aug 2027, first credit Nov 2026.
+  const sick = { creditStart: '2026-11-01T00:00:00.000Z', accruesPerMonth: 1, approved: 1, pending: 0, leaveYearStart: '2026-09-01T00:00:00.000Z', resetsOn: '2027-09-01T00:00:00.000Z', maxPerYear: 12 };
+  assert.equal(accruedAvailable(sick, '2027-02-03'), 3); // Nov–Feb = 4, minus 1 approved
+  assert.equal(accruedAvailable(sick, '2027-08-30'), 9); // Nov–Aug = 10
+  assert.equal(accruedAvailable(sick, '2027-09-02'), null); // next leave year: the server decides
+  const later = { ...sick, creditStart: '2026-11-01T00:00:00.000Z', leaveYearStart: '2027-09-01T00:00:00.000Z', resetsOn: '2028-09-01T00:00:00.000Z', approved: 0 };
+  assert.equal(accruedAvailable(later, '2028-08-15'), 12); // a full year never exceeds 12
+  assert.equal(renewalText(sick), 'Up to 12 a year · resets 1 Sep 2027.');
+  assert.equal(renewalNote({ creditStart: 'x' }), 'unused days carry forward');
+});
+
 test('balanceLine for HR review: same numbers as the summary', async () => {
   const { balanceLine } = await import('./leaveFormat.js');
   const sick = { creditStart: '2026-11-01T00:00:00.000Z', accruesPerMonth: 1, credited: 4, approved: 1, pending: 1, available: 2, eligibleNow: true };
   assert.equal(balanceLine('SICK', sick), 'Sick Leave: 2 available · 1 pending · 1 approved · 4 credited since Nov 2026.');
   assert.equal(balanceLine('SICK', { ...sick, eligibleNow: false }), 'Sick Leave: not yet eligible (first month Nov 2026).');
   assert.equal(balanceLine('LOP', { allowance: null, used: 2 }), 'LoP: 2 days used this month (no allowance).');
+  assert.equal(
+    balanceLine('SICK', { ...sick, credited: 3, yearlyAllowance: 10, resetsOn: '2027-09-01T00:00:00.000Z', maxPerYear: 12 }),
+    'Sick Leave: 2 available · 1 pending · 1 approved · 3 of 10 credited this leave year (resets 1 Sep 2027).'
+  );
 });
 
 test('LoP naming (old PAID records read as LoP)', () => {

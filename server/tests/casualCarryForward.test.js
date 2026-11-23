@@ -151,11 +151,11 @@ describe('concurrency', () => {
 });
 
 describe('other leave types and history are unaffected', () => {
-  test('Sick Leave uses its own accrued balance (no 1-per-month cap), separate from Casual; LoP stays unlimited', async () => {
+  test('Sick Leave uses its own balance (its own leave year, reset in the joining month), separate from Casual; LoP stays unlimited', async () => {
     const { employee: emp, token } = await employee();
     await keepCasual(emp._id, 0);
     const sick = creditsThrough(LEAVE_TYPE.SICK, emp.joiningDate, new Date(at(0, 10)));
-    expect(sick).toBeGreaterThanOrEqual(2);
+    expect(sick).toBeGreaterThanOrEqual(1); // credited within the current Sick Leave year
     expect((await submit(token, LEAVE_TYPE.SICK, at(0, 10), at(0, 9 + sick))).status).toBe(201); // all accrued days together
     expect((await submit(token, LEAVE_TYPE.SICK, at(0, 25))).status).toBe(400);
     expect((await submit(token, LEAVE_TYPE.LOP, at(0, 14), at(0, 18))).status).toBe(201);
